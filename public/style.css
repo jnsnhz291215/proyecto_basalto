@@ -1,0 +1,11 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+  
+  .dia {
+    border: 1px solid #ccc;
+    padding: 10px;
+    min-height: 60px;
+  }
+  

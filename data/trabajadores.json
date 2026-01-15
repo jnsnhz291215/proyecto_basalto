@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "nombre": "Grupo A",
+    "color": "#3b82f6",
+    "dias": [
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes"
+    ]
+  }
+]
