@@ -2,20 +2,126 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Calendario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario de Turnos</title>
   <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.js"></script>
-
 </head>
-<button id="cerrar">Cerrar aplicación</button>
-
 <body>
-  <h1>Calendario de Turnos</h1>
+  <div class="container">
+    <!-- Botones laterales izquierdos -->
+    <div class="sidebar-left">
+      <button id="btn-guardar" class="btn btn-blue">Guardar cambios</button>
+      <button id="btn-gestionar" class="btn btn-purple">Gestionar trabajadores</button>
+      <button id="btn-agregar" class="btn btn-grey">Agregar trabajador</button>
+      <button id="btn-recargar" class="btn btn-grey">Recargar base de datos</button>
+      <button id="btn-salir" class="btn btn-red">SALIR Y CERRAR</button>
+    </div>
 
-  <div id="calendario"></div>
+    <!-- Contenido principal -->
+    <div class="main-content">
+      <!-- Header del calendario -->
+      <div class="calendar-header">
+        <h1 id="month-year">Enero 2026</h1>
+        <div class="header-controls">
+          <button id="prev-month" class="nav-arrow">←</button>
+          <button id="next-month" class="nav-arrow">→</button>
+          <button id="btn-hoy" class="btn-today">Volver a hoy (<span id="fecha-hoy">19/01/2026</span>)</button>
+        </div>
+      </div>
 
-  <button id="guardar">Guardar cambios</button>
+      <!-- Calendario -->
+      <div class="calendar-wrapper">
+        <div class="weekdays">
+          <div>Lunes</div>
+          <div>Martes</div>
+          <div>Miércoles</div>
+          <div>Jueves</div>
+          <div>Viernes</div>
+          <div>Sábado</div>
+          <div>Domingo</div>
+        </div>
+        <div id="days-grid" class="days-grid"></div>
+      </div>
+    </div>
 
-  <script src="app.js"></script>
+    <!-- Referencia de grupos -->
+    <div class="sidebar-right">
+      <div class="referencia">
+        <h3>Referencia</h3>
+        <div id="grupos-leyenda"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de detalle del día -->
+  <div id="day-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <h2 id="modal-date-title">Detalle del día</h2>
+      <div id="modal-date-subtitle"></div>
+      <div id="trabajadores-del-dia" class="trabajadores-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación -->
+  <div id="confirm-modal" class="confirm-modal">
+    <div class="confirm-modal-content">
+      <h3 id="confirm-title">Confirmar acción</h3>
+      <p id="confirm-message">¿Está seguro de realizar esta acción?</p>
+      <div class="confirm-modal-buttons">
+        <button id="confirm-cancel" class="confirm-btn confirm-btn-secondary">Cancelar</button>
+        <button id="confirm-ok" class="confirm-btn confirm-btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para agregar trabajador -->
+  <div id="add-worker-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <span class="close-modal" id="close-add-modal">&times;</span>
+      <h2>Agregar Trabajador</h2>
+      <form id="form-agregar-trabajador">
+        <div class="form-group">
+          <label for="nombre">Nombre/s *</label>
+          <input type="text" id="nombre" name="nombre" placeholder="Ej: Juan o Juan Carlos" required>
+        </div>
+        <div class="form-group">
+          <label for="apellido">Apellido/s *</label>
+          <input type="text" id="apellido" name="apellido" placeholder="Ej: Perez o Perez Gomez" required>
+        </div>
+        <div class="form-group">
+          <label for="rut">RUT * <span style="font-size: 12px; color: #6b7280;">(sin puntos ni guion)</span></label>
+          <input type="text" id="rut" name="rut" placeholder="123456789" maxlength="9" required>
+        </div>
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" placeholder="ejemplo@correo.com" required>
+        </div>
+        <div class="form-group">
+          <label for="telefono">Teléfono *</label>
+          <div style="display: flex; align-items: center;">
+            <span style="padding: 10px; background-color: #f3f4f6; border: 2px solid #d1d5db; border-right: none; border-radius: 6px 0 0 6px;">+56</span>
+            <input type="tel" id="telefono" name="telefono" placeholder="934946889" style="border-radius: 0 6px 6px 0; border-left: none;" maxlength="9" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="grupo">Grupo *</label>
+          <select id="grupo" name="grupo" required>
+            <option value="">Seleccione un grupo</option>
+            <option value="A">Grupo A</option>
+            <option value="B">Grupo B</option>
+            <option value="C">Grupo C</option>
+            <option value="D">Grupo D</option>
+          </select>
+        </div>
+        <div class="confirm-modal-buttons">
+          <button type="button" id="cancel-add" class="confirm-btn confirm-btn-secondary">Cancelar</button>
+          <button type="submit" class="confirm-btn confirm-btn-primary">Agregar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>

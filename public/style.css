@@ -1,11 +1,480 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-  }
-  
-  .dia {
-    border: 1px solid #ccc;
-    padding: 10px;
-    min-height: 60px;
-  }
-  
+  font-family: sans-serif;
+  background-color: #ffffff;
+  padding: 20px;
+  margin: 0;
+}
+
+.container {
+  display: flex;
+  gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  height: calc(100vh - 40px);
+}
+
+/* Sidebar izquierdo */
+.sidebar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-width: 200px;
+}
+
+.btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-family: sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-blue {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-purple {
+  background-color: #9333ea;
+  color: white;
+}
+
+.btn-grey {
+  background-color: #9ca3af;
+  color: white;
+}
+
+.btn-red {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Contenido principal */
+.main-content {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.calendar-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-arrow {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.nav-arrow:hover {
+  background-color: #f3f4f6;
+}
+
+.btn-today {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-today:hover {
+  opacity: 0.9;
+}
+
+/* Calendario */
+.calendar-wrapper {
+  background-color: white;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.weekdays div {
+  text-align: center;
+  padding: 10px;
+  font-weight: 600;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.day-cell {
+  border: 2px solid #000000;
+  border-radius: 8px;
+  min-height: 100px;
+  display: flex;
+  position: relative;
+  background-color: white;
+  cursor: default;
+}
+
+.day-cell.split {
+  border-left: 2px solid #000000;
+  border-right: 2px solid #000000;
+  border-top: 2px solid #000000;
+  border-bottom: 2px solid #000000;
+}
+
+.day-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-right: 2px solid #000000;
+  cursor: pointer;
+  position: relative;
+  flex-direction: column;
+}
+
+.day-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  gap: 2px;
+}
+
+.day-number {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.day-cell.outside-month .day-number {
+  color: #9ca3af;
+}
+
+.day-cell.inside-month .day-number {
+  color: #000000;
+}
+
+.day-cell.holiday .day-number {
+  color: #ef4444;
+}
+
+.hoy-badge {
+  background-color: #ef4444;
+  color: white;
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.grupo-block {
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  width: 100%;
+}
+
+.grupo-block.manana {
+  margin-bottom: 2px;
+}
+
+.grupo-block.tarde {
+  margin-top: 2px;
+}
+
+/* Sidebar derecho - Referencia */
+.sidebar-right {
+  min-width: 180px;
+}
+
+.referencia {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.referencia h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.grupo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.grupo-color {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 2px solid white;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.close-modal {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #6b7280;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.close-modal:hover {
+  color: #1f2937;
+}
+
+.modal-content h2 {
+  margin-bottom: 10px;
+  color: #1f2937;
+}
+
+#modal-date-subtitle {
+  color: #6b7280;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.trabajadores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.trabajador-item {
+  padding: 15px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+}
+
+.trabajador-item.manana {
+  margin-bottom: 8px;
+}
+
+.trabajador-item.tarde {
+  margin-top: 8px;
+}
+
+.horario-label {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Modal de confirmación */
+.confirm-modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+}
+
+.confirm-modal.show {
+  display: flex;
+}
+
+.confirm-modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-modal-content h3 {
+  margin-bottom: 15px;
+  color: #1f2937;
+  font-size: 20px;
+}
+
+.confirm-modal-content p {
+  margin-bottom: 25px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.confirm-modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-family: sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.confirm-btn:hover {
+  opacity: 0.9;
+}
+
+.confirm-btn-primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.confirm-btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.confirm-btn-secondary {
+  background-color: #9ca3af;
+  color: white;
+}
+
+/* Formulario agregar trabajador */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #1f2937;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-family: sans-serif;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group input[type="text"] {
+  width: 100%;
+}
+
+.form-group label span {
+  font-weight: normal;
+}
+
+.form-group > div {
+  display: flex;
+  align-items: stretch;
+}
+
+.form-group input[style*="border-left: none"] {
+  flex: 1;
+}
