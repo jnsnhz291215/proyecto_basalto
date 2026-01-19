@@ -1,14 +1,34 @@
 [
   {
-    "id": 1,
-    "nombre": "Grupo A",
-    "color": "#3b82f6",
-    "dias": [
-      "Lunes",
-      "Martes",
-      "Miércoles",
-      "Jueves",
-      "Viernes"
-    ]
+    "nombre": "Juan",
+    "apellido": "Perez",
+    "rut": "12345678-9",
+    "email": "juan.perez@basalto.cl",
+    "telefono": "1234567890",
+    "grupo": "A"
+  },
+  {
+    "nombre": "Pedro",
+    "apellido": "Gomez",
+    "rut": "87654321-0",
+    "email": "pedro.gomez@basalto.cl",
+    "telefono": "1234567891",
+    "grupo": "C"
+  },
+  {
+    "nombre": "Maria",
+    "apellido": "Gomez",
+    "rut": "11223344-5",
+    "email": "maria.gomez@basalto.cl",
+    "telefono": "1234567892",
+    "grupo": "D"
+  },
+  {
+    "nombre": "Roberto",
+    "apellido": "Yáñez",
+    "rut": "219113668",
+    "email": "asd@asd.cl",
+    "telefono": "56934946889",
+    "grupo": "B"
   }
 ]
