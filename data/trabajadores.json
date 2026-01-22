@@ -30,5 +30,13 @@
     "email": "asd@asd.cl",
     "telefono": "56934946889",
     "grupo": "B"
+  },
+  {
+    "nombre": "Valeska",
+    "apellido": "Sanhueza",
+    "rut": "12345678-7",
+    "email": "txt@txt.cl",
+    "telefono": "+56934946889",
+    "grupo": "B"
   }
 ]
