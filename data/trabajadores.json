@@ -126,5 +126,37 @@
     "email": "monica.ortega@basalto.cl",
     "telefono": "+56970890123",
     "grupo": "H"
+  },
+  {
+    "nombre": "Pablo",
+    "apellido": "Silva",
+    "rut": "80901234-5",
+    "email": "pablo.silva@basalto.cl",
+    "telefono": "+56980901234",
+    "grupo": "J"
+  },
+  {
+    "nombre": "Claudia",
+    "apellido": "Nunez",
+    "rut": "90123456-6",
+    "email": "claudia.nunez@basalto.cl",
+    "telefono": "+56990123456",
+    "grupo": "J"
+  },
+  {
+    "nombre": "Ricardo",
+    "apellido": "Herrera",
+    "rut": "11234567-8",
+    "email": "ricardo.herrera@basalto.cl",
+    "telefono": "+56911234567",
+    "grupo": "K"
+  },
+  {
+    "nombre": "Valentina",
+    "apellido": "Rojas",
+    "rut": "21234567-9",
+    "email": "valentina.rojas@basalto.cl",
+    "telefono": "+56921234567",
+    "grupo": "K"
   }
 ]
