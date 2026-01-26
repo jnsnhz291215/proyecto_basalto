@@ -97,6 +97,7 @@
   },
   {
     "nombre": "Roberto",
+<<<<<<< HEAD
     "apellido": "Mendoza",
     "rut": "40567890-1",
     "email": "roberto.mendoza@basalto.cl",
@@ -158,5 +159,20 @@
     "email": "valentina.rojas@basalto.cl",
     "telefono": "+56921234567",
     "grupo": "K"
+=======
+    "apellido": "Yáñez",
+    "rut": "219113668",
+    "email": "asd@asd.cl",
+    "telefono": "56934946889",
+    "grupo": "B"
+  },
+  {
+    "nombre": "Valeska",
+    "apellido": "Sanhueza",
+    "rut": "12345678-7",
+    "email": "txt@txt.cl",
+    "telefono": "+56934946889",
+    "grupo": "B"
+>>>>>>> 2aef866ea4800ff2fda31ba6bbcde8b89edd5b91
   }
 ]
