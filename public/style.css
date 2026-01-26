@@ -238,6 +238,10 @@ body {
   margin-top: 2px;
 }
 
+.grupo-block.semanal {
+  margin-top: 2px;
+}
+
 /* Sidebar derecho - Referencia */
 .sidebar-right {
   min-width: 180px;
@@ -344,6 +348,10 @@ body {
 }
 
 .trabajador-item.tarde {
+  margin-top: 8px;
+}
+
+.trabajador-item.semanal {
   margin-top: 8px;
 }
 

@@ -122,9 +122,9 @@ app.post("/agregar-trabajador", (req, res) => {
     }
     
     // Validar que el grupo sea válido
-    const gruposValidos = ['A', 'B', 'C', 'D'];
+    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
     if (!gruposValidos.includes(nuevoTrabajador.grupo)) {
-      return res.status(400).json({ error: "El grupo debe ser A, B, C o D" });
+      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, J o K" });
     }
     
     // Cargar trabajadores actuales
@@ -163,6 +163,33 @@ app.post("/agregar-trabajador", (req, res) => {
   } catch (error) {
     console.error("Error al agregar trabajador:", error);
     res.status(500).json({ error: "Error al agregar trabajador" });
+  }
+});
+
+// Endpoint para eliminar trabajador por RUT
+app.post("/eliminar-trabajador", (req, res) => {
+  try {
+    const { rut } = req.body;
+    if (!rut || typeof rut !== 'string' || rut.trim() === '') {
+      return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
+    }
+    let trabajadores = [];
+    if (fs.existsSync(DATA_PATH)) {
+      const data = fs.readFileSync(DATA_PATH, "utf8");
+      trabajadores = JSON.parse(data);
+      if (!Array.isArray(trabajadores)) trabajadores = [];
+    }
+    const prev = trabajadores.length;
+    trabajadores = trabajadores.filter(t => t.rut !== rut.trim());
+    if (trabajadores.length === prev) {
+      return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
+    }
+    ultimoEstado = trabajadores;
+    guardarCambios(trabajadores, "Trabajador eliminado");
+    res.json({ success: true, trabajadores, message: "Trabajador eliminado" });
+  } catch (error) {
+    console.error("Error al eliminar trabajador:", error);
+    res.status(500).json({ error: "Error al eliminar trabajador" });
   }
 });
 

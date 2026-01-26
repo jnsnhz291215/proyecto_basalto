@@ -1,8 +1,9 @@
 // IMPORTAR CONFIGURACIÓN
-// NOTA: Para cambiar la fecha de inicio del ciclo, modifica FECHA_BASE en config.js
-// La fecha de inicio por defecto es 2 de enero de 2026
-// Los trabajadores trabajan 14 días consecutivos (de lunes a domingo) y descansan 14 días
-// Los turnos cambian cada 14 días consecutivos
+// NOTA: Los turnos están definidos por fechas específicas
+// A y B: 17 enero (sábado) - 30 enero (viernes)
+// C y D: 31 enero (sábado) - 13 febrero (viernes)
+// E y F: 24 enero (sábado) - 6 febrero (viernes)
+// G y H: 7 febrero (sábado) - 20 febrero (viernes)
 import { FECHA_BASE, GRUPOS, COLORES } from './config.js';
 
 // Configuración y estado global
@@ -12,20 +13,36 @@ let currentYear = new Date().getFullYear();
 let today = new Date();
 today.setHours(0, 0, 0, 0);
 
-// Fecha de inicio del ciclo de turnos (modificable en config.js)
-const FECHA_INICIO_CICLO = new Date(FECHA_BASE);
-FECHA_INICIO_CICLO.setHours(0, 0, 0, 0);
+// Definición de turnos por fechas específicas
+// Cada turno es de 14 días: sábado a viernes
+const TURNOS = [
+  {
+    grupos: { manana: 'A', tarde: 'B' },
+    inicio: new Date(2026, 0, 17), // 17 de enero 2026 (sábado)
+    fin: new Date(2026, 0, 30)     // 30 de enero 2026 (viernes)
+  },
+  {
+    grupos: { manana: 'C', tarde: 'D' },
+    inicio: new Date(2026, 0, 31), // 31 de enero 2026 (sábado)
+    fin: new Date(2026, 1, 13)      // 13 de febrero 2026 (viernes)
+  },
+  {
+    grupos: { manana: 'E', tarde: 'F' },
+    inicio: new Date(2026, 0, 24), // 24 de enero 2026 (sábado)
+    fin: new Date(2026, 1, 6)       // 6 de febrero 2026 (viernes)
+  },
+  {
+    grupos: { manana: 'G', tarde: 'H' },
+    inicio: new Date(2026, 1, 7),  // 7 de febrero 2026 (sábado)
+    fin: new Date(2026, 1, 20)      // 20 de febrero 2026 (viernes)
+  }
+];
 
-// Días por ciclo (14 días consecutivos, de lunes a domingo)
-const DIAS_POR_CICLO = 14;
-const DIAS_POR_CICLO_COMPLETO = DIAS_POR_CICLO * 2; // 28 días = 1 ciclo completo
-
-// Secuencia de turnos (cada ciclo de 14 días consecutivos)
-// Ciclo 1 (días 1-14): A mañana, B tarde
-// Ciclo 2 (días 15-28): C mañana, D tarde  
-// Ciclo 3 (días 29-42): B mañana, A tarde
-// Ciclo 4 (días 43-56): D mañana, C tarde
-// Y se repite...
+// Normalizar fechas (establecer hora a medianoche)
+TURNOS.forEach(turno => {
+  turno.inicio.setHours(0, 0, 0, 0);
+  turno.fin.setHours(0, 0, 0, 0);
+});
 
 // Nombres de meses en español
 const monthNames = [
@@ -75,50 +92,36 @@ function contarDiasConsecutivos(desde, hasta) {
 }
 
 // Función para determinar qué grupos trabajan en una fecha específica
+// Devuelve { manana, tarde, semanales }. semanales: J (Lun–Jue) y K (Mar–Vie), todas las semanas
 function obtenerGruposDelDia(fecha) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
   
-  // Fecha de inicio del ciclo (2 de enero de 2026)
-  const fechaInicio = new Date(FECHA_INICIO_CICLO);
-  fechaInicio.setHours(0, 0, 0, 0);
+  let manana = null;
+  let tarde = null;
   
-  // Contar días consecutivos desde el inicio hasta la fecha actual
-  const diasTranscurridos = contarDiasConsecutivos(fechaInicio, fechaCopy);
-  
-  // Determinar en qué subciclo de 14 días estamos
-  const subciclo = Math.floor(diasTranscurridos / DIAS_POR_CICLO) % 4;
-  
-  // Determinar qué grupos trabajan según el subciclo
-  let grupoManana, grupoTarde;
-  switch (subciclo) {
-    case 0: // Días 0-13 (primeros 14 días consecutivos)
-      grupoManana = 'A';
-      grupoTarde = 'B';
-      break;
-    case 1: // Días 14-27 (siguientes 14 días consecutivos)
-      grupoManana = 'C';
-      grupoTarde = 'D';
-      break;
-    case 2: // Días 28-41 (siguientes 14 días consecutivos)
-      grupoManana = 'B';
-      grupoTarde = 'A';
-      break;
-    case 3: // Días 42-55 (siguientes 14 días consecutivos)
-      grupoManana = 'D';
-      grupoTarde = 'C';
-      break;
+  // Turnos por fechas (A–H)
+  for (const turno of TURNOS) {
+    if (fechaCopy >= turno.inicio && fechaCopy <= turno.fin) {
+      if (!manana) manana = turno.grupos.manana;
+      if (!tarde) tarde = turno.grupos.tarde;
+    }
   }
   
-  return { manana: grupoManana, tarde: grupoTarde };
+  // Grupos semanales: J (Lun–Jue), K (Mar–Vie), todas las semanas
+  const semanales = [];
+  const dia = fechaCopy.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sab
+  if ([1, 2, 3, 4].includes(dia)) semanales.push('J');
+  if ([2, 3, 4, 5].includes(dia)) semanales.push('K');
+  
+  return { manana, tarde, semanales };
 }
 
 // Elementos DOM (se inicializan después de que el DOM esté listo)
 let monthYearEl, daysGridEl, prevMonthBtn, nextMonthBtn, btnHoy, fechaHoyEl;
 let gruposLeyendaEl, modalEl, closeModalEl, modalDateTitleEl, modalDateSubtitleEl;
-let trabajadoresDiaEl, btnGuardar, btnGestionar, btnAgregar, btnRecargar, btnSalir;
+let trabajadoresDiaEl, btnGestionar, btnSalir;
 let confirmModalEl, confirmTitleEl, confirmMessageEl, confirmOkBtn, confirmCancelBtn;
-let addWorkerModalEl, formAgregarTrabajador, closeAddModalEl, cancelAddBtn;
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', async () => {
@@ -138,27 +141,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalDateTitleEl = document.getElementById('modal-date-title');
     modalDateSubtitleEl = document.getElementById('modal-date-subtitle');
     trabajadoresDiaEl = document.getElementById('trabajadores-del-dia');
-    btnGuardar = document.getElementById('btn-guardar');
     btnGestionar = document.getElementById('btn-gestionar');
-    btnAgregar = document.getElementById('btn-agregar');
-    btnRecargar = document.getElementById('btn-recargar');
     btnSalir = document.getElementById('btn-salir');
     confirmModalEl = document.getElementById('confirm-modal');
     confirmTitleEl = document.getElementById('confirm-title');
     confirmMessageEl = document.getElementById('confirm-message');
     confirmOkBtn = document.getElementById('confirm-ok');
     confirmCancelBtn = document.getElementById('confirm-cancel');
-    addWorkerModalEl = document.getElementById('add-worker-modal');
-    formAgregarTrabajador = document.getElementById('form-agregar-trabajador');
-    closeAddModalEl = document.getElementById('close-add-modal');
-    cancelAddBtn = document.getElementById('cancel-add');
 
     // Verificar que todos los elementos existan
     const elementosFaltantes = [];
     if (!monthYearEl) elementosFaltantes.push('month-year');
     if (!daysGridEl) elementosFaltantes.push('days-grid');
-    if (!btnGuardar) elementosFaltantes.push('btn-guardar');
-    if (!btnAgregar) elementosFaltantes.push('btn-agregar');
     
     if (elementosFaltantes.length > 0) {
       console.error('Error: No se pudieron encontrar algunos elementos del DOM:', elementosFaltantes);
@@ -204,34 +198,8 @@ function setupEventListeners() {
   });
 
   // Botones del sidebar
-  btnGuardar.addEventListener('click', guardarCambios);
-  btnRecargar.addEventListener('click', recargarDatos);
+  btnGestionar.addEventListener('click', () => { window.location.href = 'gestionar.html'; });
   btnSalir.addEventListener('click', salirYcerrar);
-  btnAgregar.addEventListener('click', abrirModalAgregarTrabajador);
-  
-  // Modal agregar trabajador
-  closeAddModalEl.addEventListener('click', cerrarModalAgregar);
-  cancelAddBtn.addEventListener('click', cerrarModalAgregar);
-  addWorkerModalEl.addEventListener('click', (e) => {
-    if (e.target === addWorkerModalEl) cerrarModalAgregar();
-  });
-  formAgregarTrabajador.addEventListener('submit', handleAgregarTrabajador);
-  
-  // Validación en tiempo real para RUT (solo números, máximo 9 dígitos)
-  const rutInput = document.getElementById('rut');
-  if (rutInput) {
-    rutInput.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9);
-    });
-  }
-  
-  // Validación en tiempo real para teléfono (solo números, máximo 9 dígitos)
-  const telefonoInput = document.getElementById('telefono');
-  if (telefonoInput) {
-    telefonoInput.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9);
-    });
-  }
 }
 
 // Funciones de carga de datos
@@ -410,6 +378,16 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
       grupoBlock.textContent = gruposDelDia.tarde;
       dayRight.appendChild(grupoBlock);
     }
+    // Grupos semanales J (Lun–Jue) y K (Mar–Vie)
+    if (gruposDelDia.semanales && gruposDelDia.semanales.length > 0) {
+      for (const g of gruposDelDia.semanales) {
+        const grupoBlock = document.createElement('div');
+        grupoBlock.className = 'grupo-block semanal';
+        grupoBlock.style.backgroundColor = COLORES[g];
+        grupoBlock.textContent = g;
+        dayRight.appendChild(grupoBlock);
+      }
+    }
   }
 
   dayCell.appendChild(dayLeft);
@@ -422,8 +400,9 @@ function obtenerTrabajadoresDelDia(fecha) {
   const gruposDelDia = obtenerGruposDelDia(fecha);
   const trabajadoresDelDia = [];
   
-  // Si no es día laborable, no hay trabajadores
-  if (!gruposDelDia.manana && !gruposDelDia.tarde) {
+  // Si no es día laborable (ni turnos A–H ni grupos semanales J/K), no hay trabajadores
+  const haySemanales = gruposDelDia.semanales && gruposDelDia.semanales.length > 0;
+  if (!gruposDelDia.manana && !gruposDelDia.tarde && !haySemanales) {
     return [];
   }
   
@@ -451,6 +430,20 @@ function obtenerTrabajadoresDelDia(fecha) {
     });
   }
   
+  // Grupos semanales: J (Lun–Jue), K (Mar–Vie)
+  if (haySemanales) {
+    for (const g of gruposDelDia.semanales) {
+      const ts = trabajadores.filter(t => t.grupo === g);
+      ts.forEach(t => {
+        trabajadoresDelDia.push({
+          ...t,
+          horario: 'semanales',
+          color: COLORES[g]
+        });
+      });
+    }
+  }
+  
   return trabajadoresDelDia;
 }
 
@@ -471,6 +464,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
     // Separar por horario
     const manana = trabajadoresDelDia.filter(t => t.horario === 'manana');
     const tarde = trabajadoresDelDia.filter(t => t.horario === 'tarde');
+    const semanales = trabajadoresDelDia.filter(t => t.horario === 'semanales');
     
     // Mostrar grupo de la mañana
     if (manana.length > 0) {
@@ -485,19 +479,8 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
         const item = document.createElement('div');
         item.className = 'trabajador-item manana';
         item.style.backgroundColor = trabajador.color;
-        
-        const nombre = document.createElement('div');
-        nombre.style.fontSize = '16px';
-        nombre.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
-        item.appendChild(nombre);
-
-        const info = document.createElement('div');
-        info.style.fontSize = '12px';
-        info.style.opacity = '0.9';
-        info.style.marginTop = '5px';
-        info.textContent = `RUT: ${trabajador.rut} | Email: ${trabajador.email} | Tel: ${trabajador.telefono}`;
-        item.appendChild(info);
-
+        item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+        item.style.fontSize = '16px';
         trabajadoresDiaEl.appendChild(item);
       });
     }
@@ -515,21 +498,33 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
         const item = document.createElement('div');
         item.className = 'trabajador-item tarde';
         item.style.backgroundColor = trabajador.color;
-        
-        const nombre = document.createElement('div');
-        nombre.style.fontSize = '16px';
-        nombre.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
-        item.appendChild(nombre);
-
-        const info = document.createElement('div');
-        info.style.fontSize = '12px';
-        info.style.opacity = '0.9';
-        info.style.marginTop = '5px';
-        info.textContent = `RUT: ${trabajador.rut} | Email: ${trabajador.email} | Tel: ${trabajador.telefono}`;
-        item.appendChild(info);
-
+        item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+        item.style.fontSize = '16px';
         trabajadoresDiaEl.appendChild(item);
       });
+    }
+    
+    // Mostrar grupos semanales J (Lun–Jue) y K (Mar–Vie)
+    if (semanales.length > 0) {
+      const gruposUnicos = [...new Set(semanales.map(t => t.grupo))];
+      for (const g of gruposUnicos) {
+        const trabajadoresGrupo = semanales.filter(t => t.grupo === g);
+        const horarioLabel = document.createElement('div');
+        horarioLabel.className = 'horario-label';
+        horarioLabel.textContent = `Grupo ${g} (semanal)`;
+        horarioLabel.style.marginTop = '20px';
+        horarioLabel.style.marginBottom = '10px';
+        trabajadoresDiaEl.appendChild(horarioLabel);
+        
+        trabajadoresGrupo.forEach(trabajador => {
+          const item = document.createElement('div');
+          item.className = 'trabajador-item semanal';
+          item.style.backgroundColor = trabajador.color;
+          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.style.fontSize = '16px';
+          trabajadoresDiaEl.appendChild(item);
+        });
+      }
     }
   }
 
@@ -568,51 +563,6 @@ function renderLeyenda() {
     grupoItem.appendChild(nombre);
     gruposLeyendaEl.appendChild(grupoItem);
   });
-}
-
-// Funciones de botones
-async function guardarCambios() {
-  try {
-    const response = await fetch('/guardar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(trabajadores)
-    });
-    const result = await response.text();
-    mostrarConfirmacion(
-      'Cambios guardados',
-      result || 'Cambios guardados exitosamente',
-      () => {},
-      'primary'
-    );
-  } catch (error) {
-    console.error('Error al guardar:', error);
-    mostrarConfirmacion(
-      'Error',
-      'Error al guardar los cambios',
-      () => {},
-      'danger'
-    );
-  }
-}
-
-async function recargarDatos() {
-  mostrarConfirmacion(
-    'Recargar base de datos',
-    '¿Está seguro que desea recargar la base de datos? Los cambios no guardados se perderán.',
-    async () => {
-      await cargarTrabajadores();
-      renderCalendar();
-      renderLeyenda();
-      mostrarConfirmacion(
-        'Base de datos recargada',
-        'La base de datos ha sido recargada exitosamente',
-        () => {},
-        'primary'
-      );
-    },
-    'primary'
-  );
 }
 
 // Función de confirmación con modal
@@ -663,7 +613,7 @@ async function salirYcerrar() {
           window.location.href = 'about:blank';
           setTimeout(() => {
             try {
-              window.close();
+        window.close();
             } catch (e) {
               // Si falla, mostrar mensaje
               alert('Por favor, cierre esta ventana manualmente');
@@ -679,209 +629,4 @@ async function salirYcerrar() {
   );
 }
 
-// Función para gestionar trabajadores (placeholder)
-btnGestionar.addEventListener('click', () => {
-  alert('Función de gestión de trabajadores - Por implementar');
-});
-
-// Funciones de formateo y validación
-function formatearNombre(nombre) {
-  // Permitir 1 o 2 nombres, formatear con inicial mayúscula y resto minúscula
-  return nombre.trim()
-    .split(/\s+/)
-    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function formatearApellido(apellido) {
-  // Permitir 1 o 2 apellidos, formatear con inicial mayúscula y resto minúscula
-  return apellido.trim()
-    .split(/\s+/)
-    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function formatearRUT(rut) {
-  // Remover puntos y guiones, validar largo (8-9 dígitos), agregar guion antes del último dígito
-  const rutLimpio = rut.replace(/[.\-]/g, '');
   
-  if (rutLimpio.length < 8 || rutLimpio.length > 9) {
-    return null; // RUT inválido
-  }
-  
-  // Si tiene 8 dígitos, agregar guion antes del último
-  // Si tiene 9 dígitos, agregar guion antes del último
-  const cuerpo = rutLimpio.slice(0, -1);
-  const digitoVerificador = rutLimpio.slice(-1);
-  return `${cuerpo}-${digitoVerificador}`;
-}
-
-function validarEmail(email) {
-  // Validar formato texto@texto.texto
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-function formatearTelefono(telefono) {
-  // Remover espacios y caracteres no numéricos, agregar +56 al inicio
-  const telefonoLimpio = telefono.replace(/\D/g, '');
-  
-  // Si ya empieza con 56, removerlo para agregarlo después
-  let numero = telefonoLimpio.startsWith('56') ? telefonoLimpio.slice(2) : telefonoLimpio;
-  
-  // Validar que tenga 9 dígitos después del código de país
-  if (numero.length !== 9) {
-    return null; // Teléfono inválido
-  }
-  
-  return `+56${numero}`;
-}
-
-// Funciones del modal agregar trabajador
-function abrirModalAgregarTrabajador() {
-  formAgregarTrabajador.reset();
-  addWorkerModalEl.classList.add('show');
-}
-
-function cerrarModalAgregar() {
-  addWorkerModalEl.classList.remove('show');
-  formAgregarTrabajador.reset();
-}
-
-async function handleAgregarTrabajador(e) {
-  e.preventDefault();
-  
-  const formData = new FormData(formAgregarTrabajador);
-  
-  // Obtener valores sin formatear
-  const nombreRaw = formData.get('nombre').trim();
-  const apellidoRaw = formData.get('apellido').trim();
-  const rutRaw = formData.get('rut').trim();
-  const emailRaw = formData.get('email').trim();
-  const telefonoRaw = formData.get('telefono').trim();
-  const grupoRaw = formData.get('grupo');
-  
-  // Validar que todos los campos estén completos (no pueden estar en blanco)
-  if (!nombreRaw || !apellidoRaw || !rutRaw || !emailRaw || !telefonoRaw || !grupoRaw) {
-    mostrarConfirmacion(
-      'Campos incompletos',
-      'Por favor complete todos los campos requeridos. Ningún campo puede quedar en blanco.',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Formatear y validar nombre
-  const nombre = formatearNombre(nombreRaw);
-  if (!nombre) {
-    mostrarConfirmacion(
-      'Nombre inválido',
-      'El nombre no puede estar vacío',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Formatear y validar apellido
-  const apellido = formatearApellido(apellidoRaw);
-  if (!apellido) {
-    mostrarConfirmacion(
-      'Apellido inválido',
-      'El apellido no puede estar vacío',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Formatear y validar RUT
-  const rut = formatearRUT(rutRaw);
-  if (!rut) {
-    mostrarConfirmacion(
-      'RUT inválido',
-      'El RUT debe tener entre 8 y 9 dígitos (sin puntos ni guion)',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Validar email
-  if (!validarEmail(emailRaw)) {
-    mostrarConfirmacion(
-      'Email inválido',
-      'El email debe tener el formato: texto@texto.texto',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Formatear y validar teléfono
-  const telefono = formatearTelefono(telefonoRaw);
-  if (!telefono) {
-    mostrarConfirmacion(
-      'Teléfono inválido',
-      'El teléfono debe tener 9 dígitos (solo el número sin +56)',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  // Crear objeto del trabajador con datos formateados
-  const nuevoTrabajador = {
-    nombre: nombre,
-    apellido: apellido,
-    rut: rut,
-    email: emailRaw.toLowerCase().trim(),
-    telefono: telefono,
-    grupo: grupoRaw
-  };
-  
-  // Validar que el RUT no exista ya
-  const rutExistente = trabajadores.some(t => t.rut === nuevoTrabajador.rut);
-  if (rutExistente) {
-    mostrarConfirmacion(
-      'RUT duplicado',
-      'Ya existe un trabajador con este RUT',
-      () => {},
-      'danger'
-    );
-    return;
-  }
-  
-  try {
-    const response = await fetch('/agregar-trabajador', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevoTrabajador)
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      trabajadores = result.trabajadores;
-      renderCalendar();
-      renderLeyenda();
-      cerrarModalAgregar();
-      mostrarConfirmacion(
-        'Trabajador agregado',
-        `El trabajador ${nuevoTrabajador.nombre} ${nuevoTrabajador.apellido} ha sido agregado exitosamente`,
-        () => {},
-        'primary'
-      );
-    } else {
-      throw new Error('Error al agregar trabajador');
-    }
-  } catch (error) {
-    console.error('Error al agregar trabajador:', error);
-    mostrarConfirmacion(
-      'Error',
-      'Error al agregar el trabajador. Por favor intente nuevamente.',
-      () => {},
-      'danger'
-    );
-  }
-}
