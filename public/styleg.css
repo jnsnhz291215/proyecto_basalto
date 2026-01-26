@@ -250,6 +250,10 @@ body {
   max-width: 360px;
 }
 
+.modal-login .form-buttons {
+  justify-content: space-between;
+}
+
 .close-modal {
   position: absolute;
   top: 12px;

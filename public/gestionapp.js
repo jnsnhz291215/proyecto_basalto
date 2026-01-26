@@ -1,9 +1,13 @@
 import { GRUPOS, COLORES } from './config.js';
 
+const CLAVE_GESTIONAR = 'clave1super2secreta3';
+
 let trabajadores = [];
 let rutParaBorrar = null;
 
 const el = {
+  modalLogin: null,
+  formLogin: null,
   gruposColumnas: null,
   inputBuscar: null,
   selectFiltro: null,
@@ -214,7 +218,20 @@ async function enviarAgregar(e) {
   }
 }
 
+function comprobarLogin(e) {
+  e.preventDefault();
+  const clave = (el.formLogin.querySelector('#clave-login').value || '').trim();
+  if (clave === CLAVE_GESTIONAR) {
+    el.modalLogin.classList.remove('show');
+    cargar();
+  } else {
+    alert('Clave incorrecta.');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  el.modalLogin = document.getElementById('modal-login');
+  el.formLogin = document.getElementById('form-login');
   el.gruposColumnas = document.getElementById('grupos-columnas');
   el.inputBuscar = document.getElementById('input-buscar');
   el.selectFiltro = document.getElementById('select-filtro');
@@ -227,6 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
   el.confirmMsg = document.getElementById('confirm-msg');
   el.confirmCancel = document.getElementById('confirm-cancel');
   el.confirmOk = document.getElementById('confirm-ok');
+
+  el.formLogin.addEventListener('submit', comprobarLogin);
 
   document.getElementById('btn-agregar').addEventListener('click', abrirAgregar);
   el.inputBuscar.addEventListener('input', render);
@@ -264,5 +283,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  cargar();
+  // cargar() se ejecuta solo tras login correcto en comprobarLogin
 });

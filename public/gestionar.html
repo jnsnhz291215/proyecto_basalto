@@ -7,6 +7,23 @@
   <link rel="stylesheet" href="styleg.css">
 </head>
 <body>
+  <!-- Modal de login -->
+  <div id="modal-login" class="modal modal-login show">
+    <div class="modal-content">
+      <h2>Acceso a Gestionar</h2>
+      <form id="form-login">
+        <div class="form-group">
+          <label for="clave-login">Clave</label>
+          <input type="password" id="clave-login" name="clave" placeholder="Ingrese la clave" autocomplete="off" required>
+        </div>
+        <div class="form-buttons">
+          <a href="index.html" class="btn btn-secondary">Volver al inicio</a>
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="gestionar-container">
     <!-- Header con controles -->
     <header class="gestionar-header">
