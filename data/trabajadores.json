@@ -16,14 +16,6 @@
     "grupo": "A"
   },
   {
-    "nombre": "Maria",
-    "apellido": "Gonzalez",
-    "rut": "34567890-1",
-    "email": "maria.gonzalez@basalto.cl",
-    "telefono": "+56934567890",
-    "grupo": "B"
-  },
-  {
     "nombre": "Ana",
     "apellido": "Martinez",
     "rut": "45678901-2",
