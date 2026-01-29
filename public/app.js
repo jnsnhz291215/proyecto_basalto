@@ -1,9 +1,8 @@
 // IMPORTAR CONFIGURACIÓN
-// NOTA: Los turnos están definidos por fechas específicas
-// A y B: 17 enero (sábado) - 30 enero (viernes)
-// C y D: 31 enero (sábado) - 13 febrero (viernes)
-// E y F: 24 enero (sábado) - 6 febrero (viernes)
-// G y H: 7 febrero (sábado) - 20 febrero (viernes)
+// Turnos de 14 días trabajo + 14 días descanso, empezando en sábado
+// Referencia: sábado 17 enero 2026 = día 0
+// Pista 1: AB (0-13), CD (14-27), BA (28-41), DC (42-55), luego se repite
+// Pista 2 (desplazada 7 días): EF (7-20), HG (21-34), FE (35-48), GH (49-62), luego se repite
 import { FECHA_BASE, GRUPOS, COLORES } from './config.js';
 
 // Configuración y estado global
@@ -13,36 +12,80 @@ let currentYear = new Date().getFullYear();
 let today = new Date();
 today.setHours(0, 0, 0, 0);
 
-// Definición de turnos por fechas específicas
-// Cada turno es de 14 días: sábado a viernes
-const TURNOS = [
-  {
-    grupos: { manana: 'A', tarde: 'B' },
-    inicio: new Date(2026, 0, 17), // 17 de enero 2026 (sábado)
-    fin: new Date(2026, 0, 30)     // 30 de enero 2026 (viernes)
-  },
-  {
-    grupos: { manana: 'C', tarde: 'D' },
-    inicio: new Date(2026, 0, 31), // 31 de enero 2026 (sábado)
-    fin: new Date(2026, 1, 13)      // 13 de febrero 2026 (viernes)
-  },
-  {
-    grupos: { manana: 'E', tarde: 'F' },
-    inicio: new Date(2026, 0, 24), // 24 de enero 2026 (sábado)
-    fin: new Date(2026, 1, 6)       // 6 de febrero 2026 (viernes)
-  },
-  {
-    grupos: { manana: 'G', tarde: 'H' },
-    inicio: new Date(2026, 1, 7),  // 7 de febrero 2026 (sábado)
-    fin: new Date(2026, 1, 20)      // 20 de febrero 2026 (viernes)
-  }
-];
+// Inicio del ciclo: sábado 17 enero 2026 (día 0)
+const INICIO_CICLO = new Date(2026, 0, 17);
+INICIO_CICLO.setHours(0, 0, 0, 0);
 
-// Normalizar fechas (establecer hora a medianoche)
-TURNOS.forEach(turno => {
-  turno.inicio.setHours(0, 0, 0, 0);
-  turno.fin.setHours(0, 0, 0, 0);
-});
+const MS_PER_DAY = 86400000;
+const DIAS_POR_BLOQUE = 14;
+const CICLO_COMPLETO = DIAS_POR_BLOQUE * 4; // 56 días (4 bloques de 14)
+
+function obtenerTurnoABCDEFGH(fecha) {
+  const t = new Date(fecha);
+  t.setHours(0, 0, 0, 0);
+  const dias = Math.floor((t - INICIO_CICLO) / MS_PER_DAY);
+  
+  let manana = null;
+  let tarde = null;
+  
+  // Pista 1: ciclo de 56 días
+  const ciclo1 = ((dias % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO; // manejar negativos
+  if (ciclo1 >= 0 && ciclo1 < DIAS_POR_BLOQUE) {
+    // Días 0-13: AB
+    manana = 'A';
+    tarde = 'B';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE && ciclo1 < DIAS_POR_BLOQUE * 2) {
+    // Días 14-27: CD
+    manana = 'C';
+    tarde = 'D';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE * 2 && ciclo1 < DIAS_POR_BLOQUE * 3) {
+    // Días 28-41: BA (invertido)
+    manana = 'B';
+    tarde = 'A';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE * 3 && ciclo1 < CICLO_COMPLETO) {
+    // Días 42-55: DC (invertido)
+    manana = 'D';
+    tarde = 'C';
+  }
+  
+  // Pista 2: ciclo de 56 días, desplazado 7 días
+  // Cuando hay solapamiento, la pista 2 tiene prioridad (se muestra primero)
+  const dias2 = dias - 7;
+  if (dias2 >= 0) {
+    const ciclo2 = ((dias2 % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+    if (ciclo2 >= 0 && ciclo2 < DIAS_POR_BLOQUE) {
+      // Días 7-20: EF
+      // Si hay solapamiento, mostrar EF primero (pista 2 tiene prioridad)
+      if (manana && tarde) {
+        // Ya hay pista 1, mantener pista 1 como manana/tarde
+        // La pista 2 se mostrará como bloques adicionales si es necesario
+      } else {
+        manana = 'E';
+        tarde = 'F';
+      }
+    } else if (ciclo2 >= DIAS_POR_BLOQUE && ciclo2 < DIAS_POR_BLOQUE * 2) {
+      // Días 21-34: HG
+      if (!manana) manana = 'H';
+      if (!tarde) tarde = 'G';
+    } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
+      // Días 35-48: FE (invertido)
+      if (!manana) manana = 'F';
+      if (!tarde) tarde = 'E';
+    } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
+      // Días 49-62: GH (invertido)
+      if (!manana) manana = 'G';
+      if (!tarde) tarde = 'H';
+    }
+  }
+  
+  // Si no hay turno asignado (días negativos antes de pista 2), usar AB
+  if (!manana || !tarde) {
+    manana = manana || 'A';
+    tarde = tarde || 'B';
+  }
+  
+  return { manana, tarde };
+}
 
 // Nombres de meses en español
 const monthNames = [
@@ -92,20 +135,72 @@ function contarDiasConsecutivos(desde, hasta) {
 }
 
 // Función para determinar qué grupos trabajan en una fecha específica
-// Devuelve { manana, tarde, semanales }. semanales: J (Lun–Jue) y K (Mar–Vie), todas las semanas
+// Devuelve { manana, tarde, semanales }. A–H se repiten a lo largo del año; J/K por día de semana
+// Cuando hay solapamiento, se devuelven todos los grupos activos
 function obtenerGruposDelDia(fecha) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
   
+  const t = new Date(fechaCopy);
+  t.setHours(0, 0, 0, 0);
+  const dias = Math.floor((t - INICIO_CICLO) / MS_PER_DAY);
+  
   let manana = null;
   let tarde = null;
   
-  // Turnos por fechas (A–H)
-  for (const turno of TURNOS) {
-    if (fechaCopy >= turno.inicio && fechaCopy <= turno.fin) {
-      if (!manana) manana = turno.grupos.manana;
-      if (!tarde) tarde = turno.grupos.tarde;
+  // Pista 1: ciclo de 56 días
+  const ciclo1 = ((dias % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+  let grupo1Manana = null;
+  let grupo1Tarde = null;
+  if (ciclo1 >= 0 && ciclo1 < DIAS_POR_BLOQUE) {
+    grupo1Manana = 'A';
+    grupo1Tarde = 'B';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE && ciclo1 < DIAS_POR_BLOQUE * 2) {
+    grupo1Manana = 'C';
+    grupo1Tarde = 'D';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE * 2 && ciclo1 < DIAS_POR_BLOQUE * 3) {
+    grupo1Manana = 'B';
+    grupo1Tarde = 'A';
+  } else if (ciclo1 >= DIAS_POR_BLOQUE * 3 && ciclo1 < CICLO_COMPLETO) {
+    grupo1Manana = 'D';
+    grupo1Tarde = 'C';
+  }
+  
+  // Pista 2: ciclo de 56 días, desplazado 7 días
+  const dias2 = dias - 7;
+  let grupo2Manana = null;
+  let grupo2Tarde = null;
+  if (dias2 >= 0) {
+    const ciclo2 = ((dias2 % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+    if (ciclo2 >= 0 && ciclo2 < DIAS_POR_BLOQUE) {
+      grupo2Manana = 'E';
+      grupo2Tarde = 'F';
+    } else if (ciclo2 >= DIAS_POR_BLOQUE && ciclo2 < DIAS_POR_BLOQUE * 2) {
+      grupo2Manana = 'H';
+      grupo2Tarde = 'G';
+    } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
+      grupo2Manana = 'F';
+      grupo2Tarde = 'E';
+    } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
+      grupo2Manana = 'G';
+      grupo2Tarde = 'H';
     }
+  }
+  
+  // Cuando hay solapamiento, mostrar ambos grupos
+  // Prioridad: pista 1 como manana/tarde principal, pista 2 como adicional si existe
+  if (grupo1Manana && grupo1Tarde) {
+    manana = grupo1Manana;
+    tarde = grupo1Tarde;
+  } else if (grupo2Manana && grupo2Tarde) {
+    manana = grupo2Manana;
+    tarde = grupo2Tarde;
+  }
+  
+  // Si no hay turno asignado, usar AB
+  if (!manana || !tarde) {
+    manana = manana || 'A';
+    tarde = tarde || 'B';
   }
   
   // Grupos semanales: J (Lun–Jue), K (Mar–Vie), todas las semanas
