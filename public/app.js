@@ -135,8 +135,9 @@ function contarDiasConsecutivos(desde, hasta) {
 }
 
 // Función para determinar qué grupos trabajan en una fecha específica
-// Devuelve { manana, tarde, semanales }. A–H se repiten a lo largo del año; J/K por día de semana
-// Cuando hay solapamiento, se devuelven todos los grupos activos
+// Devuelve { pista1: {manana, tarde}, pista2: {manana, tarde} o null, semanales }
+// Pista 1: días 0-55 repetidos (AB, CD, BA, DC)
+// Pista 2: días 7+ repetidos desplazados (EF, HG, FE, GH)
 function obtenerGruposDelDia(fecha) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
@@ -145,63 +146,59 @@ function obtenerGruposDelDia(fecha) {
   t.setHours(0, 0, 0, 0);
   const dias = Math.floor((t - INICIO_CICLO) / MS_PER_DAY);
   
-  let manana = null;
-  let tarde = null;
-  
-  // Pista 1: ciclo de 56 días
+  // PISTA 1: ciclo de 56 días (AB → CD → BA → DC, repetido)
   const ciclo1 = ((dias % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
   let grupo1Manana = null;
   let grupo1Tarde = null;
+  
   if (ciclo1 >= 0 && ciclo1 < DIAS_POR_BLOQUE) {
+    // Días 0-13: A mañana, B tarde
     grupo1Manana = 'A';
     grupo1Tarde = 'B';
   } else if (ciclo1 >= DIAS_POR_BLOQUE && ciclo1 < DIAS_POR_BLOQUE * 2) {
+    // Días 14-27: C mañana, D tarde
     grupo1Manana = 'C';
     grupo1Tarde = 'D';
   } else if (ciclo1 >= DIAS_POR_BLOQUE * 2 && ciclo1 < DIAS_POR_BLOQUE * 3) {
+    // Días 28-41: B mañana, A tarde
     grupo1Manana = 'B';
     grupo1Tarde = 'A';
   } else if (ciclo1 >= DIAS_POR_BLOQUE * 3 && ciclo1 < CICLO_COMPLETO) {
+    // Días 42-55: D mañana, C tarde
     grupo1Manana = 'D';
     grupo1Tarde = 'C';
   }
   
-  // Pista 2: ciclo de 56 días, desplazado 7 días
+  // PISTA 2: ciclo de 56 días desplazado 7 días (EF → HG → FE → GH, repetido)
   const dias2 = dias - 7;
   let grupo2Manana = null;
   let grupo2Tarde = null;
+  
   if (dias2 >= 0) {
     const ciclo2 = ((dias2 % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+    
     if (ciclo2 >= 0 && ciclo2 < DIAS_POR_BLOQUE) {
+      // Días 7-20: E mañana, F tarde
       grupo2Manana = 'E';
       grupo2Tarde = 'F';
     } else if (ciclo2 >= DIAS_POR_BLOQUE && ciclo2 < DIAS_POR_BLOQUE * 2) {
+      // Días 21-34: H mañana, G tarde
       grupo2Manana = 'H';
       grupo2Tarde = 'G';
     } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
+      // Días 35-48: F mañana, E tarde
       grupo2Manana = 'F';
       grupo2Tarde = 'E';
     } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
+      // Días 49-62: G mañana, H tarde
       grupo2Manana = 'G';
       grupo2Tarde = 'H';
     }
   }
   
-  // Cuando hay solapamiento, mostrar ambos grupos
-  // Prioridad: pista 1 como manana/tarde principal, pista 2 como adicional si existe
-  if (grupo1Manana && grupo1Tarde) {
-    manana = grupo1Manana;
-    tarde = grupo1Tarde;
-  } else if (grupo2Manana && grupo2Tarde) {
-    manana = grupo2Manana;
-    tarde = grupo2Tarde;
-  }
-  
-  // Si no hay turno asignado, usar AB
-  if (!manana || !tarde) {
-    manana = manana || 'A';
-    tarde = tarde || 'B';
-  }
+  // Retornar ambas pistas por separado
+  const pista1 = (grupo1Manana && grupo1Tarde) ? { manana: grupo1Manana, tarde: grupo1Tarde } : null;
+  const pista2 = (grupo2Manana && grupo2Tarde) ? { manana: grupo2Manana, tarde: grupo2Tarde } : null;
   
   // Grupos semanales: J (Lun–Jue), K (Mar–Vie), todas las semanas
   const semanales = [];
@@ -209,7 +206,7 @@ function obtenerGruposDelDia(fecha) {
   if ([1, 2, 3, 4].includes(dia)) semanales.push('J');
   if ([2, 3, 4, 5].includes(dia)) semanales.push('K');
   
-  return { manana, tarde, semanales };
+  return { pista1, pista2, semanales };
 }
 
 // Elementos DOM (se inicializan después de que el DOM esté listo)
@@ -458,21 +455,36 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
     // Mostrar bloques por grupo (mañana arriba, tarde abajo)
     const gruposDelDia = obtenerGruposDelDia(date);
     
-    if (gruposDelDia.manana) {
+    // Pista 1 (grupos AB/CD/BA/DC)
+    if (gruposDelDia.pista1) {
       const grupoBlock = document.createElement('div');
       grupoBlock.className = 'grupo-block manana';
-      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.manana];
-      grupoBlock.textContent = gruposDelDia.manana;
+      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.pista1.manana];
+      grupoBlock.textContent = gruposDelDia.pista1.manana;
       dayRight.appendChild(grupoBlock);
+      
+      const grupoBlockTarde = document.createElement('div');
+      grupoBlockTarde.className = 'grupo-block tarde';
+      grupoBlockTarde.style.backgroundColor = COLORES[gruposDelDia.pista1.tarde];
+      grupoBlockTarde.textContent = gruposDelDia.pista1.tarde;
+      dayRight.appendChild(grupoBlockTarde);
     }
     
-    if (gruposDelDia.tarde) {
+    // Pista 2 (grupos EF/HG/FE/GH) - si existe y es diferente a pista 1
+    if (gruposDelDia.pista2) {
       const grupoBlock = document.createElement('div');
-      grupoBlock.className = 'grupo-block tarde';
-      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.tarde];
-      grupoBlock.textContent = gruposDelDia.tarde;
+      grupoBlock.className = 'grupo-block manana';
+      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.pista2.manana];
+      grupoBlock.textContent = gruposDelDia.pista2.manana;
       dayRight.appendChild(grupoBlock);
+      
+      const grupoBlockTarde = document.createElement('div');
+      grupoBlockTarde.className = 'grupo-block tarde';
+      grupoBlockTarde.style.backgroundColor = COLORES[gruposDelDia.pista2.tarde];
+      grupoBlockTarde.textContent = gruposDelDia.pista2.tarde;
+      dayRight.appendChild(grupoBlockTarde);
     }
+    
     // Grupos semanales J (Lun–Jue) y K (Mar–Vie)
     if (gruposDelDia.semanales && gruposDelDia.semanales.length > 0) {
       for (const g of gruposDelDia.semanales) {
@@ -495,32 +507,62 @@ function obtenerTrabajadoresDelDia(fecha) {
   const gruposDelDia = obtenerGruposDelDia(fecha);
   const trabajadoresDelDia = [];
   
-  // Si no es día laborable (ni turnos A–H ni grupos semanales J/K), no hay trabajadores
+  // Si no hay grupos asignados, no hay trabajadores
   const haySemanales = gruposDelDia.semanales && gruposDelDia.semanales.length > 0;
-  if (!gruposDelDia.manana && !gruposDelDia.tarde && !haySemanales) {
+  if (!gruposDelDia.pista1 && !gruposDelDia.pista2 && !haySemanales) {
     return [];
   }
   
-  // Buscar trabajadores del grupo de la mañana
-  if (gruposDelDia.manana) {
-    const trabajadoresManana = trabajadores.filter(t => t.grupo === gruposDelDia.manana);
+  // Pista 1: grupos de mañana y tarde
+  if (gruposDelDia.pista1) {
+    // Trabajadores del grupo de mañana (pista 1)
+    const trabajadoresManana = trabajadores.filter(t => t.grupo === gruposDelDia.pista1.manana);
     trabajadoresManana.forEach(t => {
       trabajadoresDelDia.push({
         ...t,
         horario: 'manana',
-        color: COLORES[gruposDelDia.manana]
+        grupo: gruposDelDia.pista1.manana,
+        color: COLORES[gruposDelDia.pista1.manana],
+        pista: 1
       });
     });
-  }
-  
-  // Buscar trabajadores del grupo de la tarde
-  if (gruposDelDia.tarde) {
-    const trabajadoresTarde = trabajadores.filter(t => t.grupo === gruposDelDia.tarde);
+    
+    // Trabajadores del grupo de tarde (pista 1)
+    const trabajadoresTarde = trabajadores.filter(t => t.grupo === gruposDelDia.pista1.tarde);
     trabajadoresTarde.forEach(t => {
       trabajadoresDelDia.push({
         ...t,
         horario: 'tarde',
-        color: COLORES[gruposDelDia.tarde]
+        grupo: gruposDelDia.pista1.tarde,
+        color: COLORES[gruposDelDia.pista1.tarde],
+        pista: 1
+      });
+    });
+  }
+  
+  // Pista 2: grupos de mañana y tarde
+  if (gruposDelDia.pista2) {
+    // Trabajadores del grupo de mañana (pista 2)
+    const trabajadoresManana = trabajadores.filter(t => t.grupo === gruposDelDia.pista2.manana);
+    trabajadoresManana.forEach(t => {
+      trabajadoresDelDia.push({
+        ...t,
+        horario: 'manana',
+        grupo: gruposDelDia.pista2.manana,
+        color: COLORES[gruposDelDia.pista2.manana],
+        pista: 2
+      });
+    });
+    
+    // Trabajadores del grupo de tarde (pista 2)
+    const trabajadoresTarde = trabajadores.filter(t => t.grupo === gruposDelDia.pista2.tarde);
+    trabajadoresTarde.forEach(t => {
+      trabajadoresDelDia.push({
+        ...t,
+        horario: 'tarde',
+        grupo: gruposDelDia.pista2.tarde,
+        color: COLORES[gruposDelDia.pista2.tarde],
+        pista: 2
       });
     });
   }
@@ -533,7 +575,9 @@ function obtenerTrabajadoresDelDia(fecha) {
         trabajadoresDelDia.push({
           ...t,
           horario: 'semanales',
-          color: COLORES[g]
+          grupo: g,
+          color: COLORES[g],
+          pista: 0
         });
       });
     }
@@ -556,47 +600,121 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
   if (trabajadoresDelDia.length === 0) {
     trabajadoresDiaEl.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No hay trabajadores asignados para este día</p>';
   } else {
-    // Separar por horario
-    const manana = trabajadoresDelDia.filter(t => t.horario === 'manana');
-    const tarde = trabajadoresDelDia.filter(t => t.horario === 'tarde');
-    const semanales = trabajadoresDelDia.filter(t => t.horario === 'semanales');
+    // Separar por pista, horario y grupo
+    const pista1 = trabajadoresDelDia.filter(t => t.pista === 1);
+    const pista2 = trabajadoresDelDia.filter(t => t.pista === 2);
+    const semanales = trabajadoresDelDia.filter(t => t.pista === 0);
     
-    // Mostrar grupo de la mañana
-    if (manana.length > 0) {
-      const horarioLabel = document.createElement('div');
-      horarioLabel.className = 'horario-label';
-      horarioLabel.textContent = `Turno Mañana - Grupo ${manana[0].grupo}`;
-      horarioLabel.style.marginTop = '10px';
-      horarioLabel.style.marginBottom = '10px';
-      trabajadoresDiaEl.appendChild(horarioLabel);
+    // Mostrar PISTA 1 (grupos AB/CD/BA/DC)
+    if (pista1.length > 0) {
+      const pistaLabel = document.createElement('div');
+      pistaLabel.className = 'horario-label';
+      pistaLabel.textContent = 'PISTA 1';
+      pistaLabel.style.marginTop = '10px';
+      pistaLabel.style.marginBottom = '10px';
+      pistaLabel.style.fontWeight = '700';
+      pistaLabel.style.color = '#1f2937';
+      trabajadoresDiaEl.appendChild(pistaLabel);
       
-      manana.forEach(trabajador => {
-        const item = document.createElement('div');
-        item.className = 'trabajador-item manana';
-        item.style.backgroundColor = trabajador.color;
-        item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
-        item.style.fontSize = '16px';
-        trabajadoresDiaEl.appendChild(item);
-      });
+      // Grupo de mañana (pista 1)
+      const manana = pista1.filter(t => t.horario === 'manana');
+      if (manana.length > 0) {
+        const horarioLabel = document.createElement('div');
+        horarioLabel.className = 'horario-label';
+        horarioLabel.textContent = `  Turno Mañana - Grupo ${manana[0].grupo}`;
+        horarioLabel.style.marginTop = '5px';
+        horarioLabel.style.marginBottom = '5px';
+        horarioLabel.style.fontSize = '14px';
+        trabajadoresDiaEl.appendChild(horarioLabel);
+        
+        manana.forEach(trabajador => {
+          const item = document.createElement('div');
+          item.className = 'trabajador-item manana';
+          item.style.backgroundColor = trabajador.color;
+          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.style.fontSize = '14px';
+          item.style.marginLeft = '10px';
+          trabajadoresDiaEl.appendChild(item);
+        });
+      }
+      
+      // Grupo de tarde (pista 1)
+      const tarde = pista1.filter(t => t.horario === 'tarde');
+      if (tarde.length > 0) {
+        const horarioLabel = document.createElement('div');
+        horarioLabel.className = 'horario-label';
+        horarioLabel.textContent = `  Turno Tarde - Grupo ${tarde[0].grupo}`;
+        horarioLabel.style.marginTop = '8px';
+        horarioLabel.style.marginBottom = '5px';
+        horarioLabel.style.fontSize = '14px';
+        trabajadoresDiaEl.appendChild(horarioLabel);
+        
+        tarde.forEach(trabajador => {
+          const item = document.createElement('div');
+          item.className = 'trabajador-item tarde';
+          item.style.backgroundColor = trabajador.color;
+          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.style.fontSize = '14px';
+          item.style.marginLeft = '10px';
+          trabajadoresDiaEl.appendChild(item);
+        });
+      }
     }
     
-    // Mostrar grupo de la tarde
-    if (tarde.length > 0) {
-      const horarioLabel = document.createElement('div');
-      horarioLabel.className = 'horario-label';
-      horarioLabel.textContent = `Turno Tarde - Grupo ${tarde[0].grupo}`;
-      horarioLabel.style.marginTop = '20px';
-      horarioLabel.style.marginBottom = '10px';
-      trabajadoresDiaEl.appendChild(horarioLabel);
+    // Mostrar PISTA 2 (grupos EF/HG/FE/GH)
+    if (pista2.length > 0) {
+      const pistaLabel = document.createElement('div');
+      pistaLabel.className = 'horario-label';
+      pistaLabel.textContent = 'PISTA 2';
+      pistaLabel.style.marginTop = '15px';
+      pistaLabel.style.marginBottom = '10px';
+      pistaLabel.style.fontWeight = '700';
+      pistaLabel.style.color = '#1f2937';
+      trabajadoresDiaEl.appendChild(pistaLabel);
       
-      tarde.forEach(trabajador => {
-        const item = document.createElement('div');
-        item.className = 'trabajador-item tarde';
-        item.style.backgroundColor = trabajador.color;
-        item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
-        item.style.fontSize = '16px';
-        trabajadoresDiaEl.appendChild(item);
-      });
+      // Grupo de mañana (pista 2)
+      const manana = pista2.filter(t => t.horario === 'manana');
+      if (manana.length > 0) {
+        const horarioLabel = document.createElement('div');
+        horarioLabel.className = 'horario-label';
+        horarioLabel.textContent = `  Turno Mañana - Grupo ${manana[0].grupo}`;
+        horarioLabel.style.marginTop = '5px';
+        horarioLabel.style.marginBottom = '5px';
+        horarioLabel.style.fontSize = '14px';
+        trabajadoresDiaEl.appendChild(horarioLabel);
+        
+        manana.forEach(trabajador => {
+          const item = document.createElement('div');
+          item.className = 'trabajador-item manana';
+          item.style.backgroundColor = trabajador.color;
+          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.style.fontSize = '14px';
+          item.style.marginLeft = '10px';
+          trabajadoresDiaEl.appendChild(item);
+        });
+      }
+      
+      // Grupo de tarde (pista 2)
+      const tarde = pista2.filter(t => t.horario === 'tarde');
+      if (tarde.length > 0) {
+        const horarioLabel = document.createElement('div');
+        horarioLabel.className = 'horario-label';
+        horarioLabel.textContent = `  Turno Tarde - Grupo ${tarde[0].grupo}`;
+        horarioLabel.style.marginTop = '8px';
+        horarioLabel.style.marginBottom = '5px';
+        horarioLabel.style.fontSize = '14px';
+        trabajadoresDiaEl.appendChild(horarioLabel);
+        
+        tarde.forEach(trabajador => {
+          const item = document.createElement('div');
+          item.className = 'trabajador-item tarde';
+          item.style.backgroundColor = trabajador.color;
+          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.style.fontSize = '14px';
+          item.style.marginLeft = '10px';
+          trabajadoresDiaEl.appendChild(item);
+        });
+      }
     }
     
     // Mostrar grupos semanales J (Lun–Jue) y K (Mar–Vie)
