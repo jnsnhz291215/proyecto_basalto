@@ -1,6 +1,7 @@
 const express = require("express");
 const fs = require("fs");
 const { execSync } = require("child_process");
+const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador } = require("../ejemploconexion.js");
 
 const app = express();
 app.use(express.json());
@@ -51,22 +52,14 @@ app.use((req, res, next) => {
 });
 
 // Endpoint para obtener datos
-app.get("/datos", (req, res) => {
+app.get("/datos", async (req, res) => {
   try {
-    let data = [];
-    if (fs.existsSync(DATA_PATH)) {
-      const fileData = fs.readFileSync(DATA_PATH, "utf8");
-      data = JSON.parse(fileData);
-      // Asegurar que sea un array
-      if (!Array.isArray(data)) {
-        data = [];
-      }
-    }
+    const data = await obtenerTrabajadores();
     ultimoEstado = data;
     res.json(data);
   } catch (error) {
-    console.error("Error al leer datos:", error);
-    res.json([]);
+    console.error("Error al obtener trabajadores de la BD:", error);
+    res.status(500).json({ error: "Error al obtener trabajadores" });
   }
 });
 
@@ -96,19 +89,19 @@ function validarTelefonoServidor(telefono) {
 }
 
 // Endpoint para agregar trabajador
-app.post("/agregar-trabajador", (req, res) => {
+app.post("/agregar-trabajador", async (req, res) => {
   try {
     const nuevoTrabajador = req.body;
     
     // Validar que todos los campos estén presentes y no estén vacíos
-    if (!nuevoTrabajador.nombre || !nuevoTrabajador.apellido || !nuevoTrabajador.rut ||
+    if (!nuevoTrabajador.nombres || !nuevoTrabajador.apellidos || !nuevoTrabajador.RUT ||
         !nuevoTrabajador.email || !nuevoTrabajador.telefono || !nuevoTrabajador.grupo) {
       return res.status(400).json({ error: "Todos los campos son requeridos y no pueden estar en blanco" });
     }
     
     // Validar que los campos no sean solo espacios en blanco
-    if (nuevoTrabajador.nombre.trim() === '' || nuevoTrabajador.apellido.trim() === '' ||
-        nuevoTrabajador.rut.trim() === '' || nuevoTrabajador.email.trim() === '' ||
+    if (nuevoTrabajador.nombres.trim() === '' || nuevoTrabajador.apellidos.trim() === '' ||
+        nuevoTrabajador.RUT.trim() === '' || nuevoTrabajador.email.trim() === '' ||
         nuevoTrabajador.telefono.trim() === '' || nuevoTrabajador.grupo.trim() === '') {
       return res.status(400).json({ error: "Ningún campo puede estar en blanco" });
     }
@@ -119,7 +112,7 @@ app.post("/agregar-trabajador", (req, res) => {
     }
     
     // Validar formato de RUT
-    if (!validarRUTServidor(nuevoTrabajador.rut)) {
+    if (!validarRUTServidor(nuevoTrabajador.RUT)) {
       return res.status(400).json({ error: "El formato del RUT es inválido. Debe tener entre 7-8 dígitos seguidos de un guion y dígito verificador" });
     }
     
@@ -134,33 +127,24 @@ app.post("/agregar-trabajador", (req, res) => {
       return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, J o K" });
     }
     
-    // Cargar trabajadores actuales
-    let trabajadores = [];
-    if (fs.existsSync(DATA_PATH)) {
-      try {
-        const data = fs.readFileSync(DATA_PATH, "utf8");
-        trabajadores = JSON.parse(data);
-        // Asegurar que trabajadores sea un array
-        if (!Array.isArray(trabajadores)) {
-          trabajadores = [];
-        }
-      } catch (error) {
-        console.error("Error al leer trabajadores.json:", error);
-        trabajadores = [];
-      }
-    }
-    
-    // Validar que el RUT no exista
-    if (trabajadores.some(t => t.rut === nuevoTrabajador.rut)) {
+    // Verificar que el RUT no exista en la BD
+    const trabajadoresExistentes = await obtenerTrabajadores();
+    if (trabajadoresExistentes.some(t => t.RUT === nuevoTrabajador.RUT)) {
       return res.status(400).json({ error: "Ya existe un trabajador con este RUT" });
     }
     
-    // Agregar el nuevo trabajador
-    trabajadores.push(nuevoTrabajador);
-    ultimoEstado = trabajadores;
+    // Agregar el nuevo trabajador a la BD
+    await agregarTrabajador(
+      nuevoTrabajador.nombres,
+      nuevoTrabajador.apellidos,
+      nuevoTrabajador.RUT,
+      nuevoTrabajador.email,
+      nuevoTrabajador.telefono,
+      nuevoTrabajador.grupo
+    );
     
-    // Guardar cambios
-    guardarCambios(trabajadores, "Trabajador agregado");
+    const trabajadores = await obtenerTrabajadores();
+    ultimoEstado = trabajadores;
     
     res.json({ 
       success: true, 
@@ -174,26 +158,23 @@ app.post("/agregar-trabajador", (req, res) => {
 });
 
 // Endpoint para eliminar trabajador por RUT
-app.post("/eliminar-trabajador", (req, res) => {
+app.post("/eliminar-trabajador", async (req, res) => {
   try {
     const { rut } = req.body;
     if (!rut || typeof rut !== 'string' || rut.trim() === '') {
       return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
     }
-    let trabajadores = [];
-    if (fs.existsSync(DATA_PATH)) {
-      const data = fs.readFileSync(DATA_PATH, "utf8");
-      trabajadores = JSON.parse(data);
-      if (!Array.isArray(trabajadores)) trabajadores = [];
-    }
-    const prev = trabajadores.length;
-    trabajadores = trabajadores.filter(t => t.rut !== rut.trim());
-    if (trabajadores.length === prev) {
+    
+    const trabajadoresAntes = await obtenerTrabajadores();
+    await eliminarTrabajador(rut.trim());
+    const trabajadoresDespues = await obtenerTrabajadores();
+    
+    if (trabajadoresAntes.length === trabajadoresDespues.length) {
       return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
     }
-    ultimoEstado = trabajadores;
-    guardarCambios(trabajadores, "Trabajador eliminado");
-    res.json({ success: true, trabajadores, message: "Trabajador eliminado" });
+    
+    ultimoEstado = trabajadoresDespues;
+    res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado" });
   } catch (error) {
     console.error("Error al eliminar trabajador:", error);
     res.status(500).json({ error: "Error al eliminar trabajador" });

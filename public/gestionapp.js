@@ -54,8 +54,8 @@ function getFiltrados() {
   let list = trabajadores;
   if (buscar) {
     list = list.filter(t => {
-      const n = ((t.nombre || '') + ' ' + (t.apellido || '')).toLowerCase();
-      const a = ((t.apellido || '') + ' ' + (t.nombre || '')).toLowerCase();
+      const n = ((t.nombres || '') + ' ' + (t.apellidos || '')).toLowerCase();
+      const a = ((t.apellidos || '') + ' ' + (t.nombres || '')).toLowerCase();
       return n.includes(buscar) || a.includes(buscar);
     });
   }
