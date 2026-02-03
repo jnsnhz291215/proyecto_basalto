@@ -212,7 +212,7 @@ function obtenerGruposDelDia(fecha) {
 // Elementos DOM (se inicializan después de que el DOM esté listo)
 let monthYearEl, daysGridEl, prevMonthBtn, nextMonthBtn, btnHoy, fechaHoyEl;
 let gruposLeyendaEl, modalEl, closeModalEl, modalDateTitleEl, modalDateSubtitleEl;
-let trabajadoresDiaEl, btnGestionar, btnSalir;
+let trabajadoresDiaEl;
 let confirmModalEl, confirmTitleEl, confirmMessageEl, confirmOkBtn, confirmCancelBtn;
 
 // Inicializar
@@ -233,8 +233,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalDateTitleEl = document.getElementById('modal-date-title');
     modalDateSubtitleEl = document.getElementById('modal-date-subtitle');
     trabajadoresDiaEl = document.getElementById('trabajadores-del-dia');
-    btnGestionar = document.getElementById('btn-gestionar');
-    btnSalir = document.getElementById('btn-salir');
     confirmModalEl = document.getElementById('confirm-modal');
     confirmTitleEl = document.getElementById('confirm-title');
     confirmMessageEl = document.getElementById('confirm-message');
@@ -279,19 +277,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Event listeners
 function setupEventListeners() {
-  prevMonthBtn.addEventListener('click', () => cambiarMes(-1));
-  nextMonthBtn.addEventListener('click', () => cambiarMes(1));
-  btnHoy.addEventListener('click', volverAHoy);
-  closeModalEl.addEventListener('click', cerrarModal);
+  if (prevMonthBtn) prevMonthBtn.addEventListener('click', () => cambiarMes(-1));
+  if (nextMonthBtn) nextMonthBtn.addEventListener('click', () => cambiarMes(1));
+  if (btnHoy) btnHoy.addEventListener('click', volverAHoy);
+  if (closeModalEl) closeModalEl.addEventListener('click', cerrarModal);
   
   // Cerrar modal al hacer clic fuera
   modalEl.addEventListener('click', (e) => {
     if (e.target === modalEl) cerrarModal();
   });
 
-  // Botones del sidebar
-  btnGestionar.addEventListener('click', () => { window.location.href = 'gestionar.html'; });
-  btnSalir.addEventListener('click', salirYcerrar);
+  // El menú superior maneja la navegación; no hay listeners de sidebar aquí.
 }
 
 // Funciones de carga de datos
@@ -435,10 +431,7 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
     dayLeft.appendChild(hoyBadge);
   }
 
-  // Click en parte izquierda abre modal (solo si es del mes actual)
-  if (!isOutsideMonth) {
-    dayLeft.addEventListener('click', () => abrirModalDia(date, nombreDia, trabajadoresDelDia));
-  }
+  // Ahora la parte clickeable es la sección de grupos (dayRight), no el número
 
   // Parte derecha (bloques de grupos)
   const dayRight = document.createElement('div');
@@ -497,6 +490,11 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
     }
   }
 
+  // Hacer clic en la zona de grupos abre el modal (si es del mes actual)
+  if (!isOutsideMonth) {
+    dayRight.addEventListener('click', () => abrirModalDia(date, nombreDia, trabajadoresDelDia));
+  }
+
   dayCell.appendChild(dayLeft);
   dayCell.appendChild(dayRight);
   daysGridEl.appendChild(dayCell);
@@ -504,6 +502,8 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
 
 // Obtener trabajadores que trabajan en un día específico según la lógica de turnos
 function obtenerTrabajadoresDelDia(fecha) {
+  // Si estamos en la vista "Viajes", no mostrar trabajadores (vista vacía)
+  if (typeof window !== 'undefined' && window.__VIAJES) return [];
   const gruposDelDia = obtenerGruposDelDia(fecha);
   const trabajadoresDelDia = [];
   
@@ -810,36 +810,3 @@ function mostrarConfirmacion(titulo, mensaje, onConfirm, tipoBoton = 'danger') {
   });
 }
 
-async function salirYcerrar() {
-  mostrarConfirmacion(
-    'Cerrar aplicación',
-    '¿Está seguro que desea salir y cerrar la aplicación?',
-    async () => {
-      try {
-        await fetch('/cerrar', { method: 'POST' });
-        // Intentar cerrar la ventana de múltiples formas
-        if (window.opener) {
-          window.close();
-        } else {
-          // Si no se puede cerrar por seguridad del navegador,
-          // redirigir a una página en blanco
-          window.location.href = 'about:blank';
-          setTimeout(() => {
-            try {
-        window.close();
-            } catch (e) {
-              // Si falla, mostrar mensaje
-              alert('Por favor, cierre esta ventana manualmente');
-            }
-          }, 100);
-        }
-      } catch (error) {
-        console.error('Error al cerrar:', error);
-        window.location.href = 'about:blank';
-      }
-    },
-    'danger'
-  );
-}
-
-  

@@ -17,6 +17,7 @@ body {
   max-width: 1600px;
   margin: 0 auto;
   height: calc(100vh - 40px);
+  position: relative; /* para posicionar .sidebar-right de forma absoluta */
 }
 
 /* Sidebar izquierdo */
@@ -153,7 +154,7 @@ body {
 .day-cell {
   border: 2px solid #000000;
   border-radius: 8px;
-  min-height: 140px;
+  min-height: 126px; /* 10% smaller */
   display: flex;
   position: relative;
   background-color: white;
@@ -168,30 +169,31 @@ body {
 }
 
 .day-left {
-  flex: 1;
+  flex: 0 0 25%; /* 25% width for the day number */
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
   border-right: 2px solid #000000;
-  cursor: pointer;
+  cursor: default;
   position: relative;
   flex-direction: column;
 }
 
 .day-right {
-  flex: 1;
+  flex: 1 1 75%; /* 75% width for groups */
   display: flex;
   flex-direction: column;
   padding: 6px;
   gap: 3px;
   overflow-y: auto;
   max-height: 100%;
+  cursor: pointer; /* clickable area now */
 }
 
 .day-number {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px; /* 10% larger */
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
@@ -248,14 +250,50 @@ body {
 /* Sidebar derecho - Referencia */
 .sidebar-right {
   min-width: 180px;
+  display: flex;
+  align-items: center;
+  position: absolute;
+  right: 12px; /* pequeño margen desde el borde */
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .referencia {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
   padding: 20px;
+  margin-top: 0;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Dejar espacio al main-content para que no quede debajo de la referencia */
+.main-content {
+  margin-right: 260px; /* ajuste de espacio para que quede cercano pero sin solapar */
+}
+
+@media (max-width: 900px) {
+  .container {
+    flex-direction: column;
+    height: auto;
+    padding: 10px;
+  }
+  .sidebar-right {
+    min-width: unset;
+    width: 100%;
+    order: 2;
+    position: static;
+    transform: none;
+    padding-top: 12px; /* más compacto en móvil */
+  }
+  .main-content { margin-right: 0; }
+  .main-content {
+    order: 1;
+    width: 100%;
+  }
+  .referencia {
+    margin-top: 12px;
+  }
 }
 
 .referencia h3 {
