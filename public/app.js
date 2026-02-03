@@ -46,6 +46,7 @@ function obtenerTurnoABCDEFGH(fecha) {
     // Días 42-55: DC (invertido)
     manana = 'D';
     tarde = 'C';
+  }
   
   // Pista 2: ciclo de 56 días, desplazado 7 días
   // Cuando hay solapamiento, la pista 2 tiene prioridad (se muestra primero)
@@ -123,6 +124,7 @@ function contarDiasConsecutivos(desde, hasta) {
   let contador = 0;
   const fechaActual = new Date(desde);
   
+  const fechaFin = new Date(hasta);
   while (fechaActual <= fechaFin) {
     contador++;
     fechaActual.setDate(fechaActual.getDate() + 1);
