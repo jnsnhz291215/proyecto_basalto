@@ -95,7 +95,7 @@ function render() {
 
       const nom = document.createElement('div');
       nom.className = 'trabajador-card-nombre';
-      nom.textContent = `${t.apellido || ''}, ${t.nombre || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || '-';
+      nom.textContent = `${t.apellidos || ''}, ${t.nombres || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || '-';
 
       const rutCargo = document.createElement('div');
       rutCargo.className = 'trabajador-card-linea';
@@ -189,9 +189,9 @@ async function enviarAgregar(e) {
   if (!telefono) { alert('Teléfono inválido (9 dígitos).'); return; }
 
   const obj = {
-    nombre: nombre.replace(/\s+/g, ' ').trim(),
-    apellido: apellido.replace(/\s+/g, ' ').trim(),
-    rut,
+    nombres: nombre.replace(/\s+/g, ' ').trim(),
+    apellidos: apellido.replace(/\s+/g, ' ').trim(),
+    RUT: rut,
     email: email.toLowerCase().trim(),
     telefono,
     grupo

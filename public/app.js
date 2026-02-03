@@ -46,7 +46,6 @@ function obtenerTurnoABCDEFGH(fecha) {
     // Días 42-55: DC (invertido)
     manana = 'D';
     tarde = 'C';
-  }
   
   // Pista 2: ciclo de 56 días, desplazado 7 días
   // Cuando hay solapamiento, la pista 2 tiene prioridad (se muestra primero)
@@ -68,7 +67,7 @@ function obtenerTurnoABCDEFGH(fecha) {
       if (!manana) manana = 'H';
       if (!tarde) tarde = 'G';
     } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
-      // Días 35-48: FE (invertido)
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
       if (!manana) manana = 'F';
       if (!tarde) tarde = 'E';
     } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
@@ -102,7 +101,6 @@ const feriados2026 = [
   '2026-04-18', // Viernes Santo
   '2026-04-19', // Sábado Santo
   '2026-05-01', // Día del Trabajador
-  '2026-05-21', // Día de las Glorias Navales
   '2026-06-29', // San Pedro y San Pablo
   '2026-07-16', // Virgen del Carmen
   '2026-08-15', // Asunción de la Virgen
@@ -124,7 +122,6 @@ const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viern
 function contarDiasConsecutivos(desde, hasta) {
   let contador = 0;
   const fechaActual = new Date(desde);
-  const fechaFin = new Date(hasta);
   
   while (fechaActual <= fechaFin) {
     contador++;
@@ -631,7 +628,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
           const item = document.createElement('div');
           item.className = 'trabajador-item manana';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -653,7 +650,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
           const item = document.createElement('div');
           item.className = 'trabajador-item tarde';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -687,7 +684,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
           const item = document.createElement('div');
           item.className = 'trabajador-item manana';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -709,7 +706,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
           const item = document.createElement('div');
           item.className = 'trabajador-item tarde';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -733,7 +730,7 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
           const item = document.createElement('div');
           item.className = 'trabajador-item semanal';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombre} ${trabajador.apellido}`;
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
           item.style.fontSize = '16px';
           trabajadoresDiaEl.appendChild(item);
         });

@@ -1,6 +1,4 @@
 const express = require("express");
-const fs = require("fs");
-const { execSync } = require("child_process");
 const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador } = require("../ejemploconexion.js");
 
 const app = express();
@@ -14,37 +12,19 @@ app.use((req, res, next) => {
 });
 app.use(express.static("public"));
 
-const DATA_PATH = "./data/trabajadores.json";
-const AUTO_GUARDADO_MS = 10 * 60 * 1000; // 10 minutos
 const AUTO_CIERRE_MS = 60 * 60 * 1000; // 1 hora
 
 let ultimoEstado = null;
 let autoCierreTimeout = null;
-
-// Función para guardar cambios en archivo y git
-function guardarCambios(data, motivo = "Auto-guardado") {
-  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
-
-  try {
-    execSync("git add data/trabajadores.json");
-    execSync(`git commit -m "${motivo}"`);
-    execSync("git push");
-  } catch (e) {
-    console.log("Nada nuevo para commitear o error en git");
-  }
-}
 
 // Resetear el timer de auto-cierre en cada petición
 app.use((req, res, next) => {
   if (autoCierreTimeout) {
     clearTimeout(autoCierreTimeout);
   }
-  
+
   autoCierreTimeout = setTimeout(() => {
-    console.log("Auto-cierre: guardando y cerrando");
-    if (ultimoEstado) {
-      guardarCambios(ultimoEstado, "Auto-guardado final (1 hora)");
-    }
+    console.log("Auto-cierre: cerrando");
     process.exit(0);
   }, AUTO_CIERRE_MS);
 
@@ -63,12 +43,7 @@ app.get("/datos", async (req, res) => {
   }
 });
 
-// Endpoint para guardar cambios
-app.post("/guardar", (req, res) => {
-  ultimoEstado = req.body;
-  guardarCambios(req.body, "Guardado manual");
-  res.send("Cambios guardados");
-});
+// Endpoint /guardar eliminado (guardado en JSON ya no se usa)
 
 // Funciones de validación del servidor
 function validarEmailServidor(email) {
@@ -133,14 +108,15 @@ app.post("/agregar-trabajador", async (req, res) => {
       return res.status(400).json({ error: "Ya existe un trabajador con este RUT" });
     }
     
-    // Agregar el nuevo trabajador a la BD
+    // Agregar el nuevo trabajador a la BD (incluye cargo si viene)
     await agregarTrabajador(
       nuevoTrabajador.nombres,
       nuevoTrabajador.apellidos,
       nuevoTrabajador.RUT,
       nuevoTrabajador.email,
       nuevoTrabajador.telefono,
-      nuevoTrabajador.grupo
+      nuevoTrabajador.grupo,
+      nuevoTrabajador.cargo || null
     );
     
     const trabajadores = await obtenerTrabajadores();
@@ -187,20 +163,14 @@ app.post("/cerrar", (req, res) => {
   res.send("Cerrando aplicación");
   // Guardar antes de cerrar
   if (ultimoEstado) {
-    guardarCambios(ultimoEstado, "Guardado antes de cerrar");
+    // no se guarda en JSON: no-op
   }
   setTimeout(() => {
     process.exit(0);
   }, 1000);
 });
 
-// Auto-guardado cada 10 minutos
-setInterval(() => {
-  if (ultimoEstado) {
-    console.log("Auto-guardado cada 10 minutos");
-    guardarCambios(ultimoEstado, "Auto-guardado (10 min)");
-  }
-}, AUTO_GUARDADO_MS);
+// Auto-guardado eliminado (ya no se usa archivo JSON)
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;

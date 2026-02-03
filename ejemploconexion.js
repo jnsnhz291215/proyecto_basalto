@@ -22,13 +22,13 @@ async function obtenerTrabajadores() {
   }
 }
 
-// Función para agregar trabajador
-async function agregarTrabajador(nombres, apellidos, rut, email, telefono, grupo) {
+// Función para agregar trabajador (incluye cargo)
+async function agregarTrabajador(nombres, apellidos, rut, email, telefono, grupo, cargo = null) {
   const connection = await pool.getConnection();
   try {
     const result = await connection.query(
-      'INSERT INTO trabajadoresTest (nombres, apellidos, RUT, email, telefono, grupo) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombres, apellidos, rut, email, telefono, grupo]
+      'INSERT INTO trabajadoresTest (nombres, apellidos, RUT, email, telefono, grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombres, apellidos, rut, email, telefono, grupo, cargo]
     );
     return result;
   } finally {
