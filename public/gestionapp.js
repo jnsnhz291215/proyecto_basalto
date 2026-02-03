@@ -99,7 +99,7 @@ function render() {
 
       const rutCargo = document.createElement('div');
       rutCargo.className = 'trabajador-card-linea';
-      rutCargo.textContent = `RUT: ${t.rut || '-'} | Cargo: ${t.cargo || '-'}`;
+      rutCargo.textContent = `RUT: ${t.RUT || '-'} | Cargo: ${t.cargo || '-'}`;
 
       const tel = document.createElement('div');
       tel.className = 'trabajador-card-linea';
@@ -118,7 +118,7 @@ function render() {
       btnDel.className = 'btn btn-borrar';
       btnDel.textContent = '×';
       btnDel.title = 'Borrar';
-      btnDel.addEventListener('click', () => confirmarBorrar(t.rut));
+      btnDel.addEventListener('click', () => confirmarBorrar(t.RUT));
 
       card.appendChild(body);
       card.appendChild(btnDel);
@@ -188,6 +188,13 @@ async function enviarAgregar(e) {
   if (!rut) { alert('RUT inválido (8-9 dígitos).'); return; }
   if (!telefono) { alert('Teléfono inválido (9 dígitos).'); return; }
 
+  // Validar email antes de enviar
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert('Email inválido. Debe ser: texto@texto.texto');
+    return;
+  }
+
   const obj = {
     nombres: nombre.replace(/\s+/g, ' ').trim(),
     apellidos: apellido.replace(/\s+/g, ' ').trim(),
@@ -211,10 +218,12 @@ async function enviarAgregar(e) {
       cerrarAgregar();
       alert('Trabajador agregado.');
     } else {
-      alert(data.error || 'Error al agregar');
+      console.error('Error del servidor:', data);
+      alert(data.error || `Error al agregar (${r.status})`);
     }
   } catch (err) {
-    alert('Error al agregar.');
+    console.error('Error en enviarAgregar:', err);
+    alert('Error al agregar: ' + err.message);
   }
 }
 
