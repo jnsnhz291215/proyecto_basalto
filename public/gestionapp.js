@@ -35,12 +35,23 @@ function formatearTelefono(val) {
   return '+56' + n;
 }
 
+// Normalizar a Title Case: primera letra en mayúscula por palabra
+function titleCase(s) {
+  return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
 async function cargar() {
   try {
     const r = await fetch('/datos');
     if (!r.ok) throw new Error('Error al cargar');
     trabajadores = await r.json();
     if (!Array.isArray(trabajadores)) trabajadores = [];
+    // Normalizar nombres/apellidos/cargo para display
+    trabajadores = trabajadores.map(t => ({
+      ...t,
+      nombres: titleCase(t.nombres),
+      apellidos: titleCase(t.apellidos),
+      cargo: t.cargo ? titleCase(t.cargo) : t.cargo
+    }));
   } catch (e) {
     console.error(e);
     trabajadores = [];
@@ -148,11 +159,17 @@ async function ejecutarBorrar() {
     if (r.ok && data.success) {
       trabajadores = data.trabajadores || [];
       render();
+      alert('Trabajador eliminado con éxito');
+    } else if (r.status === 404) {
+      alert(data.error || 'Error: El RUT no existe');
+    } else if (r.status === 400) {
+      alert(data.error || 'Solicitud inválida');
     } else {
-      alert(data.error || 'Error al eliminar');
+      alert(data.error || `Error al eliminar (${r.status})`);
     }
   } catch (e) {
-    alert('Error al eliminar');
+    console.error('Error en ejecutarBorrar:', e);
+    alert('Error al eliminar: ' + (e && e.message));
   }
   rutParaBorrar = null;
   el.modalConfirm.classList.remove('show');
@@ -204,6 +221,11 @@ async function enviarAgregar(e) {
     grupo
   };
   if (cargo) obj.cargo = cargo.trim();
+
+  // Normalizar a Title Case en frontend para mostrar inmediatamente
+  obj.nombres = titleCase(obj.nombres);
+  obj.apellidos = titleCase(obj.apellidos);
+  if (obj.cargo) obj.cargo = titleCase(obj.cargo);
 
   try {
     const r = await fetch('/agregar-trabajador', {

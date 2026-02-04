@@ -33,7 +33,7 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 async function obtenerTrabajadores() {
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.query('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadoresTest2');
+    const [rows] = await connection.execute('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadoresTest2');
     const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
     return rows.map(r => ({
       RUT: r.RUT,
@@ -53,9 +53,20 @@ async function obtenerTrabajadores() {
 async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null) {
   const connection = await pool.getConnection();
   try {
-    const result = await connection.query(
+    // Normalizar capitalización: primera letra en mayúscula por palabra
+    const titleCase = s => {
+      if (!s && s !== '') return s;
+      return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+
+    const nombresNorm = titleCase(nombres);
+    const apellidoPaternoNorm = titleCase(apellido_paterno);
+    const apellidoMaternoNorm = titleCase(apellido_materno);
+    const cargoNorm = cargo ? titleCase(cargo) : null;
+
+    const [result] = await connection.execute(
       'INSERT INTO trabajadoresTest2 (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo]
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoNorm]
     );
     return result;
   } finally {
@@ -67,8 +78,17 @@ async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, ru
 async function eliminarTrabajador(rut) {
   const connection = await pool.getConnection();
   try {
-    const result = await connection.query(
-      'DELETE FROM trabajadoresTest WHERE RUT = ?',
+    // Verificar existencia
+    const [rows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadoresTest2 WHERE RUT = ?', [rut]);
+    const count = rows && rows[0] && (rows[0].c || rows[0].C || rows[0]['COUNT(*)']) ? (rows[0].c || rows[0].C || rows[0]['COUNT(*)']) : 0;
+    if (parseInt(count, 10) === 0) {
+      const err = new Error('RUT not found');
+      err.code = 'RUT_NOT_FOUND';
+      throw err;
+    }
+
+    const [result] = await connection.execute(
+      'DELETE FROM trabajadoresTest2 WHERE RUT = ?',
       [rut]
     );
     return result;

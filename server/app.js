@@ -169,17 +169,18 @@ app.post("/eliminar-trabajador", async (req, res) => {
     if (!rut || typeof rut !== 'string' || rut.trim() === '') {
       return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
     }
-    
-    const trabajadoresAntes = await obtenerTrabajadores();
-    await eliminarTrabajador(rut.trim());
-    const trabajadoresDespues = await obtenerTrabajadores();
-    
-    if (trabajadoresAntes.length === trabajadoresDespues.length) {
-      return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
+    try {
+      await eliminarTrabajador(rut.trim());
+      const trabajadoresDespues = await obtenerTrabajadores();
+      ultimoEstado = trabajadoresDespues;
+      res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado" });
+    } catch (e) {
+      if (e && e.code === 'RUT_NOT_FOUND') {
+        return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
+      }
+      console.error('Error en eliminarTrabajador:', e);
+      return res.status(500).json({ error: 'Error al eliminar trabajador' });
     }
-    
-    ultimoEstado = trabajadoresDespues;
-    res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado" });
   } catch (error) {
     console.error("Error al eliminar trabajador:", error);
     res.status(500).json({ error: "Error al eliminar trabajador" });
