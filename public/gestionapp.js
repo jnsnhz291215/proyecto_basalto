@@ -219,7 +219,8 @@ async function enviarAgregar(e) {
       alert('Trabajador agregado.');
     } else {
       console.error('Error del servidor:', data);
-      alert(data.error || `Error al agregar (${r.status})`);
+      const detalle = data.detail ? '\nDetalle: ' + data.detail : '';
+      alert((data.error || `Error al agregar (${r.status})`) + detalle);
     }
   } catch (err) {
     console.error('Error en enviarAgregar:', err);

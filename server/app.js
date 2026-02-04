@@ -118,15 +118,29 @@ app.post("/agregar-trabajador", async (req, res) => {
     if (trabajadoresExistentes.some(t => t.RUT === nuevoTrabajador.RUT)) {
       return res.status(400).json({ error: "Ya existe un trabajador con este RUT" });
     }
-    
-    // Agregar el nuevo trabajador a la BD (incluye cargo si viene)
+
+    // Preparar apellidos (paterno / materno) y mapear grupo letra -> id_grupo
+    const apellidosRaw = (nuevoTrabajador.apellidos || '').trim();
+    let apellido_paterno = '';
+    let apellido_materno = '';
+    if (apellidosRaw) {
+      const parts = apellidosRaw.split(/\s+/);
+      apellido_paterno = parts.shift() || '';
+      apellido_materno = parts.join(' ') || '';
+    }
+
+    const idx = gruposValidos.indexOf(nuevoTrabajador.grupo);
+    const id_grupo = idx >= 0 ? idx + 1 : null;
+
+    // Agregar el nuevo trabajador a la BD (apellido_paterno/materno, id_grupo)
     await agregarTrabajador(
       nuevoTrabajador.nombres,
-      nuevoTrabajador.apellidos,
+      apellido_paterno,
+      apellido_materno,
       nuevoTrabajador.RUT,
       nuevoTrabajador.email,
       nuevoTrabajador.telefono,
-      nuevoTrabajador.grupo,
+      id_grupo,
       nuevoTrabajador.cargo || null
     );
     
@@ -140,7 +154,11 @@ app.post("/agregar-trabajador", async (req, res) => {
     });
   } catch (error) {
     console.error("Error al agregar trabajador:", error);
-    res.status(500).json({ error: "Error al agregar trabajador" });
+    const resp = { error: "Error al agregar trabajador" };
+    if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
+      resp.detail = error && (error.message || String(error));
+    }
+    res.status(500).json(resp);
   }
 });
 

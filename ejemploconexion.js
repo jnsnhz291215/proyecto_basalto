@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 
 // Pool de conexión a MariaDB (configurable mediante variables de entorno)
-const DB_HOST = process.env.DB_HOST || '127.0.0.1';
+const DB_HOST = process.env.DB_HOST || '100.100.40.80';
 const DB_USER = process.env.DB_USER || 'turnos_app';
 const DB_PASSWORD = process.env.DB_PASSWORD || 'Basalto1974';
 const DB_NAME = process.env.DB_NAME || 'basalto';
@@ -33,20 +33,29 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 async function obtenerTrabajadores() {
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.query('SELECT * FROM trabajadoresTest');
-    return rows;
+    const [rows] = await connection.query('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadoresTest2');
+    const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
+    return rows.map(r => ({
+      RUT: r.RUT,
+      nombres: r.nombres,
+      apellidos: ((r.apellido_paterno || '') + ' ' + (r.apellido_materno || '')).trim(),
+      email: r.email,
+      telefono: r.telefono,
+      grupo: (typeof r.id_grupo === 'number' && r.id_grupo >= 1 && r.id_grupo <= GRUPOS.length) ? GRUPOS[r.id_grupo - 1] : (r.id_grupo ? String(r.id_grupo) : ''),
+      cargo: r.cargo
+    }));
   } finally {
     connection.release();
   }
 }
 
 // Función para agregar trabajador (incluye cargo)
-async function agregarTrabajador(nombres, apellidos, rut, email, telefono, grupo, cargo = null) {
+async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null) {
   const connection = await pool.getConnection();
   try {
     const result = await connection.query(
-      'INSERT INTO trabajadoresTest (nombres, apellidos, RUT, email, telefono, grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nombres, apellidos, rut, email, telefono, grupo, cargo]
+      'INSERT INTO trabajadoresTest2 (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo]
     );
     return result;
   } finally {
