@@ -43,6 +43,17 @@ app.get("/datos", async (req, res) => {
   }
 });
 
+// Endpoint para comprobar conexión a la base de datos
+app.get('/ping-db', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT 1');
+    res.json({ ok: true, rows });
+  } catch (error) {
+    console.error('Ping DB failed:', error);
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
 // Endpoint /guardar eliminado (guardado en JSON ya no se usa)
 
 // Funciones de validación del servidor
