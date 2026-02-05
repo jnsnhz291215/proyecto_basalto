@@ -38,6 +38,8 @@ async function obtenerTrabajadores() {
     return rows.map(r => ({
       RUT: r.RUT,
       nombres: r.nombres,
+      apellido_paterno: r.apellido_paterno,
+      apellido_materno: r.apellido_materno,
       apellidos: ((r.apellido_paterno || '') + ' ' + (r.apellido_materno || '')).trim(),
       email: r.email,
       telefono: r.telefono,

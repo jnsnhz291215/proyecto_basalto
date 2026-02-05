@@ -23,8 +23,41 @@
 
   <main style="max-width:900px;margin:40px auto;padding:0 16px;">
     <h1>Datos personales</h1>
-    <p>Sección en desarrollo. Próximamente se agregarán funciones.</p>
+
+    <div id="login-card" style="max-width:560px;margin-top:18px;padding:16px;border-radius:8px;border:1px solid #e6eef8;background:#fff">
+      <p>Ingrese su usuario y clave para ver sus datos.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <div style="font-size:13px;color:#475569">Formato usuario: Nombre+primer apellido — ejemplo: <strong>TomasDiaz</strong></div>
+        <label>Usuario (sin espacios): <input id="login-usuario" type="text" placeholder="TomasDiaz"></label>
+        <div style="font-size:13px;color:#475569">Formato clave: RUT sin puntos ni guion — ejemplo: <strong>12345678</strong></div>
+        <label>Clave (RUT sin puntos ni guion): <input id="login-clave" type="text" placeholder="12345678"></label>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button id="btn-login" class="btn btn-blue">Ingresar</button>
+          <button id="btn-clear" class="btn btn-grey" type="button">Limpiar</button>
+        </div>
+        <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:6px"></div>
+      </div>
+    </div>
+
+    <div id="perfil-card" style="display:none;max-width:760px;margin-top:18px;padding:16px;border-radius:8px;border:1px solid #e6eef8;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="perfil-nombre"></h2>
+        <div>
+          <button id="btn-logout" class="btn btn-grey">Cerrar sesión</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><strong>RUT:</strong> <span id="perfil-rut"></span></div>
+        <div><strong>Teléfono:</strong> <span id="perfil-telefono"></span></div>
+        <div><strong>Email:</strong> <span id="perfil-email"></span></div>
+        <div><strong>Grupo:</strong> <span id="perfil-grupo"></span></div>
+        <div style="grid-column:1/-1"><strong>Cargo:</strong> <span id="perfil-cargo"></span></div>
+      </div>
+    </div>
   </main>
+</main>
+
+  <script src="datos.js"></script>
 
 </body>
 </html>

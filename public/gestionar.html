@@ -22,14 +22,19 @@
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
 
-  <!-- Modal de login -->
+  <!-- Modal de login (admin) -->
   <div id="modal-login" class="modal modal-login show">
     <div class="modal-content">
       <h2>Acceso a Gestionar</h2>
       <form id="form-login">
         <div class="form-group">
-          <label for="clave-login">Clave</label>
-          <input type="password" id="clave-login" name="clave" placeholder="Ingrese la clave" autocomplete="off" required>
+          <div style="font-size:13px;color:#475569">Ingrese RUT y contraseña de administrador.</div>
+          <label for="rut-login">Usuario (RUT sin puntos ni guion)</label>
+          <input type="text" id="rut-login" name="rut" placeholder="12345678" autocomplete="off" required>
+        </div>
+        <div class="form-group">
+          <label for="pass-login">Password</label>
+          <input type="password" id="pass-login" name="password" placeholder="Password" autocomplete="off" required>
         </div>
         <div class="form-buttons">
           <a href="index.html" class="btn btn-secondary">Volver al inicio</a>
@@ -136,6 +141,17 @@
         <button type="button" id="confirm-ok" class="btn btn-danger">Borrar</button>
       </div>
     </div>
+
+      <!-- Modal resultado (agregar trabajador) -->
+      <div id="modal-result" class="modal">
+        <div class="modal-content">
+          <h3 id="result-title">Resultado</h3>
+          <p id="result-msg"></p>
+          <div class="form-buttons">
+            <button type="button" id="result-ok" class="btn btn-primary">OK</button>
+          </div>
+        </div>
+      </div>
   </div>
 
   <script type="module" src="gestionapp.js"></script>

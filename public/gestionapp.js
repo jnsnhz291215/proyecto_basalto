@@ -1,6 +1,6 @@
 import { GRUPOS, COLORES } from './config.js';
 
-const CLAVE_GESTIONAR = 'clave1super2secreta3';
+// const CLAVE_GESTIONAR = 'clave1super2secreta3';
 
 let trabajadores = [];
 let rutParaBorrar = null;
@@ -13,6 +13,8 @@ const el = {
   selectFiltro: null,
   modalAgregar: null,
   modalConfirm: null,
+  modalResult: null,
+  resultOk: null,
   formAgregar: null,
   closeModal: null,
   cancelAdd: null,
@@ -238,27 +240,48 @@ async function enviarAgregar(e) {
       trabajadores = data.trabajadores || [];
       render();
       cerrarAgregar();
-      alert('Trabajador agregado.');
+      showResult('Éxito', data.message || 'Trabajador agregado correctamente');
     } else {
       console.error('Error del servidor:', data);
       const detalle = data.detail ? '\nDetalle: ' + data.detail : '';
-      alert((data.error || `Error al agregar (${r.status})`) + detalle);
+      showResult('Error', (data.error || `Error al agregar (${r.status})`) + detalle, true);
     }
   } catch (err) {
     console.error('Error en enviarAgregar:', err);
-    alert('Error al agregar: ' + err.message);
+    showResult('Error', 'Error al agregar: ' + err.message, true);
   }
 }
 
+function showResult(title, msg, isError=false){
+  const m = document.getElementById('modal-result');
+  const t = document.getElementById('result-title');
+  const p = document.getElementById('result-msg');
+  t.textContent = title || 'Resultado';
+  p.textContent = msg || '';
+  if (m) m.classList.add('show');
+  // optional styling for error
+  if (isError) t.style.color = '#b91c1c'; else t.style.color = '';
+}
 function comprobarLogin(e) {
   e.preventDefault();
-  const clave = (el.formLogin.querySelector('#clave-login').value || '').trim();
-  if (clave === CLAVE_GESTIONAR) {
-    el.modalLogin.classList.remove('show');
-    cargar();
-  } else {
-    alert('Clave incorrecta.');
-  }
+  (async () => {
+    const rut = String((el.formLogin.querySelector('#rut-login')||{value:''}).value||'').replace(/\D/g,'').trim();
+    const password = String((el.formLogin.querySelector('#pass-login')||{value:''}).value||'');
+    if (!rut || !password) { alert('Ingrese RUT y password'); return; }
+    try{
+      const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
+      const d = await resp.json().catch(()=>({}));
+      if (resp.ok && d && d.success) {
+        el.modalLogin.classList.remove('show');
+        cargar();
+      } else {
+        alert(d.error || 'Credenciales inválidas');
+      }
+    }catch(err){
+      console.error('Error en admin-login:', err);
+      alert('Error conectando al servidor');
+    }
+  })();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -277,6 +300,15 @@ document.addEventListener('DOMContentLoaded', () => {
   el.confirmCancel = document.getElementById('confirm-cancel');
   el.confirmOk = document.getElementById('confirm-ok');
 
+  el.modalResult = document.getElementById('modal-result');
+  el.resultOk = document.getElementById('result-ok');
+
+  if (el.resultOk) {
+    el.resultOk.addEventListener('click', () => {
+      if (el.modalResult) el.modalResult.classList.remove('show');
+    });
+  }
+
   el.formLogin.addEventListener('submit', comprobarLogin);
 
   document.getElementById('btn-agregar').addEventListener('click', abrirAgregar);
@@ -290,6 +322,13 @@ document.addEventListener('DOMContentLoaded', () => {
     el.modalConfirm.classList.remove('show');
   });
   el.confirmOk.addEventListener('click', ejecutarBorrar);
+
+  if (el.resultOk) {
+    el.resultOk.addEventListener('click', () => {
+      const m = document.getElementById('modal-result');
+      if (m) m.classList.remove('show');
+    });
+  }
 
   el.modalAgregar.addEventListener('click', ev => {
     if (ev.target === el.modalAgregar) cerrarAgregar();
