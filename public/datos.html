@@ -24,18 +24,23 @@
   <main style="max-width:900px;margin:40px auto;padding:0 16px;">
     <h1>Datos personales</h1>
 
-    <div id="login-card" style="max-width:560px;margin-top:18px;padding:16px;border-radius:8px;border:1px solid #e6eef8;background:#fff">
-      <p>Ingrese su usuario y clave para ver sus datos.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-        <div style="font-size:13px;color:#475569">Formato usuario: Nombre+primer apellido — ejemplo: <strong>TomasDiaz</strong></div>
-        <label>Usuario (sin espacios): <input id="login-usuario" type="text" placeholder="TomasDiaz"></label>
-        <div style="font-size:13px;color:#475569">Formato clave: RUT sin puntos ni guion — ejemplo: <strong>12345678</strong></div>
-        <label>Clave (RUT sin puntos ni guion): <input id="login-clave" type="text" placeholder="12345678"></label>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-          <button id="btn-login" class="btn btn-blue">Ingresar</button>
-          <button id="btn-clear" class="btn btn-grey" type="button">Limpiar</button>
+    <!-- Login modal -->
+    <div id="modal-datos" class="modal show">
+      <div class="modal-content" style="max-width:560px;">
+        <h2>Ingreso de usuario</h2>
+        <p>Ingrese su usuario y clave para ver sus datos.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <div style="font-size:13px;color:#475569">Formato usuario: Nombre+primer apellido — ejemplo: <strong>TomasDiaz</strong></div>
+          <label>Usuario (sin espacios): <input id="login-usuario" type="text" placeholder="TomasDiaz"></label>
+          <div style="font-size:13px;color:#475569">Formato clave: RUT sin puntos ni guion — ejemplo: <strong>12345678</strong></div>
+          <label>Clave (RUT sin puntos ni guion): <input id="login-clave" type="text" placeholder="12345678"></label>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button id="btn-login" class="btn btn-primary">Ingresar</button>
+            <button id="btn-clear" class="btn btn-secondary" type="button">Limpiar</button>
+            <a href="index.html" class="btn btn-grey">Volver</a>
+          </div>
+          <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:6px"></div>
         </div>
-        <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:6px"></div>
       </div>
     </div>
 
@@ -55,7 +60,6 @@
       </div>
     </div>
   </main>
-</main>
 
   <script src="datos.js"></script>
 

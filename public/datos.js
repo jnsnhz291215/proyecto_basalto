@@ -5,7 +5,7 @@
   const btnLogin = document.getElementById('btn-login');
   const btnClear = document.getElementById('btn-clear');
   const loginError = document.getElementById('login-error');
-  const loginCard = document.getElementById('login-card');
+  const modalDatos = document.getElementById('modal-datos');
   const perfilCard = document.getElementById('perfil-card');
   const btnLogout = document.getElementById('btn-logout');
 
@@ -21,7 +21,7 @@
     return String(w).charAt(0).toUpperCase() + String(w).slice(1).toLowerCase();
   }
   function normalizeRut(s){
-    return String(s||'').replace(/\./g,'').trim().toUpperCase();
+    return String(s||'').replace(/[.\-\s]/g,'').trim().toUpperCase();
   }
 
   // We'll validate on server-side via POST /login. Keep local array only for optional client checks.
@@ -82,7 +82,7 @@
         perfilGrupo.textContent = found.grupo || '';
         perfilCargo.textContent = found.cargo || '';
 
-        loginCard.style.display = 'none';
+        if (modalDatos) modalDatos.classList.remove('show');
         perfilCard.style.display = 'block';
       }catch(e){
         console.error('Error al autenticar:', e);
@@ -94,7 +94,7 @@
 
   btnLogout.addEventListener('click', ()=>{
     perfilCard.style.display = 'none';
-    loginCard.style.display = 'block';
+    if (modalDatos) modalDatos.classList.add('show');
     loginUsuario.value = '';
     loginClave.value = '';
     loginError.style.display = 'none';
