@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Informe de Turno</title>
+  <link rel="stylesheet" href="informe.css">
+</head>
+<body>
+  <div id="shared-menu-placeholder"></div>
+  <script>
+    fetch('menu.html').then(r => r.text()).then(html => {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      document.body.insertBefore(wrapper, document.body.firstChild);
+      const btn = wrapper.querySelector('#nav-toggle');
+      const items = wrapper.querySelector('#nav-items');
+      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
+    }).catch(err => console.error('No se pudo cargar el menú:', err));
+  </script>
+
+  <main class="container">
+    <h1>Informe de Turno</h1>
+
+    <form id="informe-form" class="informe-form" action="#" onsubmit="return false;">
+      <section class="seccion">
+        <h2>Antecedentes de faena</h2>
+        <div class="grid">
+          <label>Faena / C.Costo: <input type="text" name="faena"></label>
+          <label>Lugar: <input type="text" name="lugar"></label>
+          <label>Equipo: <input type="text" name="equipo"></label>
+          <label>Operador: <input type="text" name="operador"></label>
+          <label>Ayudante: <input type="text" name="ayudante"></label>
+        </div>
+      </section>
+
+      <section class="seccion">
+        <h2>Antecedentes del pozo</h2>
+        <div class="grid">
+          <label>Pozo N°: <input type="text" name="pozo"></label>
+          <label>Sector: <input type="text" name="sector"></label>
+          <label>Diámetro: <input type="text" name="diametro"></label>
+          <label>Inclinación: <input type="text" name="inclinacion"></label>
+          <label>Prof. Inicial: <input type="text" name="prof_inicial"></label>
+          <label>Prof. Final: <input type="text" name="prof_final"></label>
+        </div>
+      </section>
+
+      <section class="seccion">
+        <h2>Descripción actividades realizadas</h2>
+        <div id="actividades-list">
+          <div class="actividad-row">
+            <input type="text" name="actividad[]" class="actividad-input" placeholder="Descripción" />
+          </div>
+        </div>
+        <div class="acciones">
+          <button id="btn-add-actividad" class="btn">Añadir otra</button>
+        </div>
+      </section>
+
+      <section class="seccion seccion-bottom">
+        <div class="acciones">
+          <button id="btn-reset" class="btn btn-secondary" type="button">Limpiar</button>
+          <button id="btn-guardar" class="btn btn-primary" type="button">Guardar (no conectado)</button>
+        </div>
+      </section>
+
+    </form>
+  </main>
+
+  <script src="informe.js"></script>
+</body>
+</html>

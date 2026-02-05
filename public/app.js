@@ -443,43 +443,58 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
       if (a.horario === 'tarde' && b.horario === 'manana') return 1;
       return 0;
     });
-    
-    // Mostrar bloques por grupo (mañana arriba, tarde abajo)
+
+    // Mostrar bloques por grupo (mañana arriba, tarde abajo) SOLO si hay trabajadores de ese grupo
     const gruposDelDia = obtenerGruposDelDia(date);
-    
-    // Pista 1 (grupos AB/CD/BA/DC)
+
+    // Pista 1 (mostrar solo si hay trabajadores asignados a ese grupo y pista)
     if (gruposDelDia.pista1) {
-      const grupoBlock = document.createElement('div');
-      grupoBlock.className = 'grupo-block manana';
-      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.pista1.manana];
-      grupoBlock.textContent = gruposDelDia.pista1.manana;
-      dayRight.appendChild(grupoBlock);
-      
-      const grupoBlockTarde = document.createElement('div');
-      grupoBlockTarde.className = 'grupo-block tarde';
-      grupoBlockTarde.style.backgroundColor = COLORES[gruposDelDia.pista1.tarde];
-      grupoBlockTarde.textContent = gruposDelDia.pista1.tarde;
-      dayRight.appendChild(grupoBlockTarde);
+      const gManana1 = gruposDelDia.pista1.manana;
+      const gTarde1 = gruposDelDia.pista1.tarde;
+      const tieneManana1 = trabajadoresDelDia.some(t => t.grupo === gManana1 && t.pista === 1);
+      const tieneTarde1 = trabajadoresDelDia.some(t => t.grupo === gTarde1 && t.pista === 1);
+      if (tieneManana1) {
+        const grupoBlock = document.createElement('div');
+        grupoBlock.className = 'grupo-block manana';
+        grupoBlock.style.backgroundColor = COLORES[gManana1];
+        grupoBlock.textContent = gManana1;
+        dayRight.appendChild(grupoBlock);
+      }
+      if (tieneTarde1) {
+        const grupoBlockTarde = document.createElement('div');
+        grupoBlockTarde.className = 'grupo-block tarde';
+        grupoBlockTarde.style.backgroundColor = COLORES[gTarde1];
+        grupoBlockTarde.textContent = gTarde1;
+        dayRight.appendChild(grupoBlockTarde);
+      }
     }
-    
-    // Pista 2 (grupos EF/HG/FE/GH) - si existe y es diferente a pista 1
+
+    // Pista 2 (mostrar solo si hay trabajadores asignados a ese grupo y pista)
     if (gruposDelDia.pista2) {
-      const grupoBlock = document.createElement('div');
-      grupoBlock.className = 'grupo-block manana';
-      grupoBlock.style.backgroundColor = COLORES[gruposDelDia.pista2.manana];
-      grupoBlock.textContent = gruposDelDia.pista2.manana;
-      dayRight.appendChild(grupoBlock);
-      
-      const grupoBlockTarde = document.createElement('div');
-      grupoBlockTarde.className = 'grupo-block tarde';
-      grupoBlockTarde.style.backgroundColor = COLORES[gruposDelDia.pista2.tarde];
-      grupoBlockTarde.textContent = gruposDelDia.pista2.tarde;
-      dayRight.appendChild(grupoBlockTarde);
+      const gManana2 = gruposDelDia.pista2.manana;
+      const gTarde2 = gruposDelDia.pista2.tarde;
+      const tieneManana2 = trabajadoresDelDia.some(t => t.grupo === gManana2 && t.pista === 2);
+      const tieneTarde2 = trabajadoresDelDia.some(t => t.grupo === gTarde2 && t.pista === 2);
+      if (tieneManana2) {
+        const grupoBlock = document.createElement('div');
+        grupoBlock.className = 'grupo-block manana';
+        grupoBlock.style.backgroundColor = COLORES[gManana2];
+        grupoBlock.textContent = gManana2;
+        dayRight.appendChild(grupoBlock);
+      }
+      if (tieneTarde2) {
+        const grupoBlockTarde = document.createElement('div');
+        grupoBlockTarde.className = 'grupo-block tarde';
+        grupoBlockTarde.style.backgroundColor = COLORES[gTarde2];
+        grupoBlockTarde.textContent = gTarde2;
+        dayRight.appendChild(grupoBlockTarde);
+      }
     }
-    
-    // Grupos semanales J (Lun–Jue) y K (Mar–Vie)
+
+    // Grupos semanales J (Lun–Jue) y K (Mar–Vie): mostrar solo si hay trabajadores semanales de ese grupo
     if (gruposDelDia.semanales && gruposDelDia.semanales.length > 0) {
-      for (const g of gruposDelDia.semanales) {
+      const semanalesPresentes = [...new Set(trabajadoresDelDia.filter(t => t.pista === 0).map(t => t.grupo))];
+      for (const g of semanalesPresentes) {
         const grupoBlock = document.createElement('div');
         grupoBlock.className = 'grupo-block semanal';
         grupoBlock.style.backgroundColor = COLORES[g];
