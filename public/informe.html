@@ -13,14 +13,37 @@
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html;
       document.body.insertBefore(wrapper, document.body.firstChild);
+      // Inicializar menú (toggle y activo)
       const btn = wrapper.querySelector('#nav-toggle');
       const items = wrapper.querySelector('#nav-items');
       if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
+      try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
 
   <main class="container">
-    <h1>Informe de Turno</h1>
+    <div class="title-row">
+      <h1>Informe de Turno</h1>
+      <div class="date-controls">
+        <label class="small">Fecha: <input type="date" id="informe-fecha"></label>
+        <label class="small">Grupo:
+          <select id="informe-turno">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="G">G</option>
+            <option value="H">H</option>
+            <option value="J">J</option>
+            <option value="K">K</option>
+          </select>
+        </label>
+        <label class="small">Horas: <input type="number" id="informe-horas" min="0" max="24" value="12"></label>
+        <button id="btn-add-fecha" class="btn">Agregar fecha</button>
+      </div>
+    </div>
 
     <form id="informe-form" class="informe-form" action="#" onsubmit="return false;">
       <section class="seccion">
@@ -48,6 +71,7 @@
 
       <section class="seccion">
         <h2>Descripción actividades realizadas</h2>
+        <div id="fechas-agregadas" class="fechas-agregadas"></div>
         <div id="actividades-list">
           <div class="actividad-row">
             <input type="text" name="actividad[]" class="actividad-input" placeholder="Descripción" />
