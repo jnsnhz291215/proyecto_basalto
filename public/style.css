@@ -279,6 +279,7 @@ body {
     flex-direction: column;
     height: auto;
     padding: 10px;
+    align-items: center; /* centrar contenido en móvil */
   }
   .sidebar-right {
     min-width: unset;
@@ -292,6 +293,8 @@ body {
   .main-content {
     order: 1;
     width: 100%;
+    max-width: 760px;
+    margin: 0 auto; /* centrar la tarjeta principal */
   }
   .referencia {
     margin-top: 12px;

@@ -26,9 +26,11 @@
   @media (max-width:800px){
     .nav{padding:10px}
     .nav-toggle{display:block}
-    .nav-items{display:none;flex-direction:column;position:fixed;left:12px;right:12px;top:64px;background:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.08)}
-    .nav-items.show{display:flex}
+    .nav-items{display:none;flex-direction:column;position:fixed;right:12px;left:auto;top:var(--header-height,64px);background:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.08);min-width:200px;max-width:80%;}
+    .nav-items.show{display:flex;align-items:flex-end}
     .nav-item a{padding:10px}
+    /* quitar borde inferior del header en móvil para que no parezca doble barra */
+    .top-menu{border-bottom:0}
   }
 </style>
 
