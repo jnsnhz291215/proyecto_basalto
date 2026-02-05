@@ -7,7 +7,9 @@
 body {
   font-family: sans-serif;
   background-color: #ffffff;
+  --header-height: 64px;
   padding: 20px;
+  padding-top: calc(20px + var(--header-height));
   margin: 0;
 }
 
@@ -322,10 +324,10 @@ body {
   position: fixed;
   z-index: 1000;
   left: 0;
-  top: 0;
+  top: var(--header-height);
   width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  height: calc(100% - var(--header-height));
+  background-color: rgba(0, 0, 0, 0.45);
   justify-content: center;
   align-items: center;
 }
@@ -408,12 +410,12 @@ body {
 .confirm-modal {
   display: none;
   position: fixed;
-  z-index: 2000;
+  z-index: 1005;
   left: 0;
-  top: 0;
+  top: var(--header-height);
   width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  height: calc(100% - var(--header-height));
+  background-color: rgba(0, 0, 0, 0.45);
   justify-content: center;
   align-items: center;
 }
@@ -527,3 +529,18 @@ body {
 .form-group input[style*="border-left: none"] {
   flex: 1;
 }
+
+/* Ajustes responsivos adicionales para pantallas pequeñas */
+@media (max-width: 600px) {
+  :root { --header-height: 56px; }
+  body { padding-top: calc(12px + var(--header-height)); }
+  .day-cell { min-height: 90px; }
+  .day-left { flex: 0 0 20%; padding: 6px; }
+  .day-right { padding: 4px; }
+  .day-number { font-size: 16px; }
+  .weekdays div { font-size: 12px; padding: 8px; }
+  .modal-content, .confirm-modal-content { width: 95%; padding: 20px; }
+}
+
+/* Small visual tweaks: slightly lighter overlay when header visible */
+.modal, .confirm-modal { background-color: rgba(0,0,0,0.38); }
