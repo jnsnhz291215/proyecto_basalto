@@ -15,7 +15,7 @@
 </header>
 
 <style>
-  .top-menu{background:#fff;border-bottom:1px solid #e6eef8;position:sticky;top:0;z-index:1200;--header-height:64px}
+  .top-menu{background:#fff;position:sticky;top:0;z-index:1200}
   .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
   .nav-logo{font-weight:900;color:#1f2937;text-decoration:none;font-size:34px}
   .nav-items{list-style:none;margin:0;padding:0;display:flex;gap:14px;align-items:center}
@@ -26,11 +26,10 @@
   @media (max-width:800px){
     .nav{padding:10px}
     .nav-toggle{display:block}
-    .nav-items{display:none;flex-direction:column;position:fixed;right:12px;left:auto;top:var(--header-height,64px);background:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.08);min-width:200px;max-width:80%;}
+    .nav-items{display:none;flex-direction:column;position:fixed;right:12px;left:auto;top:64px;background:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.08);min-width:200px;max-width:80%;}
     .nav-items.show{display:flex;align-items:flex-end}
     .nav-item a{padding:10px}
-    /* quitar borde inferior del header en móvil para que no parezca doble barra */
-    .top-menu{border-bottom:0}
+    /* removable: header has no bottom border */
   }
 </style>
 

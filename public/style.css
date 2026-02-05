@@ -7,9 +7,7 @@
 body {
   font-family: sans-serif;
   background-color: #ffffff;
-  --header-height: 64px;
   padding: 20px;
-  padding-top: calc(20px + var(--header-height));
   margin: 0;
 }
 
@@ -325,12 +323,12 @@ body {
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: 99999;
   left: 0;
-  top: var(--header-height);
+  top: 0;
   width: 100%;
-  height: calc(100% - var(--header-height));
-  background-color: rgba(0, 0, 0, 0.45);
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   justify-content: center;
   align-items: center;
 }
@@ -413,12 +411,12 @@ body {
 .confirm-modal {
   display: none;
   position: fixed;
-  z-index: 1005;
+  z-index: 100000;
   left: 0;
-  top: var(--header-height);
+  top: 0;
   width: 100%;
-  height: calc(100% - var(--header-height));
-  background-color: rgba(0, 0, 0, 0.45);
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   justify-content: center;
   align-items: center;
 }

@@ -220,12 +220,12 @@ body {
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: 99999;
   left: 0;
-  top: var(--header-height, 64px);
+  top: 0;
   width: 100%;
-  height: calc(100% - var(--header-height, 64px));
-  background: rgba(0, 0, 0, 0.45);
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
   justify-content: center;
   align-items: center;
 }
