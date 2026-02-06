@@ -339,6 +339,7 @@ body {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px); /* glassmorphism: desenfoque del fondo */
   justify-content: center;
   align-items: center;
 }
@@ -356,6 +357,88 @@ body {
   max-height: 80vh;
   overflow-y: auto;
   position: relative;
+}
+
+/* Login card (Tarjeta de Acceso) */
+.login-card {
+    background: white;
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    position: relative;
+    animation: slideUp 0.28s ease;
+}
+
+/* --- ESTILOS ESPECÍFICOS PARA ADMIN LOGIN --- */
+.security-icon {
+  width: 60px;
+  height: 60px;
+  background-color: #eef2ff;
+  color: #4f46e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 15px auto;
+  border: 1px solid #c7d2fe;
+}
+
+.login-card.admin-login { border-top: 5px solid #312e81; }
+
+.btn-admin {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-admin:hover {
+  background: linear-gradient(135deg, #312e81 0%, #3730a3 100%);
+  box-shadow: 0 4px 10px rgba(49, 46, 129, 0.4);
+}
+
+.login-header { text-align:center; margin-bottom:18px }
+.login-title { font-size:1.6rem; color:#111827; margin:0 0 6px; font-weight:800 }
+.login-subtitle { color:#6b7280; font-size:0.95rem; margin:0 }
+
+.form-group { margin-bottom:14px }
+.form-group label { display:block; font-weight:600; color:#374151; margin-bottom:8px; font-size:0.9rem }
+.input-wrapper { position:relative }
+.input-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9ca3af }
+.modern-input { width:100%; padding:12px 12px 12px 40px; border:1px solid #d1d5db; border-radius:8px; font-size:1rem; box-sizing:border-box }
+.modern-input:focus { border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.1); outline:none }
+.helper-text { display:block; margin-top:6px; color:#9ca3af; font-size:0.82rem }
+
+.login-actions { margin-top:18px }
+.btn-login-primary { width:100%; background:linear-gradient(135deg,#4f46e5 0%,#4338ca 100%); color:white; border:none; padding:12px; font-size:1rem; font-weight:600; border-radius:8px; cursor:pointer }
+.btn-login-primary:hover { transform:translateY(-1px); box-shadow:0 4px 6px rgba(79,70,229,0.28) }
+.secondary-actions { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:8px }
+.btn-text { background:none; border:none; color:#6b7280; cursor:pointer; text-decoration:underline; padding:5px }
+.btn-text:hover { color:#111827 }
+
+@keyframes slideUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+
+/* --- Login error visual feedback --- */
+.login-card.has-error { animation: shake 0.42s cubic-bezier(.36,.07,.19,.97); }
+
+.modern-input.input-error { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.06); }
+
+.btn-login-primary.btn-error { box-shadow: 0 6px 18px rgba(239,68,68,0.12); transform: translateY(-1px); }
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+/* Aplicar shake a otros modales/ tarjetas también */
+.modal-content.has-error, .modal-card.has-error {
+  animation: shake 0.42s cubic-bezier(.36,.07,.19,.97);
 }
 
 .close-modal {
@@ -692,3 +775,47 @@ body {
     gap: 8px;
     transition: all 0.2s;
 }
+
+/* --- MODAL DE TRABAJADOR --- */
+
+/* Hace el modal un poco más ancho para que quepan 2 columnas cómodas */
+.modal-card {
+  max-width: 650px;
+  width: 95%;
+}
+
+.highlight-icon {
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 8px;
+  border-radius: 8px;
+  margin-right: 10px;
+  font-size: 1.1rem;
+}
+
+.form-section-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+}
+
+.separator-line { height: 1px; background-color: #f3f4f6; margin: 20px 0; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.full-width { grid-column: span 2; }
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+
+.phone-input-group { display: flex; align-items: center; }
+.country-code { background-color: #f3f4f6; border: 1px solid #d1d5db; border-right: none; padding: 11px 12px; border-radius: 8px 0 0 8px; color: #374151; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 5px; }
+.phone-input-group .modern-input { border-radius: 0 8px 8px 0; border-left: 1px solid #d1d5db; }
+
+.btn-save { background-color: #4f46e5; color: white; padding: 10px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn-save:hover { background-color: #4338ca; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+.btn-cancel { background: white; color: #374151; border: 1px solid #d1d5db; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; }
+.btn-cancel:hover { background-color: #f9fafb; }
+
+.select-wrapper { position: relative; }
+.select-arrow { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 0.8rem; }

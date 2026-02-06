@@ -45,13 +45,35 @@
     loginError.style.display = 'none';
   });
 
+  // hide error when user starts typing again
+  if (loginUsuario) loginUsuario.addEventListener('input', () => { loginError.style.display = 'none'; });
+  if (loginClave) loginClave.addEventListener('input', () => { loginError.style.display = 'none'; });
+
+  // Visual error helper: show message and animate inputs/button/card
+  function showLoginError(msg) {
+    if (loginError) {
+      loginError.textContent = msg || 'Error';
+      loginError.style.display = 'block';
+    }
+    const loginCardEl = document.querySelector('#modal-datos .login-card');
+    if (loginCardEl) loginCardEl.classList.add('has-error');
+    if (loginUsuario) loginUsuario.classList.add('input-error');
+    if (loginClave) loginClave.classList.add('input-error');
+    if (btnLogin) btnLogin.classList.add('btn-error');
+    setTimeout(() => {
+      if (loginCardEl) loginCardEl.classList.remove('has-error');
+      if (loginUsuario) loginUsuario.classList.remove('input-error');
+      if (loginClave) loginClave.classList.remove('input-error');
+      if (btnLogin) btnLogin.classList.remove('btn-error');
+    }, 1800);
+  }
+
   btnLogin.addEventListener('click', ()=>{
     loginError.style.display = 'none';
     const userInput = loginUsuario.value || '';
     const claveInput = loginClave.value || '';
     if (!userInput || !claveInput){
-      loginError.textContent = 'Ingrese usuario y clave';
-      loginError.style.display = 'block';
+      showLoginError('Ingrese usuario y clave');
       return;
     }
 
@@ -63,15 +85,13 @@
         const resp = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await resp.json().catch(()=>({}));
         if (!resp.ok) {
-          loginError.textContent = data && data.error ? data.error : 'Error de autenticación';
-          loginError.style.display = 'block';
+          showLoginError(data && data.error ? data.error : 'Error de autenticación');
           return;
         }
 
         const found = data.trabajador;
         if (!found) {
-          loginError.textContent = 'Respuesta inesperada del servidor';
-          loginError.style.display = 'block';
+          showLoginError('Respuesta inesperada del servidor');
           return;
         }
 
@@ -79,25 +99,26 @@
         perfilRut.textContent = found.RUT || '';
         perfilTelefono.textContent = found.telefono || '';
         perfilEmail.textContent = found.email || '';
-        perfilGrupo.textContent = found.grupo || '';
+        perfilGrupo.textContent = (found.grupo ? ('Grupo: ' + found.grupo) : '');
         perfilCargo.textContent = found.cargo || '';
 
         if (modalDatos) modalDatos.classList.remove('show');
         perfilCard.style.display = 'block';
       }catch(e){
         console.error('Error al autenticar:', e);
-        loginError.textContent = 'Error de conexión al servidor';
-        loginError.style.display = 'block';
+        showLoginError('Error de conexión al servidor');
       }
     })();
   });
 
-  btnLogout.addEventListener('click', ()=>{
-    perfilCard.style.display = 'none';
-    if (modalDatos) modalDatos.classList.add('show');
-    loginUsuario.value = '';
-    loginClave.value = '';
-    loginError.style.display = 'none';
-  });
+  if (btnLogout) {
+    btnLogout.addEventListener('click', ()=>{
+      perfilCard.style.display = 'none';
+      if (modalDatos) modalDatos.classList.add('show');
+      loginUsuario.value = '';
+      loginClave.value = '';
+      loginError.style.display = 'none';
+    });
+  }
 
 })();

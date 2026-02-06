@@ -25,23 +25,49 @@
   <main style="max-width:900px;margin:40px auto;padding:0 16px;">
     <h1>Datos personales</h1>
 
-    <!-- Login modal -->
+    <!-- Login modal (Tarjeta de Acceso) -->
     <div id="modal-datos" class="modal show">
-      <div class="modal-content" style="max-width:560px;">
-        <h2>Ingreso de usuario</h2>
-        <p>Ingrese su usuario y clave para ver sus datos.</p>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-          <div style="font-size:13px;color:#475569">Formato usuario: Nombre+primer apellido — ejemplo: <strong>TomasDiaz</strong></div>
-          <label>Usuario (sin espacios): <input id="login-usuario" type="text" placeholder="TomasDiaz"></label>
-          <div style="font-size:13px;color:#475569">Formato clave: RUT sin puntos ni guion — ejemplo: <strong>12345678</strong></div>
-          <label>Clave (RUT sin puntos ni guion): <input id="login-clave" type="text" placeholder="12345678"></label>
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-            <button id="btn-login" class="btn btn-primary">Ingresar</button>
-            <button id="btn-clear" class="btn btn-secondary" type="button">Limpiar</button>
-            <a href="index.html" class="btn btn-grey">Volver</a>
-          </div>
-          <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:6px"></div>
+      <div class="login-card">
+        <div class="login-header">
+          <h2 class="login-title">Bienvenido</h2>
+          <p class="login-subtitle">Ingresa tus credenciales para continuar</p>
         </div>
+
+        <form class="login-form" onsubmit="return false;">
+
+          <div class="form-group">
+            <label>Usuario</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-user input-icon"></i>
+              <input id="login-usuario" type="text" placeholder="Ej: JuanPerez" class="modern-input">
+            </div>
+            <small class="helper-text">Formato: Nombre + Primer Apellido (sin espacios)</small>
+          </div>
+
+          <div class="form-group">
+            <label>Contraseña</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-lock input-icon"></i>
+              <input id="login-clave" type="password" placeholder="Tu RUT sin puntos ni guion" class="modern-input">
+            </div>
+            <small class="helper-text">Usa tu RUT como clave inicial</small>
+          </div>
+
+          <div class="login-actions">
+            <button id="btn-login" type="button" class="btn-login-primary">
+              Ingresar <i class="fa-solid fa-arrow-right" style="margin-left:8px"></i>
+            </button>
+
+            <div class="secondary-actions" style="margin-top:6px">
+              <button id="btn-clear" type="button" class="btn-text">Limpiar</button>
+              <span class="separator">•</span>
+              <a href="index.html" class="btn-text btn-cancel">Volver</a>
+            </div>
+          </div>
+
+          <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:12px"></div>
+
+        </form>
       </div>
     </div>
 
@@ -92,12 +118,7 @@
           </div>
 
           <div class="profile-footer">
-            <button id="btn-logout" class="btn-logout">
-              <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
-            </button>
-            <button id="btn-edit" class="btn-edit-secondary">
-              <i class="fa-solid fa-pen"></i> Editar mis datos
-            </button>
+            <!-- Los datos se editan desde la vista 'Gestionar' -->
           </div>
         </div>
       </div>

@@ -254,12 +254,50 @@ async function enviarAgregar(e) {
     } else {
       console.error('Error del servidor:', data);
       const detalle = data.detail ? '\nDetalle: ' + data.detail : '';
+      // visual error + result modal
+      showAddWorkerError(data.error || `Error al agregar (${r.status})`);
       showResult('Error', (data.error || `Error al agregar (${r.status})`) + detalle, true);
     }
   } catch (err) {
     console.error('Error en enviarAgregar:', err);
+    showAddWorkerError('Error al agregar: ' + (err.message || 'Error de conexión'));
     showResult('Error', 'Error al agregar: ' + err.message, true);
   }
+}
+
+// Visual shake and highlight for agregar trabajador modal
+function showAddWorkerError(msg) {
+  const modalCard = document.querySelector('#modal-agregar .modal-content') || document.querySelector('#modal-agregar .modal-card');
+  const form = document.getElementById('form-agregar');
+  if (modalCard) modalCard.classList.add('has-error');
+  // highlight inputs
+  if (form) {
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(i => i.classList.add('input-error'));
+  }
+  const btn = document.querySelector('#modal-agregar .btn-save') || (form && form.querySelector('button[type="submit"]'));
+  if (btn) btn.classList.add('btn-error');
+  // inline message
+  let errEl = document.querySelector('#modal-agregar #add-error');
+  if (!errEl && modalCard) {
+    errEl = document.createElement('div');
+    errEl.id = 'add-error';
+    errEl.style.color = '#b91c1c';
+    errEl.style.fontWeight = '600';
+    errEl.style.marginTop = '10px';
+    modalCard.appendChild(errEl);
+  }
+  if (errEl) { errEl.textContent = msg || 'Error'; errEl.style.display = 'block'; }
+
+  setTimeout(() => {
+    if (modalCard) modalCard.classList.remove('has-error');
+    if (form) {
+      const inputs = form.querySelectorAll('input, select');
+      inputs.forEach(i => i.classList.remove('input-error'));
+    }
+    if (btn) btn.classList.remove('btn-error');
+    if (errEl) errEl.style.display = 'none';
+  }, 1600);
 }
 
 function showResult(title, msg, isError=false){
@@ -277,7 +315,7 @@ function comprobarLogin(e) {
   (async () => {
     const rut = String((el.formLogin.querySelector('#rut-login')||{value:''}).value||'').replace(/\D/g,'').trim();
     const password = String((el.formLogin.querySelector('#pass-login')||{value:''}).value||'');
-    if (!rut || !password) { alert('Ingrese RUT y password'); return; }
+    if (!rut || !password) { showAdminLoginError('Ingrese RUT y password'); return; }
     try{
       const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
       const d = await resp.json().catch(()=>({}));
@@ -285,14 +323,60 @@ function comprobarLogin(e) {
         el.modalLogin.classList.remove('show');
         cargar();
       } else {
-        alert(d.error || 'Credenciales inválidas');
+        showAdminLoginError(d.error || 'Credenciales inválidas');
       }
     }catch(err){
       console.error('Error en admin-login:', err);
-      alert('Error conectando al servidor');
+      showAdminLoginError('Error conectando al servidor');
     }
   })();
 }
+
+// Visual error for admin login: shake card and mark inputs/button
+function showAdminLoginError(msg) {
+  const loginCardEl = document.querySelector('#modal-login .login-card');
+  const inputRut = document.getElementById('rut-login');
+  const inputPass = document.getElementById('pass-login');
+  const btn = document.querySelector('#modal-login .btn-login-primary');
+  const errEl = document.querySelector('#modal-login #login-error');
+  // create or show inline error element near modal if not present
+  if (errEl) {
+    errEl.textContent = msg || 'Error';
+    errEl.style.display = 'block';
+  } else {
+    // append temporary error element inside login-card
+    if (loginCardEl) {
+      const pe = document.createElement('div');
+      pe.id = 'login-error';
+      pe.style.color = '#b91c1c';
+      pe.style.fontWeight = '600';
+      pe.style.marginTop = '10px';
+      pe.textContent = msg || 'Error';
+      loginCardEl.appendChild(pe);
+    }
+  }
+  if (loginCardEl) loginCardEl.classList.add('has-error');
+  if (inputRut) inputRut.classList.add('input-error');
+  if (inputPass) inputPass.classList.add('input-error');
+  if (btn) btn.classList.add('btn-error');
+  setTimeout(() => {
+    if (loginCardEl) loginCardEl.classList.remove('has-error');
+    if (inputRut) inputRut.classList.remove('input-error');
+    if (inputPass) inputPass.classList.remove('input-error');
+    if (btn) btn.classList.remove('btn-error');
+    if (errEl) errEl.style.display = 'none';
+  }, 1600);
+}
+
+// clear admin login error on input
+document.addEventListener('DOMContentLoaded', () => {
+  const ir = document.getElementById('rut-login');
+  const ip = document.getElementById('pass-login');
+  [ir, ip].forEach(elm => { if (elm) elm.addEventListener('input', () => {
+    const e = document.querySelector('#modal-login #login-error'); if (e) e.style.display = 'none';
+    elm.classList.remove('input-error');
+  }); });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   el.modalLogin = document.getElementById('modal-login');
