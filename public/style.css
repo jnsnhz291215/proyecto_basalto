@@ -172,10 +172,10 @@ body {
 }
 
 .day-cell.split {
-  border-left: 2px solid #000000;
-  border-right: 2px solid #000000;
-  border-top: 2px solid #000000;
-  border-bottom: 2px solid #000000;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .day-left {
@@ -184,7 +184,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 8px;
-  border-right: 2px solid #000000;
+  border-right: 1px solid #e5e7eb;
   cursor: default;
   position: relative;
   flex-direction: column;
@@ -264,8 +264,8 @@ body {
   align-items: center;
   position: absolute;
   right: 12px; /* pequeño margen desde el borde */
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0; /* alinear con el tope del contenedor principal */
+  transform: none;
 }
 
 .referencia, .sidebar-referencia {

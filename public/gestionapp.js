@@ -91,8 +91,10 @@ function render() {
   gruposAmostrar.forEach(g => {
     const workers = porGrupo[g] || [];
     const col = document.createElement('div');
-    col.className = 'grupo-col';
-    col.style.backgroundColor = COLORES[g] || '#22c55e';
+    // add base class and a per-group class (e.g. grupo-a) so CSS or JS can target it
+    col.className = 'grupo-col grupo-' + String(g).toLowerCase();
+    // set accent color via CSS variable so the stylesheet controls visuals
+    col.style.setProperty('--accent', COLORES[g] || '#22c55e');
 
     const tit = document.createElement('div');
     tit.className = 'grupo-col-titulo';
