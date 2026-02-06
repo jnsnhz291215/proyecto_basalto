@@ -359,6 +359,15 @@ body {
   position: relative;
 }
 
+/* Modal header / close button positioning */
+.modal-header { display:flex; align-items:center; justify-content:flex-start; gap:12px; position:relative; padding-bottom:8px; }
+.modal-header .modal-title { display:flex; align-items:center; gap:10px; font-size:1.05rem; font-weight:700; color:#111827; margin:0; }
+.btn-close-modal { display:none; position:absolute; right:12px; top:12px; background:transparent; border:none; color:#6b7280; font-size:18px; cursor:pointer; padding:6px; border-radius:6px; }
+.btn-close-modal:hover { background:#f3f4f6; color:#111827; }
+
+/* Ensure section labels don't collide with header / close button */
+.form-section-label { margin-top: 8px; margin-bottom: 8px; }
+
 /* Login card (Tarjeta de Acceso) */
 .login-card {
     background: white;
@@ -408,7 +417,7 @@ body {
 .form-group { margin-bottom:14px }
 .form-group label { display:block; font-weight:600; color:#374151; margin-bottom:8px; font-size:0.9rem }
 .input-wrapper { position:relative }
-.input-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9ca3af }
+.input-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#6b7280; font-size:16px; opacity:0.85; pointer-events:none }
 .modern-input { width:100%; padding:12px 12px 12px 40px; border:1px solid #d1d5db; border-radius:8px; font-size:1rem; box-sizing:border-box }
 .modern-input:focus { border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.1); outline:none }
 .helper-text { display:block; margin-top:6px; color:#9ca3af; font-size:0.82rem }
