@@ -1,47 +1,34 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const actividadesList = document.getElementById('actividades-list');
-  const btnAdd = document.getElementById('btn-add-actividad');
-  const btnReset = document.getElementById('btn-reset');
-  const btnGuardar = document.getElementById('btn-guardar');
-  const fechaInput = document.getElementById('informe-fecha');
-  const turnoSelect = document.getElementById('informe-turno');
-  const horasInput = document.getElementById('informe-horas');
+// Tabla dinámica de actividades: añadir y eliminar filas
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAgregar = document.querySelector('.btn-add-row');
+    const listaActividades = document.getElementById('lista-actividades');
 
-  // Inicializar fecha por defecto a hoy
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  if (fechaInput) fechaInput.value = `${yyyy}-${mm}-${dd}`;
+    if (btnAgregar && listaActividades) {
+        btnAgregar.addEventListener('click', function(e) {
+            e.preventDefault();
+            const nuevaFila = document.createElement('tr');
+            nuevaFila.innerHTML = `
+                <td><input type="time" class="input-compact" name="hora_inicio[]"></td>
+                <td><input type="time" class="input-compact" name="hora_fin[]"></td>
+                <td><input type="text" class="input-compact" placeholder="Detalle de la actividad" name="detalle[]"></td>
+                <td><button class="btn-delete" type="button" onclick="eliminarFila(this)">X</button></td>
+            `;
+            listaActividades.appendChild(nuevaFila);
+        });
 
-  btnAdd.addEventListener('click', (e) => {
-    e.preventDefault();
-    const row = document.createElement('div');
-    row.className = 'actividad-row';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.name = 'actividad[]';
-    input.placeholder = 'Descripción';
-    input.className = 'actividad-input';
-    const btnRem = document.createElement('button');
-    btnRem.className = 'btn btn-secondary';
-    btnRem.textContent = 'Eliminar';
-    btnRem.addEventListener('click', (ev) => { ev.preventDefault(); row.remove(); });
-    row.appendChild(input);
-    row.appendChild(btnRem);
-    actividadesList.appendChild(row);
-  });
-
-  // No se usa el botón de "Agregar fecha" en esta vista; la fecha/turno/horas se toman del formulario.
-
-  btnReset.addEventListener('click', () => {
-    document.getElementById('informe-form').reset();
-    // leave one actividad row
-    const rows = actividadesList.querySelectorAll('.actividad-row');
-    rows.forEach((r, i) => { if (i>0) r.remove(); else r.querySelector('input').value = ''; });
-  });
-
-  btnGuardar.addEventListener('click', () => {
-    alert('Formulario guardado localmente (no conectado a BD).');
-  });
+        // Delegación: también capturar clicks en botones .btn-delete si se crean sin onclick
+        listaActividades.addEventListener('click', function(ev) {
+            const b = ev.target.closest && ev.target.closest('.btn-delete');
+            if (b) {
+                ev.preventDefault();
+                eliminarFila(b);
+            }
+        });
+    }
 });
+
+// Función global para eliminar fila (para compatibilidad con onclick inline)
+function eliminarFila(boton) {
+    const fila = boton.closest('tr');
+    if (fila) fila.remove();
+}

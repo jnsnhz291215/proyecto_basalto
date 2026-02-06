@@ -140,6 +140,14 @@ function render() {
       col.appendChild(card);
     });
 
+    // si el grupo está vacío, mostrar placeholder informativo
+    if (!workers || workers.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'grupo-empty';
+      empty.textContent = 'Sin trabajadores activos';
+      col.appendChild(empty);
+    }
+
     el.gruposColumnas.appendChild(col);
   });
 }

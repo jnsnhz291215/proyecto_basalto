@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Datos personales</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <!-- Shared menu will be injected here -->
@@ -44,19 +45,61 @@
       </div>
     </div>
 
-    <div id="perfil-card" style="display:none;max-width:760px;margin-top:18px;padding:16px;border-radius:8px;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2 id="perfil-nombre"></h2>
-        <div>
-          <button id="btn-logout" class="btn btn-grey">Cerrar sesión</button>
+    <div id="perfil-card" style="display:none;max-width:760px;margin-top:18px;padding:0;border-radius:8px;background:transparent">
+      <div class="profile-container">
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="avatar-circle">
+              <i class="fa-solid fa-user"></i>
+            </div>
+            <h2 id="perfil-nombre" class="profile-name">Nombre Apellido</h2>
+            <span id="perfil-cargo" class="profile-role">Cargo</span>
+            <div id="perfil-grupo" class="profile-badge" style="margin-top:8px;">Grupo A</div>
+          </div>
+
+          <hr class="divider">
+
+          <div class="profile-grid">
+            <div class="data-item">
+              <label>RUT</label>
+              <div class="value"><span id="perfil-rut">---</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Correo Electrónico</label>
+              <div class="value"><span id="perfil-email">---</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Teléfono</label>
+              <div class="value"><span id="perfil-telefono">---</span></div>
+            </div>
+
+            <div class="data-item">
+              <label>Dirección</label>
+              <div class="value placeholder">---</div>
+            </div>
+
+            <div class="data-item">
+              <label>Contacto de Emergencia</label>
+              <div class="value placeholder">Por definir</div>
+            </div>
+
+            <div class="data-item">
+              <label>Ciudad</label>
+              <div class="value placeholder">---</div>
+            </div>
+          </div>
+
+          <div class="profile-footer">
+            <button id="btn-logout" class="btn-logout">
+              <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+            </button>
+            <button id="btn-edit" class="btn-edit-secondary">
+              <i class="fa-solid fa-pen"></i> Editar mis datos
+            </button>
+          </div>
         </div>
-      </div>
-      <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><strong>RUT:</strong> <span id="perfil-rut"></span></div>
-        <div><strong>Teléfono:</strong> <span id="perfil-telefono"></span></div>
-        <div><strong>Email:</strong> <span id="perfil-email"></span></div>
-        <div><strong>Grupo:</strong> <span id="perfil-grupo"></span></div>
-        <div style="grid-column:1/-1"><strong>Cargo:</strong> <span id="perfil-cargo"></span></div>
       </div>
     </div>
   </main>

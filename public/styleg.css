@@ -374,3 +374,13 @@ body {
 .form-buttons .btn {
   padding: 10px 20px;
 }
+
+/* Placeholder para grupos vacíos */
+.grupo-empty {
+  color: #6b7280;
+  text-align: center;
+  padding: 16px 10px;
+  font-size: 0.95rem;
+  font-style: italic;
+  background: transparent;
+}
