@@ -365,6 +365,9 @@ body {
 .btn-close-modal { display:none; position:absolute; right:12px; top:12px; background:transparent; border:none; color:#6b7280; font-size:18px; cursor:pointer; padding:6px; border-radius:6px; }
 .btn-close-modal:hover { background:#f3f4f6; color:#111827; }
 
+/* Force-hide any close buttons inside modal cards (avoid leftover icons due to caching) */
+.modal-card .btn-close-modal, .modal-card .close-modal { display: none !important; }
+
 /* Ensure section labels don't collide with header / close button */
 .form-section-label { margin-top: 8px; margin-bottom: 8px; }
 
