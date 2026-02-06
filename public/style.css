@@ -831,3 +831,75 @@ body {
 
 .select-wrapper { position: relative; }
 .select-arrow { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 0.8rem; }
+
+/* ---------- Ajustes sugeridos: espacio para iconos, inputs y teléfono ---------- */
+/* Asegura que el contenedor del input sea la referencia para el ícono */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Posiciona el ícono perfectamente centrado */
+.input-icon {
+  position: absolute;
+  left: 12px; /* Distancia desde el borde izquierdo */
+  top: 50%;
+  transform: translateY(-50%); /* Centrado vertical matemático */
+  color: #6b7280; /* Gris profesional */
+  font-size: 1rem;
+  pointer-events: none; /* Permite hacer clic en el input "a través" del ícono */
+  z-index: 10;
+}
+
+/* LA REGLA DE ORO: Si el input está dentro de un wrapper, dale espacio al ícono */
+.input-wrapper .modern-input {
+  padding-left: 40px !important; /* Empuja el texto a la derecha */
+}
+
+/* Estilo base para todos los inputs */
+.modern-input {
+  width: 100%;
+  height: 42px; /* Altura fija para uniformidad */
+  padding: 10px 12px; /* Relleno estándar */
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  box-sizing: border-box; /* Vital para que no se salgan del ancho */
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.modern-input:focus {
+  border-color: #4f46e5;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Teléfono: unir country code con input como una sola pieza sólida */
+.phone-input-group {
+  display: flex;
+  align-items: stretch; /* Estira ambos a la misma altura */
+  width: 100%;
+}
+
+.country-code {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-right: none; /* Quitamos la línea derecha para unirlo */
+  padding: 0 15px;
+  border-radius: 8px 0 0 8px; /* Redondeado solo a la izquierda */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Centra el texto +56 */
+  align-items: center;
+  font-weight: 600;
+  color: #374151;
+  min-width: 60px; /* Ancho mínimo para que no se aplaste */
+}
+
+/* El input del teléfono pierde sus bordes izquierdos para pegarse */
+.phone-input-group .modern-input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: 12px !important; /* Aquí NO queremos 40px porque no hay ícono adentro */
+}
+
