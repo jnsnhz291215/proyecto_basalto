@@ -5,8 +5,9 @@
 }
 
 body {
-  font-family: sans-serif;
-  background-color: #ffffff;
+  background-color: #f3f4f6; /* Gris muy suave, casi blanco */
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Fuente más moderna */
+  color: #1f2937; /* Gris oscuro para texto */
   padding: 20px;
   margin: 0;
 }
@@ -64,11 +65,13 @@ body {
 }
 
 /* Contenido principal */
-.main-content {
+.main-content, .calendar-container, .calendar-wrapper {
   flex: 1;
-  background-color: white;
-  border-radius: 12px;
-  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 12px; /* Bordes redondeados */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  border: 1px solid #e5e7eb; /* Borde muy sutil */
+  padding: 20px;
 }
 
 .calendar-header {
@@ -151,14 +154,21 @@ body {
   gap: 2px;
 }
 
-.day-cell {
-  border: 2px solid #000000;
+.day-cell, .calendar-day {
+  border: 1px solid #f3f4f6; /* Borde gris claro */
   border-radius: 8px;
-  min-height: 126px; /* 10% smaller */
+  min-height: 126px;
   display: flex;
   position: relative;
   background-color: white;
   cursor: default;
+  transition: all 0.18s ease; /* Animación suave */
+}
+
+.day-cell:hover, .calendar-day:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
 }
 
 .day-cell.split {
@@ -258,13 +268,13 @@ body {
   transform: translateY(-50%);
 }
 
-.referencia {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+.referencia, .sidebar-referencia {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); /* Degradado profesional */
   color: white;
   padding: 20px;
   margin-top: 0;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 /* Dejar espacio al main-content para que no quede debajo de la referencia */
