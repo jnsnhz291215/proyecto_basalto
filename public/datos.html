@@ -6,6 +6,7 @@
   <title>Datos personales</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="navbar.js"></script>
 </head>
 <body>
   <!-- Shared menu will be injected here -->
@@ -44,6 +45,7 @@
           }
         } catch(e){}
       } catch(e){}
+      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
 
@@ -51,7 +53,7 @@
     <h1>Datos personales</h1>
 
     <!-- Login modal (Tarjeta de Acceso) -->
-    <div id="modal-datos" class="modal show">
+    <div id="modal-datos" class="modal">
       <div class="login-card">
         <div class="login-header">
           <h2 class="login-title">Bienvenido</h2>

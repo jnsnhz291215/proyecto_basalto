@@ -6,6 +6,7 @@
   <title>Calendario de Turnos</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="navbar.js"></script>
 </head>
 <body>
   <!-- Shared menu will be injected here -->
@@ -39,18 +40,29 @@
           const s = localStorage.getItem('usuarioActivo');
           const navGest = wrapper.querySelector('#nav-gestionar');
           const navRight = wrapper.querySelector('.nav-right');
+          const navLoginBtn = wrapper.querySelector('#nav-login-btn');
+          const userToggleBtn = wrapper.querySelector('.user-toggle');
           if (!s) {
-            if (navRight) navRight.style.display = 'none';
+            if (navLoginBtn) navLoginBtn.style.display = '';
+            if (userToggleBtn) userToggleBtn.style.display = 'none';
+            if (navRight) navRight.style.display = '';
             if (navGest) navGest.style.display = 'none';
           } else {
             const u = JSON.parse(s);
+            if (navLoginBtn) navLoginBtn.style.display = 'none';
+            if (userToggleBtn) userToggleBtn.style.display = '';
             // show username
             const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
             if (navRight) navRight.style.display = '';
             if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
           }
+          // open dual modal when login button clicked
+          if (navLoginBtn) navLoginBtn.addEventListener('click', () => { const dm = document.getElementById('dual-login-modal'); if (dm) dm.classList.add('show'); });
+        } catch(e){}
         } catch(e){}
       } catch(e){}
+      // update interface now that menu is injected
+      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
   <div class="container">
@@ -103,7 +115,7 @@
   </div>
 
   <!-- Dual login modal: usuario / administrador -->
-  <div id="dual-login-modal" class="modal show">
+  <div id="dual-login-modal" class="modal">
     <div class="modal-content" style="max-width:900px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;padding:22px">
       <div class="login-card" style="flex:1;min-width:280px;max-width:420px">
         <div class="login-header">
@@ -179,6 +191,11 @@
     // Dual login handlers: basic fetch to server endpoints if available
     document.addEventListener('DOMContentLoaded', () => {
       const dualModal = document.getElementById('dual-login-modal');
+      // show modal automatically if no active session
+      try {
+        const s = localStorage.getItem('usuarioActivo');
+        if (!s) { if (dualModal) dualModal.classList.add('show'); } else { if (dualModal) dualModal.classList.remove('show'); }
+      } catch(e) {}
 
       // user login
       const userForm = document.getElementById('user-login-form');

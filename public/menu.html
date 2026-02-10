@@ -7,19 +7,20 @@
       </a>
     </div>
     <ul class="nav-items" id="nav-items">
-      <li class="nav-item"><a href="index.html">Inicio</a></li>
-      <li id="nav-gestionar" class="nav-item"><a href="gestionar.html">Gestionar</a></li>
-      <li class="nav-item"><a href="informe.html">Informe de turno</a></li>
-      <li class="nav-item"><a href="viajes.html">Viajes</a></li>
-      <!-- 'Datos personales' moved into user dropdown -->
+      <li class="nav-item"><a id="nav-inicio" href="index.html">Inicio</a></li>
+      <li id="nav-gestionar" class="nav-item"><a id="nav-gestionar-link" href="gestionar.html">Gestionar</a></li>
+      <li class="nav-item"><a id="nav-informe" href="informe.html">Informe de turno</a></li>
+      <li class="nav-item"><a id="nav-viajes" href="viajes.html">Viajes</a></li>
+      <!-- Datos personales will be in the user menu -->
     </ul>
-    <div class="nav-right">
-      <button class="user-toggle" aria-expanded="false" aria-haspopup="true">
+    <div class="nav-right" id="usuario-container">
+      <button id="nav-login-btn" class="btn btn-login-nav">Iniciar Sesión</button>
+      <button class="user-toggle" id="user-toggle" aria-expanded="false" aria-haspopup="true">
         <span class="avatar"><i class="fa-solid fa-user"></i></span>
-        <span class="user-name">Juan Sanhueza</span>
+        <span class="user-name">Usuario</span>
       </button>
       <div class="user-menu" role="menu" aria-hidden="true">
-        <a href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a>
+        <a id="nav-datos" href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a>
         <a href="#" class="menu-item"><i class="fa-solid fa-lock"></i> Cambiar Contraseña</a>
         <div class="sep"></div>
         <a href="/logout" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a>

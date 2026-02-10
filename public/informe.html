@@ -6,7 +6,8 @@
   <title>Informe de Turno</title>
   <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="informe.css">
+    <link rel="stylesheet" href="informe.css">
+    <script src="navbar.js"></script>
 </head>
 <body>
   <div id="shared-menu-placeholder"></div>
@@ -43,8 +44,9 @@
                         if (navRight) navRight.style.display = '';
                         if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
                     }
-                } catch(e){}
-            } catch(e){}
+                                } catch(e){}
+                        } catch(e){}
+            try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
 
