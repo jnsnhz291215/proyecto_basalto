@@ -99,9 +99,44 @@ async function eliminarTrabajador(rut) {
   }
 }
 
+// Función para editar trabajador
+async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo = null) {
+  const connection = await pool.getConnection();
+  try {
+    // Normalizar capitalización
+    const titleCase = s => {
+      if (!s && s !== '') return s;
+      return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+
+    const nombresNorm = titleCase(nombres);
+    const apellidoPaternoNorm = titleCase(apellido_paterno);
+    const apellidoMaternoNorm = titleCase(apellido_materno);
+    const cargoNorm = cargo ? titleCase(cargo) : null;
+
+    // Verificar existencia
+    const [checkRows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadoresTest2 WHERE RUT = ?', [rut]);
+    const count = checkRows && checkRows[0] && (checkRows[0].c || checkRows[0].C || checkRows[0]['COUNT(*)']) ? (checkRows[0].c || checkRows[0].C || checkRows[0]['COUNT(*)']) : 0;
+    if (parseInt(count, 10) === 0) {
+      const err = new Error('RUT not found');
+      err.code = 'RUT_NOT_FOUND';
+      throw err;
+    }
+
+    const [result] = await connection.execute(
+      'UPDATE trabajadoresTest2 SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ? WHERE RUT = ?',
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoNorm, rut]
+    );
+    return result;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   pool,
   obtenerTrabajadores,
   agregarTrabajador,
-  eliminarTrabajador
+  eliminarTrabajador,
+  editarTrabajador
 };

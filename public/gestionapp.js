@@ -129,14 +129,26 @@ function render() {
       body.appendChild(tel);
       body.appendChild(resto);
 
+      const btnActions = document.createElement('div');
+      btnActions.className = 'trabajador-card-actions';
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-editar';
+      btnEdit.title = 'Editar';
+      btnEdit.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+      btnEdit.addEventListener('click', () => abrirEditar(t.RUT));
+
       const btnDel = document.createElement('button');
       btnDel.className = 'btn btn-borrar';
       btnDel.textContent = '×';
       btnDel.title = 'Borrar';
       btnDel.addEventListener('click', () => confirmarBorrar(t.RUT));
 
+      btnActions.appendChild(btnEdit);
+      btnActions.appendChild(btnDel);
+
       card.appendChild(body);
-      card.appendChild(btnDel);
+      card.appendChild(btnActions);
       col.appendChild(card);
     });
 
@@ -194,6 +206,29 @@ function abrirAgregar() {
 
 function cerrarAgregar() {
   el.modalAgregar.classList.remove('show');
+}
+
+function abrirEditar(rut) {
+  const trabajador = trabajadores.find(t => t.RUT === rut);
+  if (!trabajador) {
+    alert('No se encontró el trabajador');
+    return;
+  }
+  
+  // Precarga los datos en el formulario de edición
+  document.getElementById('edit-rut').value = trabajador.RUT;
+  document.getElementById('edit-nombre').value = trabajador.nombres || '';
+  document.getElementById('edit-apellido').value = trabajador.apellidos || '';
+  document.getElementById('edit-telefono').value = trabajador.telefono || '';
+  document.getElementById('edit-email').value = trabajador.email || '';
+  document.getElementById('edit-cargo').value = trabajador.cargo || '';
+  document.getElementById('edit-grupo').value = trabajador.grupo || '';
+  
+  el.modalEditar.classList.add('show');
+}
+
+function cerrarEditar() {
+  el.modalEditar.classList.remove('show');
 }
 
 async function enviarAgregar(e) {
@@ -262,6 +297,69 @@ async function enviarAgregar(e) {
     console.error('Error en enviarAgregar:', err);
     showAddWorkerError('Error al agregar: ' + (err.message || 'Error de conexión'));
     showResult('Error', 'Error al agregar: ' + err.message, true);
+  }
+}
+
+async function enviarEdicion(e) {
+  e.preventDefault();
+  const fd = new FormData(el.formEditar);
+  const nombre = (fd.get('nombre') || '').trim();
+  const apellido = (fd.get('apellido') || '').trim();
+  const rut = (fd.get('rut') || '').trim();
+  const cargo = (fd.get('cargo') || '').trim();
+  const email = (fd.get('email') || '').trim();
+  const telefonoRaw = (fd.get('telefono') || '').trim();
+  const grupo = fd.get('grupo') || '';
+
+  if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
+    alert('Complete todos los campos requeridos.');
+    return;
+  }
+
+  const telefono = formatearTelefono(telefonoRaw);
+  if (!telefono) { alert('Teléfono inválido (9 dígitos).'); return; }
+
+  // Validar email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert('Email inválido. Debe ser: texto@texto.texto');
+    return;
+  }
+
+  const obj = {
+    rut: rut,
+    nombres: nombre.replace(/\s+/g, ' ').trim(),
+    apellidos: apellido.replace(/\s+/g, ' ').trim(),
+    email: email.toLowerCase().trim(),
+    telefono,
+    grupo
+  };
+  if (cargo) obj.cargo = cargo.trim();
+
+  // Normalizar a Title Case
+  obj.nombres = titleCase(obj.nombres);
+  obj.apellidos = titleCase(obj.apellidos);
+  if (obj.cargo) obj.cargo = titleCase(obj.cargo);
+
+  try {
+    const r = await fetch('/editar-trabajador', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(obj)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.success) {
+      trabajadores = data.trabajadores || [];
+      render();
+      cerrarEditar();
+      showResult('Éxito', data.message || 'Trabajador actualizado correctamente');
+    } else {
+      console.error('Error del servidor:', data);
+      showResult('Error', data.error || `Error al actualizar (${r.status})`, true);
+    }
+  } catch (err) {
+    console.error('Error en enviarEdicion:', err);
+    showResult('Error', 'Error al actualizar: ' + err.message, true);
   }
 }
 
@@ -402,9 +500,12 @@ document.addEventListener('DOMContentLoaded', () => {
   el.inputBuscar = document.getElementById('input-buscar');
   el.selectFiltro = document.getElementById('select-filtro');
   el.modalAgregar = document.getElementById('modal-agregar');
+  el.modalEditar = document.getElementById('modal-editar');
   el.modalConfirm = document.getElementById('modal-confirm');
   el.formAgregar = document.getElementById('form-agregar');
+  el.formEditar = document.getElementById('form-editar');
   el.cancelAdd = document.getElementById('cancel-add');
+  el.cancelEdit = document.getElementById('cancel-edit');
   el.confirmTitle = document.getElementById('confirm-title');
   el.confirmMsg = document.getElementById('confirm-msg');
   el.confirmCancel = document.getElementById('confirm-cancel');
@@ -429,7 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.inputBuscar) el.inputBuscar.addEventListener('input', render);
   if (el.selectFiltro) el.selectFiltro.addEventListener('change', render);
   if (el.cancelAdd) el.cancelAdd.addEventListener('click', cerrarAgregar);
+  if (el.cancelEdit) el.cancelEdit.addEventListener('click', cerrarEditar);
   if (el.formAgregar) el.formAgregar.addEventListener('submit', enviarAgregar);
+  if (el.formEditar) el.formEditar.addEventListener('submit', enviarEdicion);
   el.confirmCancel.addEventListener('click', () => {
     rutParaBorrar = null;
     el.modalConfirm.classList.remove('show');
@@ -445,6 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el.modalAgregar.addEventListener('click', ev => {
     if (ev.target === el.modalAgregar) cerrarAgregar();
+  });
+  el.modalEditar.addEventListener('click', ev => {
+    if (ev.target === el.modalEditar) cerrarEditar();
   });
   el.modalConfirm.addEventListener('click', ev => {
     if (ev.target === el.modalConfirm) {
@@ -463,6 +569,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const telInput = document.getElementById('telefono');
   if (telInput) {
     telInput.addEventListener('input', ev => {
+      ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 9);
+    });
+  }
+
+  const telInputEdit = document.getElementById('edit-telefono');
+  if (telInputEdit) {
+    telInputEdit.addEventListener('input', ev => {
       ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 9);
     });
   }

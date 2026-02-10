@@ -901,5 +901,271 @@ body {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   padding-left: 12px !important; /* Aquí NO queremos 40px porque no hay ícono adentro */
+
+/* ===== RESPONSIVE MOBILE VIEW (max-width: 768px) ===== */
+@media (max-width: 768px) {
+  /* 1. NAVBAR FIXES */
+  .top-menu {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .nav {
+    display: flex !important;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-left {
+    flex: 0 0 auto;
+    order: 1;
+  }
+
+  .nav-logo-img {
+    height: 40px !important;
+    width: auto;
+  }
+
+  .nav-items {
+    display: none !important;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
+    flex-direction: column;
+    gap: 0;
+    padding: 12px 0;
+    z-index: 1100;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    list-style: none;
+  }
+
+  .nav-items.show {
+    display: flex !important;
+  }
+
+  .nav-items li {
+    display: block;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .nav-items li a {
+    display: block;
+    padding: 12px 16px !important;
+    border-radius: 0 !important;
+  }
+
+  .nav-toggle {
+    display: block !important;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+    order: 3;
+    flex: 0 0 auto;
+  }
+
+  .nav-right {
+    display: none !important;
+    position: absolute;
+    top: 60px;
+    right: 0;
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
+    width: 100%;
+    padding: 12px 16px;
+    z-index: 1099;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .nav-right.show {
+    display: flex !important;
+  }
+
+  #nav-login-btn {
+    width: 100%;
+    padding: 10px 16px !important;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+
+  .user-toggle {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 10px 16px !important;
+    font-size: 14px;
+  }
+
+  .user-menu {
+    position: static;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 8px 0;
+    margin-top: 8px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .user-menu li {
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .user-menu li a {
+    padding: 10px 16px;
+  }
+
+  /* 2. CALENDARIO CON SCROLL HORIZONTAL */
+  .calendar-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 !important;
+    border-radius: 0;
+  }
+
+  .calendar-wrapper > * {
+    min-width: 650px;
+  }
+
+  .weekdays,
+  .days-grid {
+    min-width: 650px;
+  }
+
+  .day-cell,
+  .calendar-day {
+    min-height: 100px;
+    gap: 2px;
+  }
+
+  .day-left {
+    flex: 0 0 20%;
+    padding: 6px;
+  }
+
+  .day-right {
+    flex: 0 0 80%;
+    padding: 4px;
+    gap: 2px;
+  }
+
+  .day-number {
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+
+  /* 3. BADGES MÁS PEQUEÑOS EN MÓVIL */
+  .grupo-block {
+    padding: 3px 4px;
+    font-size: 11px;
+    min-height: 20px;
+    font-weight: 500;
+  }
+
+  .hoy-badge {
+    font-size: 8px;
+    padding: 1px 6px;
+    margin-top: 2px;
+  }
+
+  /* 4. HEADER DEL CALENDARIO */
+  .calendar-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+  }
+
+  .calendar-header h1 {
+    font-size: 22px;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .nav-arrow {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 16px;
+  }
+
+  .btn-today {
+    font-size: 12px;
+    padding: 8px 12px;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  /* 5. AJUSTES GENERALES DE CONTENEDOR */
+  .container {
+    padding: 0 !important;
+  }
+
+  .main-content {
+    margin-right: 0 !important;
+    border-radius: 0;
+    padding: 0 !important;
+  }
+
+  .sidebar-right {
+    width: 100%;
+    margin-top: 20px;
+    order: 3;
+    border-radius: 12px;
+  }
+
+  /* 6. CALENDARIO SCROLL WRAPPER */
+  .calendar-responsive-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0;
+    margin-left: -20px;
+    margin-right: -20px;
+  }
+
+  .calendar-responsive-wrapper .weekdays,
+  .calendar-responsive-wrapper .days-grid {
+    min-width: 650px;
+  }
+}
+
+/* Ajuste extra para pantallas muy pequeñas (<=480px) */
+@media (max-width: 480px) {
+  .weekdays,
+  .days-grid {
+    min-width: 700px !important;
+  }
+
+  .day-cell,
+  .calendar-day {
+    min-height: 110px;
+  }
+
+  .day-number {
+    font-size: 14px;
+  }
+
+  .grupo-block {
+    font-size: 10px;
+    padding: 2px 3px;
+  }
+
+  .calendar-header h1 {
+    font-size: 20px;
+  }
+
+  .btn-today {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
 }
 

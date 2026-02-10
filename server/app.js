@@ -1,5 +1,5 @@
 const express = require("express");
-const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador } = require("../ejemploconexion.js");
+const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador } = require("../ejemploconexion.js");
 
 const app = express();
 app.use(express.json());
@@ -236,6 +236,89 @@ app.post("/agregar-trabajador", async (req, res) => {
   } catch (error) {
     console.error("Error al agregar trabajador:", error);
     const resp = { error: "Error al agregar trabajador" };
+    if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
+      resp.detail = error && (error.message || String(error));
+    }
+    res.status(500).json(resp);
+  }
+});
+
+// Endpoint para editar trabajador
+app.post("/editar-trabajador", async (req, res) => {
+  try {
+    const trabajador = req.body;
+    
+    // Validar que todos los campos estén presentes y no estén vacíos
+    if (!trabajador.rut || !trabajador.nombres || !trabajador.apellidos || 
+        !trabajador.email || !trabajador.telefono || !trabajador.grupo) {
+      return res.status(400).json({ error: "Todos los campos son requeridos y no pueden estar en blanco" });
+    }
+    
+    // Validar que los campos no sean solo espacios en blanco
+    if (trabajador.rut.trim() === '' || trabajador.nombres.trim() === '' || trabajador.apellidos.trim() === '' ||
+        trabajador.email.trim() === '' || trabajador.telefono.trim() === '' || trabajador.grupo.trim() === '') {
+      return res.status(400).json({ error: "Ningún campo puede estar en blanco" });
+    }
+    
+    // Validar formato de email
+    if (!validarEmailServidor(trabajador.email)) {
+      return res.status(400).json({ error: "El formato del email es inválido. Debe ser: texto@texto.texto" });
+    }
+    
+    // Validar formato de teléfono
+    if (!validarTelefonoServidor(trabajador.telefono)) {
+      return res.status(400).json({ error: "El formato del teléfono es inválido. Debe ser: +56 seguido de 9 dígitos" });
+    }
+    
+    // Validar que el grupo sea válido
+    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
+    if (!gruposValidos.includes(trabajador.grupo)) {
+      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, J o K" });
+    }
+
+    // Preparar apellidos (paterno / materno) y mapear grupo letra -> id_grupo
+    const apellidosRaw = (trabajador.apellidos || '').trim();
+    let apellido_paterno = '';
+    let apellido_materno = '';
+    if (apellidosRaw) {
+      const parts = apellidosRaw.split(/\s+/);
+      apellido_paterno = parts.shift() || '';
+      apellido_materno = parts.join(' ') || '';
+    }
+
+    const idx = gruposValidos.indexOf(trabajador.grupo);
+    const id_grupo = idx >= 0 ? idx + 1 : null;
+
+    // Editar el trabajador en la BD
+    try {
+      await editarTrabajador(
+        trabajador.rut,
+        trabajador.nombres,
+        apellido_paterno,
+        apellido_materno,
+        trabajador.email,
+        trabajador.telefono,
+        id_grupo,
+        trabajador.cargo || null
+      );
+    } catch (e) {
+      if (e && e.code === 'RUT_NOT_FOUND') {
+        return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
+      }
+      throw e;
+    }
+    
+    const trabajadores = await obtenerTrabajadores();
+    ultimoEstado = trabajadores;
+    
+    res.json({ 
+      success: true, 
+      trabajadores: trabajadores,
+      message: "Trabajador actualizado exitosamente" 
+    });
+  } catch (error) {
+    console.error("Error al editar trabajador:", error);
+    const resp = { error: "Error al editar trabajador" };
     if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
       resp.detail = error && (error.message || String(error));
     }

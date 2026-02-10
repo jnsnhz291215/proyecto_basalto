@@ -33,6 +33,26 @@
           userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
           document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
         }
+        
+                // Menu hamburguesa en móvil
+                const navToggle = wrapper.querySelector('#nav-toggle');
+                const navItems = wrapper.querySelector('#nav-items');
+                const navRight = wrapper.querySelector('#usuario-container');
+                if (navToggle && navItems) {
+                  navToggle.addEventListener('click', () => {
+                    navItems.classList.toggle('show');
+                    if (navRight) navRight.classList.toggle('show');
+                  });
+                  // Cerrar menú cuando se hace click en un link
+                  const navLinks = navItems.querySelectorAll('a');
+                  navLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                      navItems.classList.remove('show');
+                      if (navRight) navRight.classList.remove('show');
+                    });
+                  });
+                }
+        
         const logoutBtn = wrapper.querySelector('.user-menu .danger');
         if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
         // Actualizar nombre de usuario si existe sesión
@@ -64,17 +84,19 @@
       </div>
 
       <!-- Calendario -->
-      <div class="calendar-wrapper">
-        <div class="weekdays">
-          <div>Lunes</div>
-          <div>Martes</div>
-          <div>Miércoles</div>
-          <div>Jueves</div>
-          <div>Viernes</div>
-          <div>Sábado</div>
-          <div>Domingo</div>
+      <div class="calendar-responsive-wrapper">
+        <div class="calendar-wrapper">
+          <div class="weekdays">
+            <div>Lunes</div>
+            <div>Martes</div>
+            <div>Miércoles</div>
+            <div>Jueves</div>
+            <div>Viernes</div>
+            <div>Sábado</div>
+            <div>Domingo</div>
+          </div>
+          <div id="days-grid" class="days-grid"></div>
         </div>
-        <div id="days-grid" class="days-grid"></div>
       </div>
     </div>
 

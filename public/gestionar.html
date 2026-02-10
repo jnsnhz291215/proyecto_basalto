@@ -27,6 +27,22 @@
       const items = wrapper.querySelector('#nav-items');
       if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
       try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
+      // Menu hamburguesa en móvil: toggle nav-items y nav-right
+      if (btn && items) {
+        btn.addEventListener('click', () => {
+          items.classList.toggle('show');
+          const navRight = wrapper.querySelector('#usuario-container');
+          if (navRight) navRight.classList.toggle('show');
+        });
+        const navLinks = items.querySelectorAll('a');
+        navLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            items.classList.remove('show');
+            const navRight = wrapper.querySelector('#usuario-container');
+            if (navRight) navRight.classList.remove('show');
+          });
+        });
+      }
       // usuario dropdown + session visibility
       try {
         const userToggle = wrapper.querySelector('.user-toggle');
@@ -126,6 +142,90 @@
     <!-- Área de columnas por grupo (scroll horizontal) -->
     <div class="grupos-scroll">
       <div id="grupos-columnas" class="grupos-columnas"></div>
+    </div>
+  </div>
+
+  <!-- Modal editar trabajador -->
+  <div id="modal-editar" class="modal">
+    <div class="modal-content modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-user-pen highlight-icon"></i> Editar Trabajador
+        </h3>
+      </div>
+      <div class="modal-body">
+        <form id="form-editar">
+          <div class="form-section-label">Información Personal</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="edit-nombre">Nombres</label>
+              <div class="input-wrapper">
+                <i class="fa-regular fa-user input-icon"></i>
+                <input type="text" id="edit-nombre" name="nombre" placeholder="Ej: Juan Andrés" class="modern-input" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-apellido">Apellidos</label>
+              <input type="text" id="edit-apellido" name="apellido" placeholder="Ej: Pérez González" class="modern-input plain" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-rut">RUT <span class="info-text">(sin puntos)</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-id-card input-icon"></i>
+                <input type="text" id="edit-rut" name="rut" placeholder="12345678-9" class="modern-input" required readonly>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-telefono">Teléfono</label>
+              <div class="phone-input-group">
+                <span class="country-code">🇨🇱 +56</span>
+                <input type="tel" id="edit-telefono" name="telefono" placeholder="9 1234 5678" class="modern-input" maxlength="9">
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label for="edit-email">Correo Electrónico</label>
+              <div class="input-wrapper">
+                <i class="fa-regular fa-envelope input-icon"></i>
+                <input type="email" id="edit-email" name="email" placeholder="nombre@correo.com" class="modern-input">
+              </div>
+            </div>
+          </div>
+          <div class="separator-line"></div>
+          <div class="form-section-label">Datos de Faena</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="edit-cargo">Cargo</label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-helmet-safety input-icon"></i>
+                <input type="text" id="edit-cargo" name="cargo" placeholder="Ej: Operador Maquinaria" class="modern-input">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-grupo">Asignar Grupo</label>
+              <div class="select-wrapper">
+                <select id="edit-grupo" name="grupo" class="modern-input">
+                  <option value="" disabled>Seleccione...</option>
+                  <option value="A">Grupo A</option>
+                  <option value="B">Grupo B</option>
+                  <option value="C">Grupo C</option>
+                  <option value="D">Grupo D</option>
+                  <option value="E">Grupo E</option>
+                  <option value="F">Grupo F</option>
+                  <option value="G">Grupo G</option>
+                  <option value="H">Grupo H</option>
+                  <option value="J">Grupo J (Lun–Jue)</option>
+                  <option value="K">Grupo K (Mar–Vie)</option>
+                </select>
+                <i class="fa-solid fa-chevron-down select-arrow"></i>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer" style="margin-top:18px;display:flex;justify-content:flex-end;gap:12px">
+            <button type="button" id="cancel-edit" class="btn-cancel">Cancelar</button>
+            <button type="submit" class="btn-save"><i class="fa-solid fa-check"></i> Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 

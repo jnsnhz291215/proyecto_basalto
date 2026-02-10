@@ -91,6 +91,33 @@ body {
   background-color: #374151;
 }
 
+.trabajador-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-editar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-editar:hover {
+  background-color: #2563eb;
+}
+
 .input-buscar {
   flex: 1;
   min-width: 160px;
