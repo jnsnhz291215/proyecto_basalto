@@ -25,7 +25,7 @@
         const links = wrapper.querySelectorAll('.nav-item a');
         links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); });
       }catch(e){}
-      // inicializar dropdown de usuario (toggle + click outside)
+      // Inicializar dropdown de usuario (toggle + click outside)
       try {
         const userToggle = wrapper.querySelector('.user-toggle');
         const userMenu = wrapper.querySelector('.user-menu');
@@ -35,33 +35,16 @@
         }
         const logoutBtn = wrapper.querySelector('.user-menu .danger');
         if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
-        // session-based visibility
+        // Actualizar nombre de usuario si existe sesión
         try {
           const s = localStorage.getItem('usuarioActivo');
-          const navGest = wrapper.querySelector('#nav-gestionar');
-          const navRight = wrapper.querySelector('.nav-right');
-          const navLoginBtn = wrapper.querySelector('#nav-login-btn');
-          const userToggleBtn = wrapper.querySelector('.user-toggle');
-          if (!s) {
-            if (navLoginBtn) navLoginBtn.style.display = '';
-            if (userToggleBtn) userToggleBtn.style.display = 'none';
-            if (navRight) navRight.style.display = '';
-            if (navGest) navGest.style.display = 'none';
-          } else {
+          if (s) {
             const u = JSON.parse(s);
-            if (navLoginBtn) navLoginBtn.style.display = 'none';
-            if (userToggleBtn) userToggleBtn.style.display = '';
-            // show username
             const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-            if (navRight) navRight.style.display = '';
-            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
           }
-          // open dual modal when login button clicked
-          if (navLoginBtn) navLoginBtn.addEventListener('click', () => { const dm = document.getElementById('dual-login-modal'); if (dm) dm.classList.add('show'); });
-        } catch(e){}
         } catch(e){}
       } catch(e){}
-      // update interface now that menu is injected
+      // Actualizar interfaz ahora que el menú está inyectado
       try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
