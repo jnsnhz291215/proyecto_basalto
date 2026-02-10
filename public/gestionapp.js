@@ -320,6 +320,8 @@ function comprobarLogin(e) {
       const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
       const d = await resp.json().catch(()=>({}));
       if (resp.ok && d && d.success) {
+        // persist admin session
+        try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); } catch(e){}
         el.modalLogin.classList.remove('show');
         cargar();
       } else {
@@ -330,6 +332,21 @@ function comprobarLogin(e) {
       showAdminLoginError('Error conectando al servidor');
     }
   })();
+}
+
+// Verificar sesión en carga de gestionar
+function verificarSesion() {
+  try {
+    const s = localStorage.getItem('usuarioActivo');
+    if (!s) return false;
+    const u = JSON.parse(s);
+    if (u && u.rol === 'admin') {
+      if (el.modalLogin) el.modalLogin.classList.remove('show');
+      cargar();
+      return true;
+    }
+  } catch (e) { }
+  return false;
 }
 
 // Visual error for admin login: shake card and mark inputs/button
@@ -396,6 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el.modalResult = document.getElementById('modal-result');
   el.resultOk = document.getElementById('result-ok');
+
+  // verify session and potentially bypass admin login
+  verificarSesion();
 
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {

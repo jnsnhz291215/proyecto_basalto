@@ -21,7 +21,7 @@
       const items = wrapper.querySelector('#nav-items');
       if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
       try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
-      // usuario dropdown
+      // usuario dropdown + session visibility
       try {
         const userToggle = wrapper.querySelector('.user-toggle');
         const userMenu = wrapper.querySelector('.user-menu');
@@ -29,6 +29,23 @@
           userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
           document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
         }
+        const logoutBtn = wrapper.querySelector('.user-menu .danger');
+        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
+        // session handling: hide user dropdown if no session, show gestionar only for admin
+        try {
+          const s = localStorage.getItem('usuarioActivo');
+          const navGest = wrapper.querySelector('#nav-gestionar');
+          const navRight = wrapper.querySelector('.nav-right');
+          if (!s) {
+            if (navRight) navRight.style.display = 'none';
+            if (navGest) navGest.style.display = 'none';
+          } else {
+            const u = JSON.parse(s);
+            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
+            if (navRight) navRight.style.display = '';
+            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
+          }
+        } catch(e){}
       } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>

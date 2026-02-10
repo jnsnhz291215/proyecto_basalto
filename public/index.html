@@ -32,6 +32,24 @@
           userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
           document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
         }
+        const logoutBtn = wrapper.querySelector('.user-menu .danger');
+        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
+        // session-based visibility
+        try {
+          const s = localStorage.getItem('usuarioActivo');
+          const navGest = wrapper.querySelector('#nav-gestionar');
+          const navRight = wrapper.querySelector('.nav-right');
+          if (!s) {
+            if (navRight) navRight.style.display = 'none';
+            if (navGest) navGest.style.display = 'none';
+          } else {
+            const u = JSON.parse(s);
+            // show username
+            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
+            if (navRight) navRight.style.display = '';
+            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
+          }
+        } catch(e){}
       } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
@@ -171,7 +189,8 @@
         try {
           const res = await fetch('/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
           if (res.ok) {
-            // close modal and show perfil page
+            // persist session and redirect to perfil
+            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'user', nombre: rut })); } catch(e){}
             if (dualModal) dualModal.classList.remove('show');
             window.location.href = '/datos.html';
           } else {
@@ -189,6 +208,7 @@
         try {
           const res = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
           if (res.ok) {
+            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); } catch(e){}
             if (dualModal) dualModal.classList.remove('show');
             window.location.href = '/gestionar.html';
           } else {

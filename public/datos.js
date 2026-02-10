@@ -39,6 +39,17 @@
 
   await loadTrabajadores();
 
+  // verificar sesión previa
+  try {
+    const s = localStorage.getItem('usuarioActivo');
+    if (s) {
+      const u = JSON.parse(s);
+      if (modalDatos) modalDatos.classList.remove('show');
+      if (perfilCard) perfilCard.style.display = 'block';
+      if (u && u.nombre && perfilNombre) perfilNombre.textContent = u.nombre;
+    }
+  } catch (e) { }
+
   btnClear.addEventListener('click', ()=>{
     loginUsuario.value = '';
     loginClave.value = '';
@@ -94,6 +105,8 @@
           showLoginError('Respuesta inesperada del servidor');
           return;
         }
+        // persist session
+        try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'user', nombre: (found.nombres || '') + ' ' + (found.apellidos || '') })); } catch(e){}
 
         perfilNombre.textContent = (found.nombres || '') + ' ' + (found.apellidos || '');
         perfilRut.textContent = found.RUT || '';
@@ -113,11 +126,9 @@
 
   if (btnLogout) {
     btnLogout.addEventListener('click', ()=>{
-      perfilCard.style.display = 'none';
-      if (modalDatos) modalDatos.classList.add('show');
-      loginUsuario.value = '';
-      loginClave.value = '';
-      loginError.style.display = 'none';
+      // clear session and reload to show login
+      try { localStorage.removeItem('usuarioActivo'); } catch(e){}
+      location.href = '/index.html';
     });
   }
 
