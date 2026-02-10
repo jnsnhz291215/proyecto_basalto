@@ -33,18 +33,11 @@
                 if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
                 try {
                     const s = localStorage.getItem('usuarioActivo');
-                    const navGest = wrapper.querySelector('#nav-gestionar');
-                    const navRight = wrapper.querySelector('.nav-right');
-                    if (!s) {
-                        if (navRight) navRight.style.display = 'none';
-                        if (navGest) navGest.style.display = 'none';
-                    } else {
+                    if (s) {
                         const u = JSON.parse(s);
                         const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-                        if (navRight) navRight.style.display = '';
-                        if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
                     }
-                                } catch(e){}
+                } catch(e){}
                         } catch(e){}
             try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));

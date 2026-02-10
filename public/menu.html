@@ -7,11 +7,10 @@
       </a>
     </div>
     <ul class="nav-items" id="nav-items">
-      <li class="nav-item"><a id="nav-inicio" href="index.html">Inicio</a></li>
-      <li id="nav-gestionar" class="nav-item"><a id="nav-gestionar-link" href="gestionar.html">Gestionar</a></li>
-      <li class="nav-item"><a id="nav-informe" href="informe.html">Informe de turno</a></li>
-      <li class="nav-item"><a id="nav-viajes" href="viajes.html">Viajes</a></li>
-      <!-- Datos personales will be in the user menu -->
+      <li id="nav-inicio" class="nav-item"><a href="index.html">Inicio</a></li>
+      <li id="nav-gestionar" class="nav-item"><a href="gestionar.html">Gestionar</a></li>
+      <li id="nav-informe" class="nav-item"><a href="informe.html">Informe de turno</a></li>
+      <li id="nav-viajes" class="nav-item"><a href="viajes.html">Viajes</a></li>
     </ul>
     <div class="nav-right" id="usuario-container">
       <button id="nav-login-btn" class="btn btn-login-nav">Iniciar Sesión</button>
@@ -19,12 +18,12 @@
         <span class="avatar"><i class="fa-solid fa-user"></i></span>
         <span class="user-name">Usuario</span>
       </button>
-      <div class="user-menu" role="menu" aria-hidden="true">
-        <a id="nav-datos" href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a>
-        <a href="#" class="menu-item"><i class="fa-solid fa-lock"></i> Cambiar Contraseña</a>
-        <div class="sep"></div>
-        <a href="/logout" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a>
-      </div>
+      <ul class="user-menu" role="menu" aria-hidden="true">
+        <li id="nav-datos"><a href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a></li>
+        <li class=""> <a href="#" class="menu-item"><i class="fa-solid fa-lock"></i> Cambiar Contraseña</a></li>
+        <li class="sep"></li>
+        <li class=""><a href="/logout" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a></li>
+      </ul>
     </div>
     <button id="nav-toggle" class="nav-toggle" aria-label="Mostrar menú">☰</button>
   </nav>
@@ -33,6 +32,8 @@
 <style>
   .top-menu{background-color:#ffffff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:1200;padding:1rem 2rem;box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)}
   .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0;position:relative}
+  /* Forzar que el contenedor de navegación nunca se oculte */
+  .nav, header.top-menu { display: flex !important; }
   .nav-logo-link{display:inline-block}
   .nav-logo-img{height:48px; width:auto; display:block}
   .nav-logo{font-weight:800;color:#111827;text-decoration:none;font-size:34px;letter-spacing:-0.025em}
@@ -47,9 +48,10 @@
   .avatar img{width:100%;height:100%;object-fit:cover;display:block}
   .user-name{font-weight:600;color:#111827}
   /* user menu */
-  .user-menu{display:none;position:absolute;right:2rem;top:64px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.08);min-width:200px;padding:8px;z-index:1300}
+  .user-menu{display:none;position:absolute;right:2rem;top:64px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.08);min-width:200px;padding:8px;z-index:1300;list-style:none;margin:0}
   .user-menu.show{display:block}
-  .user-menu a{display:flex;align-items:center;gap:10px;padding:8px 10px;color:#111827;text-decoration:none;border-radius:8px}
+  .user-menu li a{display:flex;align-items:center;gap:10px;padding:8px 10px;color:#111827;text-decoration:none;border-radius:8px}
+  .user-menu li a:hover{background:#f3f4f6}
   .user-menu a:hover{background:#f3f4f6}
   .user-menu .sep{height:1px;background:#f3f4f6;margin:6px 0}
   .user-menu .danger{color:#ef4444}
