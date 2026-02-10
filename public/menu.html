@@ -1,10 +1,10 @@
 <header class="top-menu">
   <nav class="nav">
     <div class="nav-left">
-      <!-- Replace text logo with image. Place the file at public/logo-basalto.png -->
-      <a href="index.html" class="nav-logo-link">
+      <!-- Logo (no clickeable) -->
+      <span class="nav-logo-link">
         <img src="IMG/logoBasalto.png" alt="Basalto Drilling" class="nav-logo-img">
-      </a>
+      </span>
     </div>
     <ul class="nav-items" id="nav-items">
       <li id="nav-inicio" class="nav-item"><a href="index.html">Inicio</a></li>
@@ -13,7 +13,7 @@
       <li id="nav-viajes" class="nav-item"><a href="viajes.html">Viajes</a></li>
     </ul>
     <div class="nav-right" id="usuario-container">
-      <button id="nav-login-btn" class="btn btn-login-nav">Iniciar Sesión</button>
+      <button id="nav-login-btn" class="btn btn-login-nav" onclick="abrirLoginModal()"><i class="fa-solid fa-user"></i> Iniciar Sesión</button>
       <button class="user-toggle" id="user-toggle" aria-expanded="false" aria-haspopup="true">
         <span class="avatar"><i class="fa-solid fa-user"></i></span>
         <span class="user-name">Usuario</span>

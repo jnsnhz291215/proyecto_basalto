@@ -107,6 +107,13 @@
   window.actualizarInterfaz = actualizarInterfaz;
   window.guardAccess = guardAccess;
 
+  // Función para abrir el modal de login
+  function abrirLoginModal() {
+    const dm = document.getElementById('dual-login-modal');
+    if (dm) dm.classList.add('show');
+  }
+  window.abrirLoginModal = abrirLoginModal;
+
   // Run on DOMContentLoaded (if script loaded in page head/body after menu injection, caller may call again)
   document.addEventListener('DOMContentLoaded', () => {
     // run guard first

@@ -404,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
   el.modalAgregar = document.getElementById('modal-agregar');
   el.modalConfirm = document.getElementById('modal-confirm');
   el.formAgregar = document.getElementById('form-agregar');
-  el.closeModal = document.getElementById('close-modal');
   el.cancelAdd = document.getElementById('cancel-add');
   el.confirmTitle = document.getElementById('confirm-title');
   el.confirmMsg = document.getElementById('confirm-msg');
@@ -423,14 +422,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  el.formLogin.addEventListener('submit', comprobarLogin);
+  if (el.formLogin) el.formLogin.addEventListener('submit', comprobarLogin);
 
-  document.getElementById('btn-agregar').addEventListener('click', abrirAgregar);
-  el.inputBuscar.addEventListener('input', render);
-  el.selectFiltro.addEventListener('change', render);
-  el.closeModal.addEventListener('click', cerrarAgregar);
-  el.cancelAdd.addEventListener('click', cerrarAgregar);
-  el.formAgregar.addEventListener('submit', enviarAgregar);
+  const btnAgregar = document.getElementById('btn-agregar');
+  if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);
+  if (el.inputBuscar) el.inputBuscar.addEventListener('input', render);
+  if (el.selectFiltro) el.selectFiltro.addEventListener('change', render);
+  if (el.cancelAdd) el.cancelAdd.addEventListener('click', cerrarAgregar);
+  if (el.formAgregar) el.formAgregar.addEventListener('submit', enviarAgregar);
   el.confirmCancel.addEventListener('click', () => {
     rutParaBorrar = null;
     el.modalConfirm.classList.remove('show');
