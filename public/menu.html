@@ -1,7 +1,10 @@
 <header class="top-menu">
   <nav class="nav">
     <div class="nav-left">
-      <span class="nav-logo">BasaltoDrilling</span>
+      <!-- Replace text logo with image. Place the file at public/logo-basalto.png -->
+      <a href="index.html" class="nav-logo-link">
+        <img src="IMG/logoBasalto.png" alt="Basalto Drilling" class="nav-logo-img">
+      </a>
     </div>
     <ul class="nav-items" id="nav-items">
       <li class="nav-item"><a href="index.html">Inicio</a></li>
@@ -10,19 +13,45 @@
       <li class="nav-item"><a href="viajes.html">Viajes</a></li>
       <li class="nav-item"><a href="datos.html">Datos personales</a></li>
     </ul>
+    <div class="nav-right">
+      <button class="user-toggle" aria-expanded="false" aria-haspopup="true">
+        <span class="avatar"><i class="fa-solid fa-user"></i></span>
+        <span class="user-name">Juan Sanhueza</span>
+      </button>
+      <div class="user-menu" role="menu" aria-hidden="true">
+        <a href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a>
+        <a href="#" class="menu-item"><i class="fa-solid fa-lock"></i> Cambiar Contraseña</a>
+        <div class="sep"></div>
+        <a href="/logout" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a>
+      </div>
+    </div>
     <button id="nav-toggle" class="nav-toggle" aria-label="Mostrar menú">☰</button>
   </nav>
 </header>
 
 <style>
   .top-menu{background-color:#ffffff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:1200;padding:1rem 2rem;box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)}
-  .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0}
+  .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0;position:relative}
+  .nav-logo-link{display:inline-block}
+  .nav-logo-img{height:48px; width:auto; display:block}
   .nav-logo{font-weight:800;color:#111827;text-decoration:none;font-size:34px;letter-spacing:-0.025em}
   .nav-items{list-style:none;margin:0;padding:0;display:flex;gap:14px;align-items:center}
   .nav-item a{color:#1f2937;text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600;background:transparent}
   .nav-item a:hover{background:#f3f4f6}
   .nav-item a.active{background:linear-gradient(90deg,#ec4899,#8b5cf6);color:#fff}
   .nav-toggle{display:none;background:transparent;border:0;font-size:22px;cursor:pointer}
+  .nav-right{display:flex;align-items:center;gap:12px}
+  .user-toggle{display:flex;align-items:center;gap:8px;background:transparent;border:0;cursor:pointer;padding:6px;border-radius:8px}
+  .avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;display:inline-block;background:#eef2ff;display:flex;align-items:center;justify-content:center}
+  .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .user-name{font-weight:600;color:#111827}
+  /* user menu */
+  .user-menu{display:none;position:absolute;right:2rem;top:64px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.08);min-width:200px;padding:8px;z-index:1300}
+  .user-menu.show{display:block}
+  .user-menu a{display:flex;align-items:center;gap:10px;padding:8px 10px;color:#111827;text-decoration:none;border-radius:8px}
+  .user-menu a:hover{background:#f3f4f6}
+  .user-menu .sep{height:1px;background:#f3f4f6;margin:6px 0}
+  .user-menu .danger{color:#ef4444}
   @media (max-width:800px){
     .nav{padding:10px}
     .nav-toggle{display:block}

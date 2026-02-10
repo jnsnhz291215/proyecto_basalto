@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calendario de Turnos</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <!-- Shared menu will be injected here -->
@@ -23,6 +24,15 @@
         const links = wrapper.querySelectorAll('.nav-item a');
         links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); });
       }catch(e){}
+      // inicializar dropdown de usuario (toggle + click outside)
+      try {
+        const userToggle = wrapper.querySelector('.user-toggle');
+        const userMenu = wrapper.querySelector('.user-menu');
+        if (userToggle && userMenu) {
+          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
+          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
+        }
+      } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
   <div class="container">
@@ -74,6 +84,66 @@
     </div>
   </div>
 
+  <!-- Dual login modal: usuario / administrador -->
+  <div id="dual-login-modal" class="modal show">
+    <div class="modal-content" style="max-width:900px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;padding:22px">
+      <div class="login-card" style="flex:1;min-width:280px;max-width:420px">
+        <div class="login-header">
+          <div class="security-icon"><i class="fa-solid fa-user"></i></div>
+          <h2 class="login-title">Ingresar como Usuario</h2>
+          <p class="login-subtitle">Accede a tus datos personales</p>
+        </div>
+        <form id="user-login-form">
+          <div class="form-group">
+            <label>Usuario</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-user input-icon"></i>
+              <input id="user-rut" type="text" placeholder="Ej: JuanPerez" class="modern-input">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-lock input-icon"></i>
+              <input id="user-pass" type="password" placeholder="Tu clave" class="modern-input">
+            </div>
+          </div>
+          <div class="login-actions">
+            <button id="btn-user-login" type="submit" class="btn-login-primary">Ingresar como usuario</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="login-card admin-login" style="flex:1;min-width:280px;max-width:420px">
+        <div class="login-header">
+          <div class="security-icon"><i class="fa-solid fa-user-shield"></i></div>
+          <h2 class="login-title">Ingresar como Admin</h2>
+          <p class="login-subtitle">Área de administración</p>
+        </div>
+        <form id="admin-login-form">
+          <div class="form-group">
+            <label>RUT</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-id-badge input-icon"></i>
+              <input id="admin-rut" type="text" placeholder="RUT sin puntos" class="modern-input">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-key input-icon"></i>
+              <input id="admin-pass" type="password" placeholder="••••••" class="modern-input">
+            </div>
+          </div>
+          <div class="login-actions" style="display:flex;gap:10px">
+            <button id="btn-admin-login" type="submit" class="btn-admin btn-login-primary">Acceder</button>
+            <button id="btn-skip-login" type="button" class="btn-cancel">Entrar sin logear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de confirmación -->
   <div id="confirm-modal" class="confirm-modal">
     <div class="confirm-modal-content">
@@ -87,5 +157,51 @@
   </div>
 
   <script type="module" src="app.js"></script>
+  <script>
+    // Dual login handlers: basic fetch to server endpoints if available
+    document.addEventListener('DOMContentLoaded', () => {
+      const dualModal = document.getElementById('dual-login-modal');
+
+      // user login
+      const userForm = document.getElementById('user-login-form');
+      userForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const rut = document.getElementById('user-rut').value.trim();
+        const password = document.getElementById('user-pass').value.trim();
+        try {
+          const res = await fetch('/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
+          if (res.ok) {
+            // close modal and show perfil page
+            if (dualModal) dualModal.classList.remove('show');
+            window.location.href = '/datos.html';
+          } else {
+            alert('Error de login de usuario');
+          }
+        } catch (err) { alert('No fue posible contactar al servidor.'); }
+      });
+
+      // admin login
+      const adminForm = document.getElementById('admin-login-form');
+      adminForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const rut = document.getElementById('admin-rut').value.trim();
+        const password = document.getElementById('admin-pass').value.trim();
+        try {
+          const res = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
+          if (res.ok) {
+            if (dualModal) dualModal.classList.remove('show');
+            window.location.href = '/gestionar.html';
+          } else {
+            alert('Credenciales de administrador incorrectas');
+          }
+        } catch (err) { alert('No fue posible contactar al servidor.'); }
+      });
+
+      // skip login
+      document.getElementById('btn-skip-login').addEventListener('click', () => {
+        if (dualModal) dualModal.classList.remove('show');
+      });
+    });
+  </script>
 </body>
 </html>

@@ -21,6 +21,15 @@
       const items = wrapper.querySelector('#nav-items');
       if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
       try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
+      // usuario dropdown
+      try {
+        const userToggle = wrapper.querySelector('.user-toggle');
+        const userMenu = wrapper.querySelector('.user-menu');
+        if (userToggle && userMenu) {
+          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
+          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
+        }
+      } catch(e){}
     }).catch(err => console.error('No se pudo cargar el menú:', err));
   </script>
 
