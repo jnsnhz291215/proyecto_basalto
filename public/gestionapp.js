@@ -483,6 +483,93 @@ function showAdminLoginError(msg) {
   }, 1600);
 }
 
+// ============================================
+// GESTIÓN DE CARGOS
+// ============================================
+
+async function cargarCargos() {
+  try {
+    const res = await fetch('/api/cargos');
+    if (!res.ok) throw new Error('Error al cargar cargos');
+    
+    const cargos = await res.json();
+    const selectCargo = document.getElementById('cargo');
+    
+    if (!selectCargo) return;
+    
+    // Limpiar opciones anteriores (excepto la primera "Seleccione...")
+    selectCargo.innerHTML = '<option value="" disabled selected>Seleccione un cargo...</option>';
+    
+    // Agregar cargos dinámicos
+    cargos.forEach(cargo => {
+      const option = document.createElement('option');
+      option.value = cargo;
+      option.textContent = cargo;
+      selectCargo.appendChild(option);
+    });
+    
+    // Agregar opción para crear nuevo cargo (con estilo diferenciado)
+    const optionNuevo = document.createElement('option');
+    optionNuevo.value = 'nuevo_cargo';
+    optionNuevo.textContent = '+ Crear nuevo cargo...';
+    optionNuevo.style.color = '#8b5cf6';
+    optionNuevo.style.fontWeight = '600';
+    selectCargo.appendChild(optionNuevo);
+    
+  } catch (error) {
+    console.error('Error al cargar cargos:', error);
+  }
+}
+
+async function guardarNuevoCargo() {
+  const inputNombre = document.getElementById('nuevoNombreCargo');
+  const nombreCargo = inputNombre?.value.trim();
+  
+  if (!nombreCargo) {
+    alert('Por favor, ingrese el nombre del cargo');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/cargos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre_cargo: nombreCargo })
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok) {
+      if (res.status === 409) {
+        alert('Este cargo ya existe');
+      } else {
+        alert(data.error || 'Error al crear el cargo');
+      }
+      return;
+    }
+    
+    // Cerrar modal y limpiar input
+    const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+    if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+    inputNombre.value = '';
+    
+    // Recargar lista de cargos
+    await cargarCargos();
+    
+    // Seleccionar automáticamente el cargo recién creado
+    const selectCargo = document.getElementById('cargo');
+    if (selectCargo) {
+      selectCargo.value = data.nombre_cargo;
+    }
+    
+    console.log('Cargo creado exitosamente:', data.nombre_cargo);
+    
+  } catch (error) {
+    console.error('Error al guardar cargo:', error);
+    alert('Error al crear el cargo');
+  }
+}
+
 // clear admin login error on input
 document.addEventListener('DOMContentLoaded', () => {
   const ir = document.getElementById('rut-login');
@@ -516,6 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // verify session and potentially bypass admin login
   verificarSesion();
+
+  // Cargar cargos al iniciar
+  cargarCargos();
 
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {
@@ -577,6 +667,82 @@ document.addEventListener('DOMContentLoaded', () => {
   if (telInputEdit) {
     telInputEdit.addEventListener('input', ev => {
       ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 9);
+    });
+  }
+
+  // ============================================
+  // EVENT LISTENERS: MODAL NUEVO CARGO
+  // ============================================
+  
+  // Detectar cuando seleccionan "+ Crear nuevo cargo..."
+  const selectCargo = document.getElementById('cargo');
+  if (selectCargo) {
+    selectCargo.addEventListener('change', (ev) => {
+      if (ev.target.value === 'nuevo_cargo') {
+        // Abrir modal de nuevo cargo
+        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+        if (modalNuevoCargo) modalNuevoCargo.classList.add('show');
+        
+        // Resetear el select a la opción por defecto
+        ev.target.value = '';
+        
+        // Enfocar el input del modal
+        setTimeout(() => {
+          const inputNombre = document.getElementById('nuevoNombreCargo');
+          if (inputNombre) inputNombre.focus();
+        }, 100);
+      }
+    });
+  }
+
+  // Botón cerrar modal (X)
+  const closeNuevoCargo = document.getElementById('close-nuevo-cargo');
+  if (closeNuevoCargo) {
+    closeNuevoCargo.addEventListener('click', () => {
+      const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+      if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+      const inputNombre = document.getElementById('nuevoNombreCargo');
+      if (inputNombre) inputNombre.value = '';
+    });
+  }
+
+  // Botón Cancelar
+  const cancelNuevoCargo = document.getElementById('cancel-nuevo-cargo');
+  if (cancelNuevoCargo) {
+    cancelNuevoCargo.addEventListener('click', () => {
+      const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+      if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+      const inputNombre = document.getElementById('nuevoNombreCargo');
+      if (inputNombre) inputNombre.value = '';
+    });
+  }
+
+  // Botón Guardar Cargo
+  const guardarCargoBtn = document.getElementById('guardar-nuevo-cargo');
+  if (guardarCargoBtn) {
+    guardarCargoBtn.addEventListener('click', guardarNuevoCargo);
+  }
+
+  // Permitir guardar con Enter en el input
+  const inputNuevoCargo = document.getElementById('nuevoNombreCargo');
+  if (inputNuevoCargo) {
+    inputNuevoCargo.addEventListener('keypress', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        guardarNuevoCargo();
+      }
+    });
+  }
+
+  // Cerrar modal al hacer click fuera
+  const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+  if (modalNuevoCargo) {
+    modalNuevoCargo.addEventListener('click', (ev) => {
+      if (ev.target === modalNuevoCargo) {
+        modalNuevoCargo.classList.remove('show');
+        const inputNombre = document.getElementById('nuevoNombreCargo');
+        if (inputNombre) inputNombre.value = '';
+      }
     });
   }
 
