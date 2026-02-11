@@ -516,6 +516,36 @@ async function cargarCargos() {
     optionNuevo.style.fontWeight = '600';
     selectCargo.appendChild(optionNuevo);
     
+    // Agregar event listener para detectar cuando seleccionan "+ Crear nuevo cargo..."
+    // Removemos listener anterior si existe para evitar duplicados
+    const oldListener = selectCargo._cargoChangeListener;
+    if (oldListener) {
+      selectCargo.removeEventListener('change', oldListener);
+    }
+    
+    const newListener = (ev) => {
+      if (ev.target.value === 'nuevo_cargo') {
+        // Abrir modal de nuevo cargo
+        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+        if (modalNuevoCargo) {
+          modalNuevoCargo.classList.add('show');
+          console.log('Modal nuevo cargo abierto');
+        }
+        
+        // Resetear el select a la opción por defecto
+        ev.target.value = '';
+        
+        // Enfocar el input del modal
+        setTimeout(() => {
+          const inputNombre = document.getElementById('nuevoNombreCargo');
+          if (inputNombre) inputNombre.focus();
+        }, 100);
+      }
+    };
+    
+    selectCargo._cargoChangeListener = newListener;
+    selectCargo.addEventListener('change', newListener);
+    
   } catch (error) {
     console.error('Error al cargar cargos:', error);
   }
@@ -674,27 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // EVENT LISTENERS: MODAL NUEVO CARGO
   // ============================================
   
-  // Detectar cuando seleccionan "+ Crear nuevo cargo..."
-  const selectCargo = document.getElementById('cargo');
-  if (selectCargo) {
-    selectCargo.addEventListener('change', (ev) => {
-      if (ev.target.value === 'nuevo_cargo') {
-        // Abrir modal de nuevo cargo
-        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-        if (modalNuevoCargo) modalNuevoCargo.classList.add('show');
-        
-        // Resetear el select a la opción por defecto
-        ev.target.value = '';
-        
-        // Enfocar el input del modal
-        setTimeout(() => {
-          const inputNombre = document.getElementById('nuevoNombreCargo');
-          if (inputNombre) inputNombre.focus();
-        }, 100);
-      }
-    });
-  }
-
+  // NOTA: El event listener del select cargo está en cargarCargos()
+  
   // Botón cerrar modal (X)
   const closeNuevoCargo = document.getElementById('close-nuevo-cargo');
   if (closeNuevoCargo) {
