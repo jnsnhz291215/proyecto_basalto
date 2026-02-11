@@ -528,12 +528,12 @@ async function cargarCargos() {
         // Abrir modal de nuevo cargo
         const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
         if (modalNuevoCargo) {
-          modalNuevoCargo.classList.add('show');
+          modalNuevoCargo.style.display = 'flex';
           console.log('Modal nuevo cargo abierto');
         }
         
-        // Resetear el select a la opción por defecto
-        ev.target.value = '';
+        // Resetear el select a la opción por defecto (selectedIndex = 0)
+        ev.target.selectedIndex = 0;
         
         // Enfocar el input del modal
         setTimeout(() => {
@@ -580,7 +580,7 @@ async function guardarNuevoCargo() {
     
     // Cerrar modal y limpiar input
     const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-    if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+    if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
     inputNombre.value = '';
     
     // Recargar lista de cargos
@@ -711,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeNuevoCargo) {
     closeNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+      if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
@@ -722,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelNuevoCargo) {
     cancelNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) modalNuevoCargo.classList.remove('show');
+      if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalNuevoCargo) {
     modalNuevoCargo.addEventListener('click', (ev) => {
       if (ev.target === modalNuevoCargo) {
-        modalNuevoCargo.classList.remove('show');
+        modalNuevoCargo.style.display = 'none';
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
       }
