@@ -62,92 +62,314 @@
   <main>
     <div class="informe-container">
         
+        <!-- HEADER: Información General -->
         <div class="card-section header-section">
             <div class="input-group">
                 <label>Fecha</label>
-                <input type="date" value="2026-02-05">
+                <input type="date" id="input-fecha" value="2026-02-05" class="modern-input">
             </div>
             <div class="input-group">
                 <label>Turno (Grupo)</label>
-                <select><option>A</option><option>B</option></select>
+                <select id="input-turno" class="modern-input"><option>A</option><option>B</option><option>C</option><option>D</option></select>
             </div>
             <div class="input-group">
                 <label>Horómetro Inicial</label>
-                <input type="number" placeholder="Ej: 1500.5">
+                <input type="number" id="input-horometro-inicial" placeholder="Ej: 1500.5" class="modern-input">
             </div>
             <div class="input-group">
                 <label>Horómetro Final</label>
-                <input type="number" placeholder="Ej: 1512.0">
+                <input type="number" id="input-horometro-final" placeholder="Ej: 1512.0" class="modern-input">
             </div>
         </div>
 
-        <div class="grid-2-col">
-            <div class="card-section">
-                <h3 class="section-title">Antecedentes de Faena</h3>
-                <div class="form-grid">
-                    <div class="input-group full-width">
-                        <label>Faena / C. Costo</label>
-                        <input type="text" placeholder="Ej: Centinela">
-                    </div>
-                    <div class="input-group">
-                        <label>Equipo</label>
-                        <input type="text" placeholder="Ej: ED-1200">
-                    </div>
-                    <div class="input-group">
-                        <label>Operador</label>
-                        <input type="text" value="Juan Sanhueza" readonly class="input-readonly">
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section">
-                <h3 class="section-title">Antecedentes del Pozo</h3>
-                <div class="form-grid">
-                    <div class="input-group">
-                        <label>Pozo N°</label>
-                        <input type="text">
-                    </div>
-                    <div class="input-group">
-                        <label>Sector</label>
-                        <input type="text">
-                    </div>
-                    <div class="input-group">
-                        <label>Inclinación</label>
-                        <input type="text" placeholder="Ej: 90°">
-                    </div>
-                    <div class="input-group">
-                        <label>Prof. Final</label>
-                        <input type="text">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card-section">
-            <h3 class="section-title">Descripción Actividades Realizadas</h3>
-            
-            <div class="table-responsive">
-                <table class="activity-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 130px; padding: 10px;">Desde</th>
-                            <th style="width: 130px; padding: 10px;">Hasta</th>
-                            <th style="padding: 10px;">Detalle de Actividad</th>
-                            <th style="width: 50px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista-actividades">
-                    </tbody>
-                </table>
-            </div>
-            <button class="btn-add-row" id="btnAgregar">
-                <i class="fa-solid fa-plus"></i> Agregar otra actividad
+        <!-- TABS NAVIGATION -->
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="abrirPestaña(event, 'tab-antecedentes')">
+                <i class="fa-solid fa-file-lines"></i> Antecedentes
+            </button>
+            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-operacion')">
+                <i class="fa-solid fa-gears"></i> Operación
+            </button>
+            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-materiales')">
+                <i class="fa-solid fa-boxes"></i> Materiales
+            </button>
+            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-cierre')">
+                <i class="fa-solid fa-square-check"></i> Cierre y Firmas
             </button>
         </div>
-        
+
+        <!-- TAB 1: ANTECEDENTES -->
+        <div id="tab-antecedentes" class="tab-content active">
+            <div class="grid-2-col">
+                <div class="card-section">
+                    <h3 class="section-title">Antecedentes de Faena</h3>
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label>Faena / C. Costo</label>
+                            <input type="text" id="input-faena" placeholder="Ej: Centinela" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Equipo</label>
+                            <input type="text" id="input-equipo" placeholder="Ej: ED-1200" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Operador</label>
+                            <input type="text" id="input-operador" value="Juan Sanhueza" readonly class="modern-input input-readonly">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Antecedentes del Pozo</h3>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Pozo N°</label>
+                            <input type="text" id="input-pozo-num" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Sector</label>
+                            <input type="text" id="input-sector" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Inclinación</label>
+                            <input type="text" id="input-inclinacion" placeholder="Ej: 90°" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Prof. Final</label>
+                            <input type="text" id="input-profundidad" class="modern-input">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section">
+                <h3 class="section-title">Parámetros</h3>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Pull Down (Lbs)</label>
+                        <input type="number" id="input-pulldown" placeholder="Ej: 15000" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>RPM</label>
+                        <input type="number" id="input-rpm" placeholder="Ej: 85" class="modern-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section">
+                <h3 class="section-title">Insumos</h3>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Petróleo (Gal)</label>
+                        <input type="number" id="input-petroleo" placeholder="Ej: 150" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Lubricantes (Ltr)</label>
+                        <input type="number" id="input-lubricantes" placeholder="Ej: 50" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Aceites (Ltr)</label>
+                        <input type="number" id="input-aceites" placeholder="Ej: 30" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Otros (Kg)</label>
+                        <input type="number" id="input-otros" placeholder="Ej: 100" class="modern-input">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: OPERACIÓN -->
+        <div id="tab-operacion" class="tab-content" style="display: none;">
+            <div class="card-section">
+                <h3 class="section-title">Perforación</h3>
+                <div class="table-responsive">
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Desde (m)</th>
+                                <th style="width: 100px;">Hasta (m)</th>
+                                <th style="width: 100px;">Mts. Perf</th>
+                                <th style="width: 100px;">Recuper. %</th>
+                                <th style="width: 120px;">Tipo Roca</th>
+                                <th style="width: 100px;">Dureza</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-perforacion">
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn-add-row" id="btnAgregarPerforacion">
+                    <i class="fa-solid fa-plus"></i> Agregar registro de perforación
+                </button>
+            </div>
+
+            <div class="card-section">
+                <h3 class="section-title">Descripción Actividades Realizadas</h3>
+                <div class="table-responsive">
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 130px; padding: 10px;">Desde</th>
+                                <th style="width: 130px; padding: 10px;">Hasta</th>
+                                <th style="padding: 10px;">Detalle de Actividad</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-actividades">
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn-add-row" id="btnAgregar">
+                    <i class="fa-solid fa-plus"></i> Agregar otra actividad
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 3: MATERIALES -->
+        <div id="tab-materiales" class="tab-content" style="display: none;">
+            <div class="materiales-grid">
+                <div class="card-section">
+                    <h3 class="section-title">Aceros de Perforación</h3>
+                    <div class="table-responsive">
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Tipo</th>
+                                    <th style="width: 80px;">Cantidad</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-aceros">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn-add-row-small" onclick="agregarFila('tabla-aceros', ['select-acero-tipo', 'input-acero-cant'])">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Rebaje de Htas</h3>
+                    <div class="table-responsive">
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Descripción</th>
+                                    <th style="width: 80px;">Cantidad</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-rebaje">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn-add-row-small" onclick="agregarFila('tabla-rebaje')">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Accesorios</h3>
+                    <div class="table-responsive">
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Descripción</th>
+                                    <th style="width: 80px;">Cantidad</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-accesorios">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn-add-row-small" onclick="agregarFila('tabla-accesorios')">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Casing</h3>
+                    <div class="table-responsive">
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Diámetro</th>
+                                    <th style="width: 80px;">Metros</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-casing">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn-add-row-small" onclick="agregarFila('tabla-casing')">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Aditivos</h3>
+                    <div class="table-responsive">
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Tipo</th>
+                                    <th style="width: 80px;">Cantidad</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-aditivos">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn-add-row-small" onclick="agregarFila('tabla-aditivos')">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: CIERRE Y FIRMAS -->
+        <div id="tab-cierre" class="tab-content" style="display: none;">
+            <div class="card-section">
+                <h3 class="section-title">Notas / Observaciones</h3>
+                <textarea id="notas-observaciones" class="modern-input textarea-large" placeholder="Ingresa cualquier nota, observación o comentario importante sobre el turno..."></textarea>
+            </div>
+
+            <div class="card-section">
+                <h3 class="section-title">Firmas</h3>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Operador</label>
+                        <input type="text" id="input-firma-operador" placeholder="Nombre operador" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>ITO</label>
+                        <input type="text" id="input-firma-ito" placeholder="Nombre ITO" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Supervisor</label>
+                        <input type="text" id="input-firma-supervisor" placeholder="Nombre supervisor" class="modern-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Cliente</label>
+                        <input type="text" id="input-firma-cliente" placeholder="Nombre cliente" class="modern-input">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN FINALES -->
         <div class="action-bar">
-            <button class="btn-secondary">Guardar Borrador</button>
-            <button class="btn-primary">Finalizar y Bloquear Turno</button>
+            <button id="btn-guardar-borrador" class="btn btn-secondary-outline" type="button">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
+            </button>
+            <button id="btn-finalizar-turno" class="btn btn-success" type="button">
+                <i class="fa-solid fa-lock"></i> Finalizar y Bloquear Turno
+            </button>
         </div>
 
     </div>

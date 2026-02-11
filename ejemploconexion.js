@@ -33,7 +33,7 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 async function obtenerTrabajadores() {
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.execute('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadoresTest2');
+    const [rows] = await connection.execute('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadores');
     const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
     return rows.map(r => ({
       RUT: r.RUT,
@@ -67,7 +67,7 @@ async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, ru
     const cargoNorm = cargo ? titleCase(cargo) : null;
 
     const [result] = await connection.execute(
-      'INSERT INTO trabajadoresTest2 (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoNorm]
     );
     return result;
@@ -81,7 +81,7 @@ async function eliminarTrabajador(rut) {
   const connection = await pool.getConnection();
   try {
     // Verificar existencia
-    const [rows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadoresTest2 WHERE RUT = ?', [rut]);
+    const [rows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadores WHERE RUT = ?', [rut]);
     const count = rows && rows[0] && (rows[0].c || rows[0].C || rows[0]['COUNT(*)']) ? (rows[0].c || rows[0].C || rows[0]['COUNT(*)']) : 0;
     if (parseInt(count, 10) === 0) {
       const err = new Error('RUT not found');
@@ -90,7 +90,7 @@ async function eliminarTrabajador(rut) {
     }
 
     const [result] = await connection.execute(
-      'DELETE FROM trabajadoresTest2 WHERE RUT = ?',
+      'DELETE FROM trabajadores WHERE RUT = ?',
       [rut]
     );
     return result;
@@ -115,7 +115,7 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
     const cargoNorm = cargo ? titleCase(cargo) : null;
 
     // Verificar existencia
-    const [checkRows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadoresTest2 WHERE RUT = ?', [rut]);
+    const [checkRows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadores WHERE RUT = ?', [rut]);
     const count = checkRows && checkRows[0] && (checkRows[0].c || checkRows[0].C || checkRows[0]['COUNT(*)']) ? (checkRows[0].c || checkRows[0].C || checkRows[0]['COUNT(*)']) : 0;
     if (parseInt(count, 10) === 0) {
       const err = new Error('RUT not found');
@@ -124,7 +124,7 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
     }
 
     const [result] = await connection.execute(
-      'UPDATE trabajadoresTest2 SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ? WHERE RUT = ?',
+      'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ? WHERE RUT = ?',
       [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoNorm, rut]
     );
     return result;

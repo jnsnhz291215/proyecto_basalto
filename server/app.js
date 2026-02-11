@@ -135,6 +135,155 @@ app.post('/admin-login', async (req, res) => {
   }
 });
 
+// ============================================
+// ENDPOINT: CREAR INFORME DE TURNO
+// ============================================
+app.post('/api/informes', async (req, res) => {
+  const connection = await pool.getConnection();
+  
+  try {
+    const { datosGenerales, actividades, perforaciones, herramientas } = req.body;
+
+    if (!datosGenerales) {
+      return res.status(400).json({ error: 'Se requieren datos generales del informe' });
+    }
+
+    // PASO 1: GENERAR FOLIO AUTOMÁTICO
+    const [ultimoInforme] = await connection.execute(
+      'SELECT numero_informe FROM informes_turno ORDER BY id_informe DESC LIMIT 1'
+    );
+
+    let nuevoNumero = 1;
+    if (ultimoInforme && ultimoInforme.length > 0 && ultimoInforme[0].numero_informe) {
+      // Extraer el número del folio (ej: "INF-0005" -> 5)
+      const match = ultimoInforme[0].numero_informe.match(/INF-(\d+)/);
+      if (match) {
+        nuevoNumero = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    const folio = `INF-${String(nuevoNumero).padStart(4, '0')}`;
+    console.log(`[INFORME] Generando folio: ${folio}`);
+
+    // PASO 2: INICIAR TRANSACCIÓN
+    await connection.beginTransaction();
+
+    // PASO 3A: INSERT EN TABLA PRINCIPAL (informes_turno)
+    const [resultInforme] = await connection.execute(
+      `INSERT INTO informes_turno (
+        numero_informe, fecha, turno, horometro_inicial, horometro_final,
+        faena, equipo, operador, pozo_numero, sector, inclinacion,
+        profundidad_final, pulldown, rpm, petroleo, lubricantes, aceites,
+        otros_insumos, observaciones, firma_operador, firma_ito,
+        firma_supervisor, firma_cliente, estado, fecha_creacion
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        folio,
+        datosGenerales.fecha || null,
+        datosGenerales.turno || null,
+        datosGenerales.horometro_inicial || null,
+        datosGenerales.horometro_final || null,
+        datosGenerales.faena || null,
+        datosGenerales.equipo || null,
+        datosGenerales.operador || null,
+        datosGenerales.pozo_numero || null,
+        datosGenerales.sector || null,
+        datosGenerales.inclinacion || null,
+        datosGenerales.profundidad_final || null,
+        datosGenerales.pulldown || null,
+        datosGenerales.rpm || null,
+        datosGenerales.petroleo || null,
+        datosGenerales.lubricantes || null,
+        datosGenerales.aceites || null,
+        datosGenerales.otros_insumos || null,
+        datosGenerales.observaciones || null,
+        datosGenerales.firma_operador || null,
+        datosGenerales.firma_ito || null,
+        datosGenerales.firma_supervisor || null,
+        datosGenerales.firma_cliente || null,
+        datosGenerales.estado || 'Borrador'
+      ]
+    );
+
+    const idInforme = resultInforme.insertId;
+    console.log(`[INFORME] Informe creado con ID: ${idInforme}`);
+
+    // PASO 3B: INSERT DE ACTIVIDADES
+    if (actividades && actividades.length > 0) {
+      for (const act of actividades) {
+        await connection.execute(
+          'INSERT INTO actividades_turno (id_informe, hora_inicio, hora_fin, detalle) VALUES (?, ?, ?, ?)',
+          [idInforme, act.hora_inicio || null, act.hora_fin || null, act.detalle || null]
+        );
+      }
+      console.log(`[INFORME] ${actividades.length} actividades insertadas`);
+    }
+
+    // PASO 3C: INSERT DE PERFORACIONES
+    if (perforaciones && perforaciones.length > 0) {
+      for (const perf of perforaciones) {
+        await connection.execute(
+          'INSERT INTO perforaciones_turno (id_informe, desde, hasta, metros_perforados, recuperacion, tipo_roca, dureza) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            idInforme,
+            perf.desde || null,
+            perf.hasta || null,
+            perf.metros_perforados || null,
+            perf.recuperacion || null,
+            perf.tipo_roca || null,
+            perf.dureza || null
+          ]
+        );
+      }
+      console.log(`[INFORME] ${perforaciones.length} perforaciones insertadas`);
+    }
+
+    // PASO 3D: INSERT DE HERRAMIENTAS/MATERIALES
+    if (herramientas && herramientas.length > 0) {
+      for (const herr of herramientas) {
+        await connection.execute(
+          'INSERT INTO herramientas_turno (id_informe, categoria, tipo, cantidad) VALUES (?, ?, ?, ?)',
+          [idInforme, herr.categoria || null, herr.tipo || null, herr.cantidad || 0]
+        );
+      }
+      console.log(`[INFORME] ${herramientas.length} herramientas insertadas`);
+    }
+
+    // PASO 4: COMMIT DE LA TRANSACCIÓN
+    await connection.commit();
+    console.log(`[INFORME] Transacción completada exitosamente`);
+
+    // RESPUESTA EXITOSA
+    res.status(201).json({
+      success: true,
+      folio: folio,
+      id_informe: idInforme,
+      estado: datosGenerales.estado || 'Borrador',
+      message: 'Informe guardado correctamente'
+    });
+
+  } catch (error) {
+    // ROLLBACK EN CASO DE ERROR
+    await connection.rollback();
+    console.error('[INFORME ERROR]', error);
+    res.status(500).json({
+      error: 'Error al guardar el informe',
+      details: error.message
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// ============================================
+// ENDPOINT FUTURO: ACTUALIZAR INFORME (PUT)
+// ============================================
+// IMPORTANTE: Cuando se implemente el endpoint PUT para actualizar informes,
+// se debe validar que el estado del informe NO sea 'Finalizado'.
+// Si estado === 'Finalizado', rechazar con:
+// return res.status(403).json({ error: 'No se puede editar un informe finalizado y bloqueado' });
+// ============================================
+
 // Endpoint /guardar eliminado (guardado en JSON ya no se usa)
 
 // Funciones de validación del servidor

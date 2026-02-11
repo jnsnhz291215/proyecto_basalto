@@ -7,6 +7,73 @@
 	padding-bottom: 50px;
 }
 
+/* TABS HEADER */
+.tabs-header {
+	display: flex;
+	gap: 0;
+	background: white;
+	border-radius: 8px;
+	border: 1px solid #e5e7eb;
+	overflow: hidden;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.tab-btn {
+	flex: 1;
+	padding: 14px 16px;
+	border: none;
+	background: white;
+	color: #6b7280;
+	font-size: 0.95rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	border-bottom: 3px solid transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.tab-btn:hover {
+	background: #f9fafb;
+	color: #374151;
+}
+
+.tab-btn.active {
+	border-bottom-color: #8b5cf6;
+	color: #8b5cf6;
+	background: #faf5ff;
+}
+
+.tab-btn i {
+	font-size: 1.1rem;
+}
+
+/* TAB CONTENT */
+.tab-content {
+	display: none;
+	animation: slideInTab 0.3s ease;
+}
+
+.tab-content.active {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+@keyframes slideInTab {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
 .card-section {
 	background: white;
 	border-radius: 8px;
@@ -28,6 +95,12 @@
 .grid-2-col {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+}
+
+.materiales-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	gap: 20px;
 }
 
@@ -53,17 +126,45 @@
 	color: #374151;
 }
 
-.input-group input, .input-group select {
+.input-group input, .input-group select, .input-group textarea {
 	padding: 8px 12px;
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
 	font-size: 0.95rem;
+	font-family: inherit;
+}
+
+.input-group input:focus, .input-group select:focus, .input-group textarea:focus {
+	outline: none;
+	border-color: #8b5cf6;
+	box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.modern-input {
+	padding: 10px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	font-size: 0.95rem;
+	font-family: inherit;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.modern-input:focus {
+	outline: none;
+	border-color: #8b5cf6;
+	box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .input-readonly {
 	background-color: #f3f4f6;
 	color: #6b7280;
 	cursor: not-allowed;
+}
+
+.textarea-large {
+	min-height: 150px;
+	resize: vertical;
+	padding: 12px;
 }
 
 .activity-table {
@@ -76,49 +177,214 @@
 	text-align: left;
 	font-size: 0.8rem;
 	color: #6b7280;
-	padding-bottom: 8px;
+	padding: 10px;
+	background: #f9fafb;
+	font-weight: 600;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+.activity-table td {
+	padding: 10px;
+	border-bottom: 1px solid #f3f4f6;
 }
 
 .input-compact {
 	width: 100%;
-	padding: 6px;
+	padding: 8px;
 	border: 1px solid #e5e7eb;
 	border-radius: 4px;
+	font-size: 0.9rem;
+}
+
+.input-compact:focus {
+	outline: none;
+	border-color: #8b5cf6;
+	box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
 }
 
 .btn-add-row {
 	background: none;
 	border: 1px dashed #4f46e5;
 	color: #4f46e5;
-	padding: 8px;
+	padding: 10px;
 	width: 100%;
 	border-radius: 6px;
 	cursor: pointer;
 	font-size: 0.9rem;
+	font-weight: 500;
+	transition: all 0.2s;
 }
 
+.btn-add-row:hover {
+	background: #f0f4ff;
+	border-color: #4f46e5;
+}
+
+.btn-add-row-small {
+	background: none;
+	border: 1px dashed #9ca3af;
+	color: #6b7280;
+	padding: 6px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition: all 0.2s;
+	width: 100%;
+}
+
+.btn-add-row-small:hover {
+	background: #f9fafb;
+	border-color: #6b7280;
+	color: #374151;
+}
+
+/* BOTONES DE ACCIÓN FINALES */
 .action-bar {
 	display: flex;
 	justify-content: flex-end;
-	gap: 15px;
-	margin-top: 20px;
+	gap: 12px;
+	margin-top: 30px;
+	padding-top: 20px;
+	border-top: 1px solid #e5e7eb;
 }
 
-/* Estilo para botón eliminar en filas de actividad */
+.btn {
+	padding: 11px 24px;
+	border: none;
+	border-radius: 6px;
+	font-size: 0.95rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.btn-secondary-outline {
+	background: white;
+	color: #6b7280;
+	border: 1.5px solid #d1d5db;
+}
+
+.btn-secondary-outline:hover {
+	background: #f9fafb;
+	border-color: #9ca3af;
+	color: #374151;
+}
+
+.btn-success {
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	color: white;
+	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-success:hover {
+	background: linear-gradient(135deg, #059669 0%, #047857 100%);
+	box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+	transform: translateY(-2px);
+}
+
+/* Estilo para botón eliminar en filas */
 .btn-delete {
 	background-color: #fee2e2;
 	color: #ef4444;
 	border: none;
 	border-radius: 4px;
-	width: 24px;
-	height: 24px;
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	padding: 0;
 	cursor: pointer;
 	font-weight: bold;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	transition: all 0.2s;
+	font-size: 0.9rem;
 }
 
 .btn-delete:hover {
 	background-color: #fecaca;
+	color: #dc2626;
+}
+
+/* Utilities */
+.table-responsive {
+	overflow-x: auto;
+	border-radius: 6px;
+}
+
+.header-section {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 15px;
+	margin-bottom: 10px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+	.informe-container {
+		padding: 10px;
+		gap: 15px;
+	}
+
+	.tabs-header {
+		flex-wrap: wrap;
+	}
+
+	.tab-btn {
+		flex: 1;
+		min-width: 120px;
+		font-size: 0.85rem;
+		padding: 12px 10px;
+	}
+
+	.tab-btn i {
+		font-size: 0.95rem;
+	}
+
+	.grid-2-col {
+		grid-template-columns: 1fr;
+		gap: 15px;
+	}
+
+	.card-section {
+		padding: 15px;
+	}
+
+	.form-grid {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+
+	.materiales-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.action-bar {
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.btn {
+		width: 100%;
+		justify-content: center;
+		padding: 12px 16px;
+	}
+
+	.activity-table {
+		font-size: 0.85rem;
+	}
+
+	.activity-table th, .activity-table td {
+		padding: 8px 4px;
+	}
+
+	.input-compact {
+		padding: 6px;
+		font-size: 0.85rem;
+	}
 }
