@@ -206,13 +206,14 @@
       const userForm = document.getElementById('user-login-form');
       userForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const rut = document.getElementById('user-rut').value.trim();
-        const password = document.getElementById('user-pass').value.trim();
+        const usuario = document.getElementById('user-rut').value.trim();
+        const clave = document.getElementById('user-pass').value.trim();
         try {
-          const res = await fetch('/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
+          const res = await fetch('/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ usuario, clave }) });
           if (res.ok) {
+            const data = await res.json();
             // persist session and redirect to perfil
-            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'user', nombre: rut })); } catch(e){}
+            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'user', nombre: (data.trabajador.nombres || '') + ' ' + (data.trabajador.apellidos || '') })); } catch(e){}
             if (dualModal) dualModal.classList.remove('show');
             window.location.href = '/datos.html';
           } else {

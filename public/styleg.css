@@ -14,8 +14,9 @@ body {
 .gestionar-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 40px);
   padding: 16px;
+  gap: 0;
 }
 
 /* Header */
@@ -24,11 +25,12 @@ body {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   background-color: #ffffff; /* toolbar look */
   padding: 15px 20px;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  flex-shrink: 0;
 }
 
 .btn {
@@ -166,7 +168,9 @@ body {
   flex: 1;
   overflow-x: auto;
   overflow-y: auto;
-  padding-bottom: 8px;
+  padding: 8px 16px 8px 0;
+  min-height: 0;
+  width: 100%;
 }
 
 .grupos-scroll::-webkit-scrollbar {
@@ -186,8 +190,9 @@ body {
 .grupos-columnas {
   display: flex;
   gap: 16px;
-  padding: 8px 0;
+  padding: 8px;
   min-width: min-content;
+  width: 100%;
 }
 
 /* Columna de grupo */
