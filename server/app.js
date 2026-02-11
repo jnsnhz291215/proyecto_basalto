@@ -17,6 +17,22 @@ const AUTO_CIERRE_MS = 60 * 60 * 1000; // 1 hora
 let ultimoEstado = null;
 let autoCierreTimeout = null;
 
+// ============================================
+// FUNCIÓN HELPER: REGISTRAR LOG DE AUDITORÍA
+// ============================================
+async function registrarLog(admin_rut, accion, detalle) {
+  try {
+    await pool.execute(
+      'INSERT INTO admin_logs (admin_rut, accion, detalle, fecha) VALUES (?, ?, ?, NOW())',
+      [admin_rut, accion, detalle]
+    );
+    console.log(`[LOG] ${accion} | Admin: ${admin_rut} | ${detalle}`);
+  } catch (error) {
+    // No detener la ejecución si falla el log
+    console.error('[ERROR LOG] No se pudo registrar el log de auditoría:', error.message || error);
+  }
+}
+
 // Resetear el timer de auto-cierre en cada petición
 app.use((req, res, next) => {
   if (autoCierreTimeout) {
@@ -132,6 +148,35 @@ app.post('/admin-login', async (req, res) => {
   } catch (err) {
     console.error('Error en /admin-login:', err);
     res.status(500).json({ error: 'Error en servidor' });
+  }
+});
+
+// ============================================
+// ENDPOINTS: LOGS DE AUDITORÍA
+// ============================================
+
+// GET /api/logs - Obtener logs de auditoría
+app.get('/api/logs', async (req, res) => {
+  try {
+    const { admin_rut } = req.query;
+    
+    let query = 'SELECT * FROM admin_logs';
+    let params = [];
+    
+    // Filtrar por admin específico si se proporciona
+    if (admin_rut) {
+      query += ' WHERE admin_rut = ?';
+      params.push(admin_rut);
+    }
+    
+    query += ' ORDER BY fecha DESC LIMIT 100';
+    
+    const [rows] = await pool.execute(query, params);
+    res.json(rows);
+    
+  } catch (error) {
+    console.error('Error al obtener logs:', error);
+    res.status(500).json({ error: 'Error al obtener logs de auditoría' });
   }
 });
 
@@ -423,6 +468,15 @@ app.post("/agregar-trabajador", async (req, res) => {
       nuevoTrabajador.cargo || null
     );
     
+    // Registrar log de auditoría (si se proporcionó admin_rut)
+    if (nuevoTrabajador.admin_rut) {
+      await registrarLog(
+        nuevoTrabajador.admin_rut,
+        'AGREGAR_TRABAJADOR',
+        `Se agregó el trabajador: ${nuevoTrabajador.nombres} ${nuevoTrabajador.apellidos} (RUT: ${nuevoTrabajador.RUT})`
+      );
+    }
+    
     const trabajadores = await obtenerTrabajadores();
     ultimoEstado = trabajadores;
     
@@ -506,6 +560,15 @@ app.post("/editar-trabajador", async (req, res) => {
       throw e;
     }
     
+    // Registrar log de auditoría (si se proporcionó admin_rut)
+    if (trabajador.admin_rut) {
+      await registrarLog(
+        trabajador.admin_rut,
+        'EDITAR_TRABAJADOR',
+        `Se editó el trabajador: ${trabajador.nombres} ${trabajador.apellidos} (RUT: ${trabajador.rut})`
+      );
+    }
+    
     const trabajadores = await obtenerTrabajadores();
     ultimoEstado = trabajadores;
     
@@ -527,12 +590,18 @@ app.post("/editar-trabajador", async (req, res) => {
 // Endpoint para eliminar trabajador por RUT
 app.post("/eliminar-trabajador", async (req, res) => {
   try {
-    const { rut } = req.body;
+    const { rut, admin_rut } = req.body;
     if (!rut || typeof rut !== 'string' || rut.trim() === '') {
       return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
     }
     try {
       await eliminarTrabajador(rut.trim());
+      
+      // Registrar log de auditoría (si se proporcionó admin_rut)
+      if (admin_rut) {
+        await registrarLog(admin_rut, 'ELIMINAR_TRABAJADOR', `Se eliminó el trabajador con RUT: ${rut.trim()}`);
+      }
+      
       const trabajadoresDespues = await obtenerTrabajadores();
       ultimoEstado = trabajadoresDespues;
       res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado" });
