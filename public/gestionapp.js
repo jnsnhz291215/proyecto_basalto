@@ -553,7 +553,14 @@ async function cargarCargos() {
 
 async function guardarNuevoCargo() {
   const inputNombre = document.getElementById('nuevoNombreCargo');
-  const nombreCargo = inputNombre?.value.trim();
+  
+  if (!inputNombre) {
+    console.error('Error: El elemento nuevoNombreCargo no existe en el DOM');
+    alert('Error: No se pudo encontrar el campo de entrada');
+    return;
+  }
+  
+  const nombreCargo = inputNombre.value.trim();
   
   if (!nombreCargo) {
     alert('Por favor, ingrese el nombre del cargo');
@@ -561,6 +568,8 @@ async function guardarNuevoCargo() {
   }
   
   try {
+    console.log('Enviando solicitud para crear cargo:', nombreCargo);
+    
     const res = await fetch('/api/cargos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -575,28 +584,38 @@ async function guardarNuevoCargo() {
       } else {
         alert(data.error || 'Error al crear el cargo');
       }
+      console.error('Error al crear cargo:', data);
       return;
     }
     
-    // Cerrar modal y limpiar input
+    console.log('Cargo creado exitosamente:', data.nombre_cargo);
+    
+    // Cerrar modal
     const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-    if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
+    if (modalNuevoCargo) {
+      modalNuevoCargo.style.display = 'none';
+      console.log('Modal cerrado');
+    }
+    
+    // Limpiar input
     inputNombre.value = '';
     
     // Recargar lista de cargos
     await cargarCargos();
+    console.log('Lista de cargos recargada');
     
     // Seleccionar automáticamente el cargo recién creado
     const selectCargo = document.getElementById('cargo');
     if (selectCargo) {
       selectCargo.value = data.nombre_cargo;
+      console.log('Cargo seleccionado:', data.nombre_cargo);
     }
     
-    console.log('Cargo creado exitosamente:', data.nombre_cargo);
+    alert('Cargo creado exitosamente');
     
   } catch (error) {
     console.error('Error al guardar cargo:', error);
-    alert('Error al crear el cargo');
+    alert('Error al crear el cargo: ' + (error.message || 'Error desconocido'));
   }
 }
 
@@ -704,34 +723,54 @@ document.addEventListener('DOMContentLoaded', () => {
   // EVENT LISTENERS: MODAL NUEVO CARGO
   // ============================================
   
+  console.log('[INIT] Inicializando event listeners del modal de nuevo cargo');
+  
   // NOTA: El event listener del select cargo está en cargarCargos()
   
   // Botón cerrar modal (X)
   const closeNuevoCargo = document.getElementById('close-nuevo-cargo');
   if (closeNuevoCargo) {
     closeNuevoCargo.addEventListener('click', () => {
+      console.log('[MODAL] Click en botón cerrar');
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
+      if (modalNuevoCargo) {
+        modalNuevoCargo.style.display = 'none';
+        console.log('[MODAL] Modal cerrado');
+      }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
+  } else {
+    console.warn('[MODAL] No se encontró el botón close-nuevo-cargo');
   }
 
   // Botón Cancelar
   const cancelNuevoCargo = document.getElementById('cancel-nuevo-cargo');
   if (cancelNuevoCargo) {
     cancelNuevoCargo.addEventListener('click', () => {
+      console.log('[MODAL] Click en botón cancelar');
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) modalNuevoCargo.style.display = 'none';
+      if (modalNuevoCargo) {
+        modalNuevoCargo.style.display = 'none';
+        console.log('[MODAL] Modal cerrado');
+      }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
+  } else {
+    console.warn('[MODAL] No se encontró el botón cancel-nuevo-cargo');
   }
 
-  // Botón Guardar Cargo
+  // Botón Guardar Cargo (CRÍTICO)
   const guardarCargoBtn = document.getElementById('guardar-nuevo-cargo');
   if (guardarCargoBtn) {
-    guardarCargoBtn.addEventListener('click', guardarNuevoCargo);
+    console.log('[MODAL] Botón guardar-nuevo-cargo encontrado, asignando evento');
+    guardarCargoBtn.addEventListener('click', () => {
+      console.log('[MODAL] Click en botón guardar cargo');
+      guardarNuevoCargo();
+    });
+  } else {
+    console.error('[MODAL] ERROR: No se encontró el botón guardar-nuevo-cargo');
   }
 
   // Permitir guardar con Enter en el input
@@ -739,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (inputNuevoCargo) {
     inputNuevoCargo.addEventListener('keypress', (ev) => {
       if (ev.key === 'Enter') {
+        console.log('[MODAL] Enter presionado en input');
         ev.preventDefault();
         guardarNuevoCargo();
       }
@@ -750,6 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalNuevoCargo) {
     modalNuevoCargo.addEventListener('click', (ev) => {
       if (ev.target === modalNuevoCargo) {
+        console.log('[MODAL] Click fuera del modal');
         modalNuevoCargo.style.display = 'none';
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
