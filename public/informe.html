@@ -94,7 +94,7 @@
                 <i class="fa-solid fa-boxes"></i> Materiales
             </button>
             <button class="tab-btn" onclick="abrirPestaña(event, 'tab-cierre')">
-                <i class="fa-solid fa-square-check"></i> Cierre y Firmas
+                <i class="fa-solid fa-square-check"></i> Cierre
             </button>
         </div>
 
@@ -180,7 +180,7 @@
         </div>
 
         <!-- TAB 2: OPERACIÓN -->
-        <div id="tab-operacion" class="tab-content" style="display: none;">
+        <div id="tab-operacion" class="tab-content">
             <div class="card-section">
                 <h3 class="section-title">Perforación</h3>
                 <div class="table-responsive">
@@ -228,7 +228,7 @@
         </div>
 
         <!-- TAB 3: MATERIALES -->
-        <div id="tab-materiales" class="tab-content" style="display: none;">
+        <div id="tab-materiales" class="tab-content">
             <div class="materiales-grid">
                 <div class="card-section">
                     <h3 class="section-title">Aceros de Perforación</h3>
@@ -332,33 +332,11 @@
             </div>
         </div>
 
-        <!-- TAB 4: CIERRE Y FIRMAS -->
-        <div id="tab-cierre" class="tab-content" style="display: none;">
+        <!-- TAB 4: CIERRE -->
+        <div id="tab-cierre" class="tab-content">
             <div class="card-section">
                 <h3 class="section-title">Notas / Observaciones</h3>
                 <textarea id="notas-observaciones" class="modern-input textarea-large" placeholder="Ingresa cualquier nota, observación o comentario importante sobre el turno..."></textarea>
-            </div>
-
-            <div class="card-section">
-                <h3 class="section-title">Firmas</h3>
-                <div class="form-grid">
-                    <div class="input-group">
-                        <label>Operador</label>
-                        <input type="text" id="input-firma-operador" placeholder="Nombre operador" class="modern-input">
-                    </div>
-                    <div class="input-group">
-                        <label>ITO</label>
-                        <input type="text" id="input-firma-ito" placeholder="Nombre ITO" class="modern-input">
-                    </div>
-                    <div class="input-group">
-                        <label>Supervisor</label>
-                        <input type="text" id="input-firma-supervisor" placeholder="Nombre supervisor" class="modern-input">
-                    </div>
-                    <div class="input-group">
-                        <label>Cliente</label>
-                        <input type="text" id="input-firma-cliente" placeholder="Nombre cliente" class="modern-input">
-                    </div>
-                </div>
             </div>
         </div>
 

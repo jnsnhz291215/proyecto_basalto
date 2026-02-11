@@ -16,7 +16,6 @@ function abrirPestaña(event, idTab) {
   const tabActual = document.getElementById(idTab);
   if (tabActual) {
     tabActual.classList.add('active');
-    tabActual.style.display = 'flex';
   }
 }
 
@@ -45,10 +44,6 @@ async function enviarInforme(estadoFinal) {
       aceites: parseFloat(document.getElementById('input-aceites')?.value) || null,
       otros_insumos: parseFloat(document.getElementById('input-otros')?.value) || null,
       observaciones: document.getElementById('notas-observaciones')?.value || '',
-      firma_operador: document.getElementById('input-firma-operador')?.value || '',
-      firma_ito: document.getElementById('input-firma-ito')?.value || '',
-      firma_supervisor: document.getElementById('input-firma-supervisor')?.value || '',
-      firma_cliente: document.getElementById('input-firma-cliente')?.value || '',
       estado: estadoFinal
     };
 
