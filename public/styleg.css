@@ -309,6 +309,15 @@ body {
   max-width: 360px;
 }
 
+/* Forzar que el modal de Nuevo Cargo aparezca por encima del modal principal */
+#modal-nuevo-cargo {
+  z-index: 100000 !important;
+}
+
+#modal-nuevo-cargo .modal-content {
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
 .modal-login .form-buttons {
   justify-content: space-between;
 }
