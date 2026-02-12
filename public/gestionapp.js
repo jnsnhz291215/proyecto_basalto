@@ -521,19 +521,29 @@ async function cargarCargos() {
   }
 }
 
+function mostrarResultadoCargo(titulo, mensaje) {
+  const modalResult = document.getElementById('modal-result');
+  const resultTitle = document.getElementById('result-title');
+  const resultMsg = document.getElementById('result-msg');
+  
+  if (resultTitle) resultTitle.textContent = titulo;
+  if (resultMsg) resultMsg.textContent = mensaje;
+  if (modalResult) modalResult.style.display = 'flex';
+}
+
 async function guardarNuevoCargo() {
   const inputNombre = document.getElementById('nuevoNombreCargo');
   
   if (!inputNombre) {
     console.error('Error: El elemento nuevoNombreCargo no existe en el DOM');
-    alert('Error: No se pudo encontrar el campo de entrada');
+    mostrarResultadoCargo('Error', 'No se pudo encontrar el campo de entrada');
     return;
   }
   
   const nombreCargo = inputNombre.value.trim();
   
   if (!nombreCargo) {
-    alert('Por favor, ingrese el nombre del cargo');
+    mostrarResultadoCargo('Error', 'Por favor, ingrese el nombre del cargo');
     return;
   }
   
@@ -548,9 +558,9 @@ async function guardarNuevoCargo() {
     
     if (!res.ok) {
       if (res.status === 409) {
-        alert('Este cargo ya existe');
+        mostrarResultadoCargo('Error', 'Este cargo ya existe');
       } else {
-        alert(data.error || 'Error al crear el cargo');
+        mostrarResultadoCargo('Error', data.error || 'Error al crear el cargo');
       }
       return;
     }
@@ -573,11 +583,11 @@ async function guardarNuevoCargo() {
       selectCargo.value = data.nombre_cargo;
     }
     
-    alert('Cargo creado exitosamente');
+    mostrarResultadoCargo('Éxito', 'Cargo creado exitosamente');
     
   } catch (error) {
     console.error('Error al guardar cargo:', error);
-    alert('Error al crear el cargo: ' + (error.message || 'Error desconocido'));
+    mostrarResultadoCargo('Error', 'Error al crear el cargo: ' + (error.message || 'Error desconocido'));
   }
 }
 
