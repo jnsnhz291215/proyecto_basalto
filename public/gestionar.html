@@ -333,46 +333,46 @@
         <button type="button" id="confirm-ok" class="btn btn-danger">Borrar</button>
       </div>
     </div>
+  </div>
 
-      <!-- Modal resultado (agregar trabajador) -->
-      <div id="modal-result" class="modal">
-        <div class="modal-content">
-          <h3 id="result-title">Resultado</h3>
-          <p id="result-msg"></p>
-          <div class="form-buttons">
-            <button type="button" id="result-ok" class="btn btn-primary">OK</button>
-          </div>
-        </div>
+  <!-- Modal resultado (agregar trabajador) -->
+  <div id="modal-result" class="modal">
+    <div class="modal-content">
+      <h3 id="result-title">Resultado</h3>
+      <p id="result-msg"></p>
+      <div class="form-buttons">
+        <button type="button" id="result-ok" class="btn btn-primary">OK</button>
       </div>
-
-      <!-- Modal Nuevo Cargo -->
-      <div id="modal-nuevo-cargo" class="modal">
-        <div class="modal-content" style="max-width: 450px;">
-          <div class="modal-header">
-            <h3 class="modal-title">Crear Nuevo Cargo</h3>
-            <button type="button" class="modal-close" id="close-nuevo-cargo">&times;</button>
-          </div>
-          
-          <div class="modal-body">
-            <div class="form-group">
-              <label for="nuevoNombreCargo">Nombre del Cargo</label>
-              <div class="input-wrapper">
-                <i class="fa-solid fa-helmet-safety input-icon"></i>
-                <input type="text" id="nuevoNombreCargo" placeholder="Ej: Mecánico" class="modern-input" autocomplete="off">
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
-            <button type="button" id="cancel-nuevo-cargo" class="btn-cancel">Cancelar</button>
-            <button type="button" id="guardar-nuevo-cargo" class="btn-save">
-              <i class="fa-solid fa-check"></i> Guardar Cargo
-            </button>
-          </div>
-        </div>
-      </div>
+    </div>
   </div>
 
   <script type="module" src="gestionapp.js"></script>
+
+  <!-- Modal Nuevo Cargo -->
+  <div id="modal-nuevo-cargo" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Crear Nuevo Cargo</h3>
+        <button type="button" class="modal-close" id="close-nuevo-cargo">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="nuevoNombreCargo">Nombre del Cargo</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-helmet-safety input-icon"></i>
+            <input type="text" id="nuevoNombreCargo" placeholder="Ej: Mecánico" class="modern-input" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" id="cancel-nuevo-cargo" class="btn-cancel">Cancelar</button>
+        <button type="button" id="guardar-nuevo-cargo" class="btn-save">
+          <i class="fa-solid fa-check"></i> Guardar Cargo
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

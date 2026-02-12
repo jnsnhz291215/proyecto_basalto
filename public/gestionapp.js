@@ -516,36 +516,6 @@ async function cargarCargos() {
     optionNuevo.style.fontWeight = '600';
     selectCargo.appendChild(optionNuevo);
     
-    // Agregar event listener para detectar cuando seleccionan "+ Crear nuevo cargo..."
-    // Removemos listener anterior si existe para evitar duplicados
-    const oldListener = selectCargo._cargoChangeListener;
-    if (oldListener) {
-      selectCargo.removeEventListener('change', oldListener);
-    }
-    
-    const newListener = (ev) => {
-      if (ev.target.value === 'nuevo_cargo') {
-        // Abrir modal de nuevo cargo
-        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-        if (modalNuevoCargo) {
-          modalNuevoCargo.style.display = 'flex';
-          console.log('Modal nuevo cargo abierto');
-        }
-        
-        // Resetear el select a la opción por defecto (selectedIndex = 0)
-        ev.target.selectedIndex = 0;
-        
-        // Enfocar el input del modal
-        setTimeout(() => {
-          const inputNombre = document.getElementById('nuevoNombreCargo');
-          if (inputNombre) inputNombre.focus();
-        }, 100);
-      }
-    };
-    
-    selectCargo._cargoChangeListener = newListener;
-    selectCargo.addEventListener('change', newListener);
-    
   } catch (error) {
     console.error('Error al cargar cargos:', error);
   }
@@ -568,8 +538,6 @@ async function guardarNuevoCargo() {
   }
   
   try {
-    console.log('Enviando solicitud para crear cargo:', nombreCargo);
-    
     const res = await fetch('/api/cargos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -584,17 +552,13 @@ async function guardarNuevoCargo() {
       } else {
         alert(data.error || 'Error al crear el cargo');
       }
-      console.error('Error al crear cargo:', data);
       return;
     }
-    
-    console.log('Cargo creado exitosamente:', data.nombre_cargo);
     
     // Cerrar modal
     const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
     if (modalNuevoCargo) {
       modalNuevoCargo.style.display = 'none';
-      console.log('Modal cerrado');
     }
     
     // Limpiar input
@@ -602,13 +566,11 @@ async function guardarNuevoCargo() {
     
     // Recargar lista de cargos
     await cargarCargos();
-    console.log('Lista de cargos recargada');
     
     // Seleccionar automáticamente el cargo recién creado
     const selectCargo = document.getElementById('cargo');
     if (selectCargo) {
       selectCargo.value = data.nombre_cargo;
-      console.log('Cargo seleccionado:', data.nombre_cargo);
     }
     
     alert('Cargo creado exitosamente');
@@ -723,54 +685,59 @@ document.addEventListener('DOMContentLoaded', () => {
   // EVENT LISTENERS: MODAL NUEVO CARGO
   // ============================================
   
-  console.log('[INIT] Inicializando event listeners del modal de nuevo cargo');
-  
-  // NOTA: El event listener del select cargo está en cargarCargos()
+  // Select de cargo: abrir modal cuando se elige "nuevo_cargo"
+  const selectCargo = document.getElementById('cargo');
+  if (selectCargo) {
+    selectCargo.addEventListener('change', (e) => {
+      if (e.target.value === 'nuevo_cargo') {
+        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+        if (modalNuevoCargo) {
+          modalNuevoCargo.style.display = 'flex';
+        }
+        // Resetear el select a la primera opción
+        e.target.selectedIndex = 0;
+        
+        // Enfocar el input
+        setTimeout(() => {
+          const inputNombre = document.getElementById('nuevoNombreCargo');
+          if (inputNombre) inputNombre.focus();
+        }, 100);
+      }
+    });
+  }
   
   // Botón cerrar modal (X)
   const closeNuevoCargo = document.getElementById('close-nuevo-cargo');
   if (closeNuevoCargo) {
     closeNuevoCargo.addEventListener('click', () => {
-      console.log('[MODAL] Click en botón cerrar');
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
       if (modalNuevoCargo) {
         modalNuevoCargo.style.display = 'none';
-        console.log('[MODAL] Modal cerrado');
       }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
-  } else {
-    console.warn('[MODAL] No se encontró el botón close-nuevo-cargo');
   }
 
   // Botón Cancelar
   const cancelNuevoCargo = document.getElementById('cancel-nuevo-cargo');
   if (cancelNuevoCargo) {
     cancelNuevoCargo.addEventListener('click', () => {
-      console.log('[MODAL] Click en botón cancelar');
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
       if (modalNuevoCargo) {
         modalNuevoCargo.style.display = 'none';
-        console.log('[MODAL] Modal cerrado');
       }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
-  } else {
-    console.warn('[MODAL] No se encontró el botón cancel-nuevo-cargo');
   }
 
   // Botón Guardar Cargo (CRÍTICO)
   const guardarCargoBtn = document.getElementById('guardar-nuevo-cargo');
   if (guardarCargoBtn) {
-    console.log('[MODAL] Botón guardar-nuevo-cargo encontrado, asignando evento');
     guardarCargoBtn.addEventListener('click', () => {
-      console.log('[MODAL] Click en botón guardar cargo');
       guardarNuevoCargo();
     });
-  } else {
-    console.error('[MODAL] ERROR: No se encontró el botón guardar-nuevo-cargo');
   }
 
   // Permitir guardar con Enter en el input
@@ -778,7 +745,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (inputNuevoCargo) {
     inputNuevoCargo.addEventListener('keypress', (ev) => {
       if (ev.key === 'Enter') {
-        console.log('[MODAL] Enter presionado en input');
         ev.preventDefault();
         guardarNuevoCargo();
       }
@@ -790,7 +756,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalNuevoCargo) {
     modalNuevoCargo.addEventListener('click', (ev) => {
       if (ev.target === modalNuevoCargo) {
-        console.log('[MODAL] Click fuera del modal');
         modalNuevoCargo.style.display = 'none';
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
