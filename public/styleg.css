@@ -311,7 +311,7 @@ body {
 
 /* Forzar que el modal de Nuevo Cargo aparezca por encima del modal principal */
 #modal-nuevo-cargo {
-  z-index: 10000 !important;
+  z-index: 100000 !important;
   background-color: rgba(0,0,0,0.6);
 }
 
