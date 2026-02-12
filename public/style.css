@@ -33,7 +33,7 @@ body {
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
-  font-family: sans-serif;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -117,7 +117,7 @@ body {
   border: none;
   border-radius: 8px;
   padding: 10px 20px;
-  font-family: sans-serif;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -561,7 +561,7 @@ body {
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  font-family: sans-serif;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -606,7 +606,7 @@ body {
   padding: 10px;
   border: 2px solid #d1d5db;
   border-radius: 6px;
-  font-family: sans-serif;
+  font-family: inherit;
   font-size: 14px;
   box-sizing: border-box;
 }

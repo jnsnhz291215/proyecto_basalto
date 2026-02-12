@@ -528,7 +528,7 @@ function mostrarResultadoCargo(titulo, mensaje) {
   
   if (resultTitle) resultTitle.textContent = titulo;
   if (resultMsg) resultMsg.textContent = mensaje;
-  if (modalResult) modalResult.style.display = 'flex';
+  if (modalResult) modalResult.classList.add('show');
 }
 
 async function guardarNuevoCargo() {
@@ -568,7 +568,7 @@ async function guardarNuevoCargo() {
     // Cerrar modal
     const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
     if (modalNuevoCargo) {
-      modalNuevoCargo.style.display = 'none';
+      modalNuevoCargo.classList.remove('show');
     }
     
     // Limpiar input
@@ -628,12 +628,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar cargos al iniciar
   cargarCargos();
 
-  if (el.resultOk) {
-    el.resultOk.addEventListener('click', () => {
-      if (el.modalResult) el.modalResult.classList.remove('show');
-    });
-  }
-
   if (el.formLogin) el.formLogin.addEventListener('submit', comprobarLogin);
 
   const btnAgregar = document.getElementById('btn-agregar');
@@ -652,8 +646,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {
-      const m = document.getElementById('modal-result');
-      if (m) m.classList.remove('show');
+      if (el.modalResult) el.modalResult.classList.remove('show');
+    });
+  }
+
+  // Cerrar modal-result al hacer click fuera
+  if (el.modalResult) {
+    el.modalResult.addEventListener('click', (ev) => {
+      if (ev.target === el.modalResult) {
+        el.modalResult.classList.remove('show');
+      }
+    });
+  }
+
+  // Cerrar modal-login al hacer click fuera (excepto en la card)
+  if (el.modalLogin) {
+    el.modalLogin.addEventListener('click', (ev) => {
+      if (ev.target === el.modalLogin) {
+        el.modalLogin.classList.remove('show');
+      }
     });
   }
 
@@ -702,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target.value === 'nuevo_cargo') {
         const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
         if (modalNuevoCargo) {
-          modalNuevoCargo.style.display = 'flex';
+          modalNuevoCargo.classList.add('show');
         }
         // Resetear el select a la primera opción
         e.target.selectedIndex = 0;
@@ -722,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
       if (modalNuevoCargo) {
-        modalNuevoCargo.style.display = 'none';
+        modalNuevoCargo.classList.remove('show');
       }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
@@ -735,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
       if (modalNuevoCargo) {
-        modalNuevoCargo.style.display = 'none';
+        modalNuevoCargo.classList.remove('show');
       }
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
@@ -766,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalNuevoCargo) {
     modalNuevoCargo.addEventListener('click', (ev) => {
       if (ev.target === modalNuevoCargo) {
-        modalNuevoCargo.style.display = 'none';
+        modalNuevoCargo.classList.remove('show');
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
       }
