@@ -22,7 +22,7 @@
         <li id="nav-datos"><a href="datos.html" class="menu-item"><i class="fa-solid fa-user"></i> Mi Perfil</a></li>
         <li class=""> <a href="#" class="menu-item"><i class="fa-solid fa-lock"></i> Cambiar Contraseña</a></li>
         <li class="sep"></li>
-        <li class=""><a href="/logout" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a></li>
+        <li class=""><a href="#" id="btn-logout-menu" class="menu-item danger"><i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión</a></li>
       </ul>
     </div>
     <button id="nav-toggle" class="nav-toggle" aria-label="Mostrar menú">☰</button>
@@ -99,3 +99,24 @@
   }
 </style>
 
+<script>
+(function() {
+  // Handle logout button
+  const logoutBtn = document.getElementById('btn-logout-menu');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Clear all session data
+      try {
+        localStorage.removeItem('usuarioActivo');
+        localStorage.removeItem('userRUT');
+        localStorage.removeItem('userName');
+      } catch(err) {
+        console.error('Error clearing session:', err);
+      }
+      // Redirect to home
+      window.location.href = '/index.html';
+    });
+  }
+})();
+</script>

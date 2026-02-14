@@ -30,10 +30,14 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 })();
 
 // Función para obtener todos los trabajadores
-async function obtenerTrabajadores() {
+async function obtenerTrabajadores(incluirInactivos = false) {
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.execute('SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo FROM trabajadores');
+    let query = 'SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo, activo FROM trabajadores';
+    if (!incluirInactivos) {
+      query += ' WHERE activo = 1';
+    }
+    const [rows] = await connection.execute(query);
     const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
     return rows.map(r => ({
       RUT: r.RUT,
@@ -44,7 +48,8 @@ async function obtenerTrabajadores() {
       email: r.email,
       telefono: r.telefono,
       grupo: (typeof r.id_grupo === 'number' && r.id_grupo >= 1 && r.id_grupo <= GRUPOS.length) ? GRUPOS[r.id_grupo - 1] : (r.id_grupo ? String(r.id_grupo) : ''),
-      cargo: r.cargo
+      cargo: r.cargo,
+      activo: r.activo === 1 || r.activo === true
     }));
   } finally {
     connection.release();

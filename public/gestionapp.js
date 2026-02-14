@@ -41,9 +41,10 @@ function formatearTelefono(val) {
 function titleCase(s) {
   return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
-async function cargar() {
+async function cargar(incluirInactivos = false) {
   try {
-    const r = await fetch('/datos');
+    const url = `/datos${incluirInactivos ? '?incluirInactivos=true' : ''}`;
+    const r = await fetch(url);
     if (!r.ok) throw new Error('Error al cargar');
     trabajadores = await r.json();
     if (!Array.isArray(trabajadores)) trabajadores = [];
@@ -72,7 +73,17 @@ function getFiltrados() {
       return n.includes(buscar) || a.includes(buscar);
     });
   }
-  if (grupo) list = list.filter(t => t.grupo === grupo);
+  
+  // Manejar filtro de grupo
+  if (grupo === 'sin_grupo') {
+    // Mostrar solo trabajadores sin grupo asignado
+    list = list.filter(t => !t.grupo || t.grupo === '');
+  } else if (grupo) {
+    // Filtrar por grupo específico
+    list = list.filter(t => t.grupo === grupo);
+  }
+  // Si grupo es '', no filtrar (mostrar todos)
+  
   return list;
 }
 
@@ -80,30 +91,59 @@ function render() {
   const list = getFiltrados();
   const porGrupo = {};
   GRUPOS.forEach(g => { porGrupo[g] = []; });
+  porGrupo['sin_grupo'] = []; // Crear entrada para trabajadores sin grupo
+  
   list.forEach(t => {
-    if (porGrupo[t.grupo]) porGrupo[t.grupo].push(t);
+    if (t.grupo && porGrupo[t.grupo]) {
+      porGrupo[t.grupo].push(t);
+    } else if (!t.grupo || t.grupo === '') {
+      // Si no tiene grupo o es vacío, agregarlo a sin_grupo
+      porGrupo['sin_grupo'].push(t);
+    }
   });
 
   const filterGrupo = (el.selectFiltro && el.selectFiltro.value) || '';
-  const gruposAmostrar = filterGrupo ? [filterGrupo] : GRUPOS;
+  let gruposAmostrar;
+  
+  if (filterGrupo === 'sin_grupo') {
+    gruposAmostrar = ['sin_grupo'];
+  } else if (filterGrupo === '') {
+    // Mostrar todos los grupos (incluyendo sin_grupo si hay trabajadores)
+    gruposAmostrar = [...GRUPOS, 'sin_grupo'];
+  } else {
+    // Mostrar solo el grupo seleccionado
+    gruposAmostrar = [filterGrupo];
+  }
 
   el.gruposColumnas.innerHTML = '';
   gruposAmostrar.forEach(g => {
     const workers = porGrupo[g] || [];
     const col = document.createElement('div');
-    // add base class and a per-group class (e.g. grupo-a) so CSS or JS can target it
-    col.className = 'grupo-col grupo-' + String(g).toLowerCase();
-    // set accent color via CSS variable so the stylesheet controls visuals
-    col.style.setProperty('--accent', COLORES[g] || '#22c55e');
+    
+    // Estilos especiales para columna "Sin Grupo"
+    if (g === 'sin_grupo') {
+      col.className = 'grupo-col grupo-sin-grupo';
+      col.style.setProperty('--accent', '#9ca3af'); // Gris
+    } else {
+      col.className = 'grupo-col grupo-' + String(g).toLowerCase();
+      col.style.setProperty('--accent', COLORES[g] || '#22c55e');
+    }
 
     const tit = document.createElement('div');
     tit.className = 'grupo-col-titulo';
-    tit.textContent = 'Grupo ' + g;
+    tit.textContent = g === 'sin_grupo' ? 'Sin Grupo / Por Asignar' : 'Grupo ' + g;
     col.appendChild(tit);
 
     workers.forEach(t => {
       const card = document.createElement('div');
       card.className = 'trabajador-card';
+      
+      // Si el trabajador está inactivo, aplicar estilo gris
+      if (t.activo === false) {
+        card.style.opacity = '0.6';
+        card.style.backgroundColor = '#f3f4f6';
+        card.style.borderColor = '#d1d5db';
+      }
 
       const body = document.createElement('div');
       body.className = 'trabajador-card-body';
@@ -111,10 +151,20 @@ function render() {
       const nom = document.createElement('div');
       nom.className = 'trabajador-card-nombre';
       nom.textContent = `${t.apellidos || ''}, ${t.nombres || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || '-';
+      
+      // Si está inactivo, agregar etiqueta
+      if (t.activo === false) {
+        const inactivoLabel = document.createElement('span');
+        inactivoLabel.style.cssText = 'color: #9ca3af; font-size: 12px; font-weight: 500; margin-left: 8px; padding: 2px 6px; background-color: #e5e7eb; border-radius: 4px;';
+        inactivoLabel.textContent = '(Oculto)';
+        nom.appendChild(inactivoLabel);
+      }
 
       const rutCargo = document.createElement('div');
       rutCargo.className = 'trabajador-card-linea';
-      rutCargo.textContent = `RUT: ${t.RUT || '-'} | Cargo: ${t.cargo || '-'}`;
+      // Si no tiene grupo, mostrar etiqueta visual
+      const grupoText = t.grupo ? `Grupo: ${t.grupo}` : '<span style="color: #ef4444; font-weight: 600;">Sin Grupo</span>';
+      rutCargo.innerHTML = `RUT: ${t.RUT || '-'} | ${grupoText} | Cargo: ${t.cargo || '-'}`;
 
       const tel = document.createElement('div');
       tel.className = 'trabajador-card-linea';
@@ -144,15 +194,33 @@ function render() {
       btnEdit.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
       btnEdit.addEventListener('click', () => abrirEditar(t.RUT));
 
-      const btnDel = document.createElement('button');
-      btnDel.className = 'btn btn-borrar';
-      btnDel.textContent = '×';
-      btnDel.title = 'Borrar';
-      btnDel.addEventListener('click', () => confirmarBorrar(t.RUT));
+      // Botón Archivar/Ocultar (Soft Delete)
+      const btnOcultar = document.createElement('button');
+      btnOcultar.className = 'btn btn-ocultar';
+      btnOcultar.title = t.activo === false ? 'Reactivar trabajador' : 'Ocultar trabajador';
+      btnOcultar.style.backgroundColor = t.activo === false ? '#f59e0b' : '#f97316';
+      btnOcultar.innerHTML = t.activo === false ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+      btnOcultar.addEventListener('click', () => {
+        const accion = t.activo === false ? 'reactivar' : 'ocultar';
+        const mensaje = accion === 'ocultar' 
+          ? '¿Desea ocultar a este trabajador? No se perderá su historial.'
+          : '¿Desea reactivar a este trabajador?';
+        if (confirm(mensaje)) {
+          cambiarEstadoTrabajador(t.RUT, accion === 'reactivar');
+        }
+      });
+
+      // Botón Eliminar Definitivamente (Hard Delete)
+      const btnBorrar = document.createElement('button');
+      btnBorrar.className = 'btn btn-borrar';
+      btnBorrar.title = 'Eliminar definitivamente';
+      btnBorrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+      btnBorrar.addEventListener('click', () => abrirConfirmacionBorrar(t.RUT, `${t.nombres} ${t.apellidos}`));
 
       btnActions.appendChild(btnExcepciones);
       btnActions.appendChild(btnEdit);
-      btnActions.appendChild(btnDel);
+      btnActions.appendChild(btnOcultar);
+      btnActions.appendChild(btnBorrar);
 
       card.appendChild(body);
       card.appendChild(btnActions);
@@ -163,7 +231,7 @@ function render() {
     if (!workers || workers.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'grupo-empty';
-      empty.textContent = 'Sin trabajadores activos';
+      empty.textContent = g === 'sin_grupo' ? 'Todos tienen grupo asignado' : 'Sin trabajadores activos';
       col.appendChild(empty);
     }
 
@@ -171,39 +239,98 @@ function render() {
   });
 }
 
-function confirmarBorrar(rut) {
-  rutParaBorrar = rut;
-  el.confirmTitle.textContent = 'Confirmar';
-  el.confirmMsg.textContent = '¿Eliminar a este trabajador?';
-  el.modalConfirm.classList.add('show');
+// SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)
+async function cambiarEstadoTrabajador(rut, reactivar = false) {
+  try {
+    const adminRut = localStorage.getItem('userRUT');
+    const nuevoEstado = reactivar;
+    
+    const r = await fetch(`/api/trabajadores/${rut}/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        activo: nuevoEstado,
+        admin_rut: adminRut
+      })
+    });
+    
+    const data = await r.json().catch(() => ({}));
+    
+    if (r.ok && data.success) {
+      // Recargar datos
+      await cargar();
+      const accion = reactivar ? 'reactivado' : 'ocultado';
+      showResult('Éxito', `Trabajador ${accion} correctamente`);
+    } else {
+      console.error('Error del servidor:', data);
+      showResult('Error', data.error || `Error al cambiar estado (${r.status})`, true);
+    }
+  } catch (err) {
+    console.error('Error en cambiarEstadoTrabajador:', err);
+    showResult('Error', 'Error al cambiar estado: ' + err.message, true);
+  }
 }
 
-async function ejecutarBorrar() {
-  if (!rutParaBorrar) return;
+// HARD DELETE - Eliminación definitiva con double confirmation
+function abrirConfirmacionBorrar(rut, nombreTrabajador) {
+  const confirmacion = confirm(
+    `⚠️ ADVERTENCIA: ¿Está seguro de que desea ELIMINAR DEFINITIVAMENTE a:\n\n${nombreTrabajador}\n\nEsta acción NO se puede deshacer y borrará TODO el registro del trabajador.`
+  );
+  
+  if (confirmacion) {
+    // Segunda confirmación con contraseña
+    const password = prompt('Ingrese su contraseña de administrador para confirmar la eliminación definitiva:');
+    if (password !== null && password !== '') {
+      ejecutarBorrarDefinitivo(rut, password);
+    }
+  }
+}
+
+async function ejecutarBorrarDefinitivo(rut, password) {
   try {
+    const adminRut = localStorage.getItem('userRUT');
+    
     const r = await fetch('/eliminar-trabajador', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rut: rutParaBorrar })
+      body: JSON.stringify({ 
+        rut: rut,
+        admin_password: password,
+        admin_rut: adminRut
+      })
     });
+    
     const data = await r.json().catch(() => ({}));
+    
     if (r.ok && data.success) {
       trabajadores = data.trabajadores || [];
       render();
-      alert('Trabajador eliminado con éxito');
+      showResult('Éxito', 'Trabajador ELIMINADO DEFINITIVAMENTE del sistema');
+    } else if (r.status === 401) {
+      showResult('Error', 'Contraseña incorrecta. Acción cancelada.', true);
     } else if (r.status === 404) {
-      alert(data.error || 'Error: El RUT no existe');
+      showResult('Error', data.error || 'Error: El RUT no existe', true);
     } else if (r.status === 400) {
-      alert(data.error || 'Solicitud inválida');
+      showResult('Error', data.error || 'Solicitud inválida', true);
     } else {
-      alert(data.error || `Error al eliminar (${r.status})`);
+      showResult('Error', data.error || `Error al eliminar (${r.status})`, true);
     }
-  } catch (e) {
-    console.error('Error en ejecutarBorrar:', e);
-    alert('Error al eliminar: ' + (e && e.message));
+  } catch (err) {
+    console.error('Error en ejecutarBorrarDefinitivo:', err);
+    showResult('Error', 'Error al eliminar: ' + (err && err.message), true);
   }
-  rutParaBorrar = null;
-  el.modalConfirm.classList.remove('show');
+}
+
+// Legacy function - kept for backward compatibility, redirects to new system
+function confirmarBorrar(rut) {
+  // This function is deprecated, use abrirConfirmacionBorrar instead
+  abrirConfirmacionBorrar(rut, 'el trabajador');
+}
+
+// Legacy function - kept for backward compatibility
+async function ejecutarBorrar() {
+  // This function is deprecated, no longer used
+  return;
 }
 
 function abrirAgregar() {
@@ -426,7 +553,12 @@ function comprobarLogin(e) {
       const d = await resp.json().catch(()=>({}));
       if (resp.ok && d && d.success) {
         // persist admin session
-        try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); } catch(e){}
+        try { 
+          localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); 
+          // También guardar userRUT para que datos.html lo detecte
+          localStorage.setItem('userRUT', rut);
+          if (d.user && d.user.name) localStorage.setItem('userName', d.user.name);
+        } catch(e){}
         el.modalLogin.classList.remove('show');
         cargar();
       } else {
@@ -641,6 +773,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);
   if (el.inputBuscar) el.inputBuscar.addEventListener('input', render);
   if (el.selectFiltro) el.selectFiltro.addEventListener('change', render);
+  
+  // Checkbox para mostrar trabajadores ocultos (inactivos)
+  const checkMostrarInactivos = document.getElementById('mostrar-inactivos');
+  if (checkMostrarInactivos) {
+    checkMostrarInactivos.addEventListener('change', (e) => {
+      cargar(e.target.checked);
+    });
+  }
+  
   if (el.cancelAdd) el.cancelAdd.addEventListener('click', cerrarAgregar);
   if (el.cancelEdit) el.cancelEdit.addEventListener('click', cerrarEditar);
   if (el.formAgregar) el.formAgregar.addEventListener('submit', enviarAgregar);

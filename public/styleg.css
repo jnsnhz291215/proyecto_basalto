@@ -243,6 +243,7 @@ body {
 .grupo-h { --accent: #6366f1; }
 .grupo-j { --accent: #14b8a6; }
 .grupo-k { --accent: #eab308; }
+.grupo-sin-grupo { --accent: #9ca3af; }
 
 .grupo-col.focus {
   border-color: #9333ea;
@@ -268,7 +269,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  transition: transform 0.18s, box-shadow 0.18s, background-color 0.18s;
+  transition: transform 0.18s, box-shadow 0.18s, background-color 0.18s, opacity 0.18s;
 }
 
 .trabajador-card:hover {
@@ -276,6 +277,19 @@ body {
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   background-color: #ffffff;
   border-color: #d1d5db;
+}
+
+/* Estilos para trabajadores inactivos (ocultos) */
+.trabajador-inactivo {
+  opacity: 0.6;
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.trabajador-inactivo:hover {
+  background-color: #f3f4f6;
+  border-color: #bcccdc;
+  opacity: 0.75;
 }
 
 .trabajador-card-body {

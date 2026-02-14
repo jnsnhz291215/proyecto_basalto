@@ -50,7 +50,8 @@ app.use((req, res, next) => {
 // Endpoint para obtener datos
 app.get("/datos", async (req, res) => {
   try {
-    const data = await obtenerTrabajadores();
+    const incluirInactivos = req.query.incluirInactivos === 'true';
+    const data = await obtenerTrabajadores(incluirInactivos);
     ultimoEstado = data;
     res.json(data);
   } catch (error) {
@@ -587,24 +588,101 @@ app.post("/editar-trabajador", async (req, res) => {
   }
 });
 
+// ============================================
+// ENDPOINTS: Soft Delete / Estado de Trabajador
+// ============================================
+
+// PUT /api/trabajadores/:rut/estado - Cambiar estado activo/inactivo (Soft Delete)
+app.put("/api/trabajadores/:rut/estado", async (req, res) => {
+  try {
+    const { rut } = req.params;
+    const { activo, admin_rut } = req.body;
+
+    if (!rut || rut.trim() === '') {
+      return res.status(400).json({ error: "RUT requerido" });
+    }
+
+    if (activo === undefined || activo === null) {
+      return res.status(400).json({ error: "Estado 'activo' requerido (true/false)" });
+    }
+
+    // Normalizar RUT
+    const rutNormalizado = rut.trim().toUpperCase();
+
+    // Actualizar estado
+    await pool.execute(
+      'UPDATE trabajadores SET activo = ? WHERE RUT = ?',
+      [activo ? 1 : 0, rutNormalizado]
+    );
+
+    // Registrar log de auditoría
+    const accion = activo ? 'REACTIVAR_TRABAJADOR' : 'DESACTIVAR_TRABAJADOR';
+    if (admin_rut) {
+      await registrarLog(admin_rut, accion, `Trabajador ${rutNormalizado} - Nueva estado: ${activo ? 'Activo' : 'Inactivo'}`);
+    }
+
+    // Retornar lista actualizada
+    const trabajadoresDespues = await obtenerTrabajadores(false);
+    ultimoEstado = trabajadoresDespues;
+
+    res.json({
+      success: true,
+      message: activo ? "Trabajador reactivado" : "Trabajador desactivado",
+      trabajadores: trabajadoresDespues
+    });
+  } catch (error) {
+    console.error("Error al cambiar estado de trabajador:", error);
+    res.status(500).json({ error: "Error al cambiar estado del trabajador" });
+  }
+});
+
 // Endpoint para eliminar trabajador por RUT
 app.post("/eliminar-trabajador", async (req, res) => {
   try {
-    const { rut, admin_rut } = req.body;
+    const { rut, admin_rut, admin_password } = req.body;
+    
     if (!rut || typeof rut !== 'string' || rut.trim() === '') {
       return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
     }
+    
+    // Si se proporciona contraseña de admin, validarla
+    if (admin_password) {
+      // Validar que el admin existe y la contraseña es correcta
+      const rutNorm = String(admin_rut).replace(/[.\-\s]/g, '').trim();
+      const sql = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+      
+      try {
+        const [rows] = await pool.execute(sql, [rutNorm]);
+        if (!rows || rows.length === 0) {
+          console.log(`[HARD DELETE FAIL] rut_worker=${rut} admin_rut=${rutNorm} reason=admin_not_found`);
+          return res.status(401).json({ error: 'Credenciales de administrador inválidas' });
+        }
+        
+        const user = rows[0];
+        if (String(user.password || '') !== String(admin_password)) {
+          console.log(`[HARD DELETE FAIL] rut_worker=${rut} admin_rut=${rutNorm} reason=bad_password`);
+          return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
+        }
+        
+        // Contraseña válida - proceder con eliminación
+        console.log(`[HARD DELETE AUTHORIZED] rut_worker=${rut} admin_rut=${rutNorm}`);
+      } catch (qe) {
+        console.error('Error validando credenciales de admin:', qe);
+        return res.status(500).json({ error: 'Error al validar credenciales' });
+      }
+    }
+    
     try {
       await eliminarTrabajador(rut.trim());
       
-      // Registrar log de auditoría (si se proporcionó admin_rut)
+      // Registrar log de auditoría
       if (admin_rut) {
-        await registrarLog(admin_rut, 'ELIMINAR_TRABAJADOR', `Se eliminó el trabajador con RUT: ${rut.trim()}`);
+        await registrarLog(admin_rut, 'ELIMINAR_TRABAJADOR', `Se eliminó DEFINITIVAMENTE el trabajador con RUT: ${rut.trim()}`);
       }
       
       const trabajadoresDespues = await obtenerTrabajadores();
       ultimoEstado = trabajadoresDespues;
-      res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado" });
+      res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado definitivamente" });
     } catch (e) {
       if (e && e.code === 'RUT_NOT_FOUND') {
         return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
