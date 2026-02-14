@@ -600,24 +600,28 @@ function comprobarLogin(e) {
     try{
       const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
       const d = await resp.json().catch(()=>({}));
-      if (resp.ok && d && d.success) {
-        // persist admin session con datos completos
+      if (resp.ok && d && d.success && d.user) {
+        // persist admin session con datos completos del servidor
         try { 
-          const adminFullName = d.user && d.user.fullName ? d.user.fullName : rut;
+          const serverRut = d.user.rut || rut;
+          const adminFullName = ((d.user.nombres || '') + ' ' + (d.user.apellido_paterno || '') + ' ' + (d.user.apellido_materno || '')).trim() || rut;
           localStorage.setItem('usuarioActivo', JSON.stringify({ 
             rol: 'admin', 
             nombre: adminFullName,
-            rut: rut,
+            rut: serverRut,
             isAdmin: true
           })); 
           // También guardar datos para que datos.html los detecte
-          localStorage.setItem('userRUT', rut);
+          localStorage.setItem('userRUT', serverRut);
           localStorage.setItem('userName', adminFullName);
-          // Guardar todos los datos del admin para acceso directo
-          if (d.user) {
-            localStorage.setItem('adminData', JSON.stringify(d.user));
-          }
-        } catch(e){}
+          // Guardar todos los datos del admin para acceso directo (asegurar que adminData siempre se guarde correctamente)
+          localStorage.setItem('adminData', JSON.stringify({
+            ...d.user,
+            isAdmin: true
+          }));
+        } catch(e){
+          console.error('Error guardando sesión admin:', e);
+        }
         el.modalLogin.classList.remove('show');
         cargar();
       } else {

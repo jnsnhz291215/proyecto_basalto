@@ -48,7 +48,7 @@
     // Para admin: usar nombres, apellido_paterno, apellido_materno
     // Para trabajador: usar nombres, apellidos
     if (datos.isAdmin) {
-      const fullName = ((datos.nombres || '') + ' ' + (datos.apellido_paterno || '') + ' ' + (datos.apellido_materno || '')).trim();
+      const fullName = ((datos.nombres || '') + ' ' + (datos.apellido_paterno || '') + ' ' + (datos.apellido_materno || '')).trim() || (datos.rut || datos.RUT || 'Administrador');
       perfilNombre.textContent = fullName;
       perfilRut.textContent = datos.rut || datos.RUT || '';
       perfilEmail.textContent = datos.email || '';
@@ -98,18 +98,8 @@
     if (adminRut && adminDataStr) {
       try {
         const adminData = JSON.parse(adminDataStr);
-        // Agregar flag para saber que es admin
+        // Asegurar que tiene el flag isAdmin
         adminData.isAdmin = true;
-        
-        // Persistir sesión como admin
-        try {
-          localStorage.setItem('usuarioActivo', JSON.stringify({
-            rol: 'admin',
-            nombre: adminData.fullName || ((adminData.nombres || '') + ' ' + (adminData.apellido_paterno || '') + ' ' + (adminData.apellido_materno || '')).trim(),
-            rut: adminRut,
-            isAdmin: true
-          }));
-        } catch(e){}
         
         // Mostrar datos del admin
         mostrarPerfil(adminData);
@@ -130,7 +120,7 @@
         const u = JSON.parse(s);
         
         if (u.isAdmin && u.rut) {
-          // Es admin, buscar sus datos en adminData o localStorage
+          // Es admin desde localStorage - intentar recuperar adminData si está disponible
           const adminDataStr = localStorage.getItem('adminData');
           if (adminDataStr) {
             try {
@@ -142,10 +132,10 @@
               console.error('Error parsing adminData:', e);
             }
           }
-          // Fallback: mostrar solo nombre
+          // Fallback: mostrar datos básicos del admin
           if (modalDatos) modalDatos.classList.remove('show');
           perfilCard.style.display = 'block';
-          perfilNombre.textContent = u.nombre;
+          perfilNombre.textContent = u.nombre || u.rut;
           perfilRut.textContent = u.rut;
           perfilCargo.textContent = 'Administrador';
           perfilGrupo.textContent = 'Administrador';
