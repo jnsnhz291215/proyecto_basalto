@@ -25,7 +25,7 @@ const el = {
 };
 
 function formatearRUT(val) {
-  const s = (val || '').replace(/[.\-\s]/g, '');
+  const s = (val || '').replace(/[.\-\s]/g, '').toUpperCase();
   if (s.length < 8 || s.length > 9) return null;
   return s.slice(0, -1) + '-' + s.slice(-1);
 }
@@ -132,6 +132,12 @@ function render() {
       const btnActions = document.createElement('div');
       btnActions.className = 'trabajador-card-actions';
 
+      const btnExcepciones = document.createElement('button');
+      btnExcepciones.className = 'btn btn-excepciones';
+      btnExcepciones.title = 'Gestionar Desfase de Turno';
+      btnExcepciones.innerHTML = '<i class="fa-solid fa-calendar-days"></i>';
+      btnExcepciones.addEventListener('click', () => abrirExcepciones(t.RUT, `${t.nombres} ${t.apellidos}`));
+
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn btn-editar';
       btnEdit.title = 'Editar';
@@ -144,6 +150,7 @@ function render() {
       btnDel.title = 'Borrar';
       btnDel.addEventListener('click', () => confirmarBorrar(t.RUT));
 
+      btnActions.appendChild(btnExcepciones);
       btnActions.appendChild(btnEdit);
       btnActions.appendChild(btnDel);
 
@@ -411,7 +418,7 @@ function showResult(title, msg, isError=false){
 function comprobarLogin(e) {
   e.preventDefault();
   (async () => {
-    const rut = String((el.formLogin.querySelector('#rut-login')||{value:''}).value||'').replace(/\D/g,'').trim();
+    const rut = String((el.formLogin.querySelector('#rut-login')||{value:''}).value||'').replace(/[^0-9kK]/g,'').toUpperCase().trim();
     const password = String((el.formLogin.querySelector('#pass-login')||{value:''}).value||'');
     if (!rut || !password) { showAdminLoginError('Ingrese RUT y password'); return; }
     try{
@@ -681,11 +688,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // RUT: solo dígitos
+  // RUT: dígitos y letra K (verificador)
   const rutInput = document.getElementById('rut');
   if (rutInput) {
     rutInput.addEventListener('input', ev => {
-      ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 9);
+      // Permitir dígitos y la letra K (máximo 9 caracteres)
+      ev.target.value = ev.target.value.replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9);
     });
   }
   const telInput = document.getElementById('telefono');
@@ -780,6 +788,320 @@ document.addEventListener('DOMContentLoaded', () => {
         modalNuevoCargo.classList.remove('show');
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
+      }
+    });
+  }
+
+  // ============================================
+  // GESTIÓN DE EXCEPCIONES DE TURNO
+  // ============================================
+  
+  let rutExcepcionActual = null;
+
+  // Función para abrir modal de excepciones
+  function abrirExcepciones(rut, nombreCompleto) {
+    rutExcepcionActual = rut;
+    
+    const modalExcepciones = document.getElementById('modal-excepciones');
+    const nombreEl = document.getElementById('excepcion-trabajador-nombre');
+    const formExcepciones = document.getElementById('form-excepciones');
+    
+    if (!modalExcepciones || !nombreEl || !formExcepciones) return;
+    
+    // Establecer nombre del trabajador
+    nombreEl.textContent = nombreCompleto;
+    
+    // Resetear formulario
+    formExcepciones.reset();
+    document.getElementById('excepcion-duracion-info').style.display = 'none';
+    
+    // Cargar historial de excepciones
+    cargarHistorialExcepciones(rut);
+    
+    // Mostrar modal
+    modalExcepciones.classList.add('show');
+  }
+
+  // Función para calcular y mostrar duración en tiempo real
+  function actualizarDuracion() {
+    const fechaInicio = document.getElementById('excepcion-fecha-inicio').value;
+    const fechaFin = document.getElementById('excepcion-fecha-fin').value;
+    const infoDiv = document.getElementById('excepcion-duracion-info');
+    const textoSpan = document.getElementById('excepcion-duracion-texto');
+    const advertenciaDiv = document.getElementById('excepcion-advertencia');
+    const diasTexto = document.getElementById('excepcion-dias-texto');
+    
+    if (!fechaInicio || !fechaFin) {
+      infoDiv.style.display = 'none';
+      return;
+    }
+    
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    if (fin < inicio) {
+      infoDiv.style.display = 'block';
+      infoDiv.style.backgroundColor = '#fee2e2';
+      infoDiv.style.color = '#991b1b';
+      textoSpan.textContent = 'Error: La fecha de fin no puede ser anterior a la fecha de inicio';
+      advertenciaDiv.style.display = 'none';
+      return;
+    }
+    
+    // Calcular días (incluye ambos extremos)
+    const diffTime = Math.abs(fin - inicio);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Mostrar duración
+    infoDiv.style.display = 'block';
+    infoDiv.style.backgroundColor = diffDays === 14 ? '#d1fae5' : '#fef3c7';
+    infoDiv.style.color = diffDays === 14 ? '#065f46' : '#92400e';
+    textoSpan.textContent = `Duración: ${diffDays} día${diffDays !== 1 ? 's' : ''}`;
+    
+    // Mostrar advertencia si no son 14 días
+    if (diffDays !== 14) {
+      advertenciaDiv.style.display = 'block';
+      diasTexto.textContent = diffDays;
+    } else {
+      advertenciaDiv.style.display = 'none';
+    }
+  }
+
+  // Event listeners para fechas
+  const fechaInicioInput = document.getElementById('excepcion-fecha-inicio');
+  const fechaFinInput = document.getElementById('excepcion-fecha-fin');
+  
+  if (fechaInicioInput) {
+    fechaInicioInput.addEventListener('change', actualizarDuracion);
+  }
+  
+  if (fechaFinInput) {
+    fechaFinInput.addEventListener('change', actualizarDuracion);
+  }
+
+  // Función para cargar historial de excepciones
+  async function cargarHistorialExcepciones(rut) {
+    const historialDiv = document.getElementById('excepcion-historial');
+    if (!historialDiv) return;
+    
+    historialDiv.innerHTML = '<p style="color: #6b7280; font-size: 14px; text-align: center; padding: 10px;">Cargando historial...</p>';
+    
+    try {
+      const response = await fetch(`/api/excepciones/${rut}`);
+      const data = await response.json();
+      
+      if (response.ok && data.success && data.excepciones && data.excepciones.length > 0) {
+        historialDiv.innerHTML = '';
+        data.excepciones.forEach(exc => {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding: 8px; margin-bottom: 8px; background-color: #f9fafb; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;';
+          
+          const fechaInicio = new Date(exc.fecha_inicio).toLocaleDateString('es-CL');
+          const fechaFin = new Date(exc.fecha_fin).toLocaleDateString('es-CL');
+          
+          item.innerHTML = `
+            <div style="font-weight: 600; color: #1f2937;">${fechaInicio} → ${fechaFin} (${exc.dias_duracion} días)</div>
+            ${exc.motivo ? `<div style="color: #6b7280; margin-top: 4px;">${exc.motivo}</div>` : ''}
+          `;
+          
+          historialDiv.appendChild(item);
+        });
+      } else {
+        historialDiv.innerHTML = '<p style="color: #6b7280; font-size: 14px; text-align: center; padding: 10px;">Sin excepciones registradas</p>';
+      }
+    } catch (error) {
+      console.error('Error al cargar historial:', error);
+      historialDiv.innerHTML = '<p style="color: #dc2626; font-size: 14px; text-align: center; padding: 10px;">Error al cargar el historial</p>';
+    }
+  }
+
+  // Submit del formulario de excepciones
+  const formExcepciones = document.getElementById('form-excepciones');
+  if (formExcepciones) {
+    formExcepciones.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const fechaInicio = document.getElementById('excepcion-fecha-inicio').value;
+      const fechaFin = document.getElementById('excepcion-fecha-fin').value;
+      const motivo = document.getElementById('excepcion-motivo').value.trim();
+      
+      if (!rutExcepcionActual || !fechaInicio || !fechaFin) {
+        alert('Por favor complete todos los campos requeridos');
+        return;
+      }
+      
+      // Validar que la fecha fin no sea anterior a la fecha inicio
+      if (new Date(fechaFin) < new Date(fechaInicio)) {
+        alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/excepciones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rut: rutExcepcionActual,
+            inicio: fechaInicio,
+            fin: fechaFin,
+            motivo: motivo || null
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          alert(`Excepción guardada correctamente (${data.dias_duracion} días)`);
+          
+          // Recargar historial
+          cargarHistorialExcepciones(rutExcepcionActual);
+          
+          // Resetear formulario
+          formExcepciones.reset();
+          document.getElementById('excepcion-duracion-info').style.display = 'none';
+        } else {
+          alert(data.error || 'Error al guardar la excepción');
+        }
+      } catch (error) {
+        console.error('Error al guardar excepción:', error);
+        alert('Error al guardar la excepción: ' + error.message);
+      }
+    });
+  }
+
+  // Botón cancelar excepciones
+  const cancelExcepciones = document.getElementById('cancel-excepciones');
+  if (cancelExcepciones) {
+    cancelExcepciones.addEventListener('click', () => {
+      const modalExcepciones = document.getElementById('modal-excepciones');
+      if (modalExcepciones) {
+        modalExcepciones.classList.remove('show');
+      }
+      rutExcepcionActual = null;
+    });
+  }
+
+  // Cerrar modal al hacer clic fuera
+  const modalExcepciones = document.getElementById('modal-excepciones');
+  if (modalExcepciones) {
+    modalExcepciones.addEventListener('click', (ev) => {
+      if (ev.target === modalExcepciones) {
+        modalExcepciones.classList.remove('show');
+        rutExcepcionActual = null;
+      }
+    });
+  }
+
+  // Exponer función globalmente para que esté disponible en render()
+  window.abrirExcepciones = abrirExcepciones;
+
+  // ============================================
+  // GESTIÓN DE CONFIGURACIÓN DE CICLOS DE TURNOS
+  // ============================================
+
+  const configCiclosSection = document.getElementById('config-ciclos-section');
+  const btnConfigCiclos = document.getElementById('btn-config-ciclos');
+  const pista1FechaInput = document.getElementById('config-pista1-fecha');
+  const pista2FechaInput = document.getElementById('config-pista2-fecha');
+  const btnGuardarConfig = document.getElementById('btn-guardar-config');
+  const btnCancelarConfig = document.getElementById('btn-cancelar-config');
+
+  // Cargar configuración actual
+  async function cargarConfigCiclos() {
+    try {
+      const response = await fetch('/api/config-turnos');
+      const data = await response.json();
+
+      if (response.ok && data.success && data.config) {
+        if (pista1FechaInput) pista1FechaInput.value = data.config.pista1 || '';
+        if (pista2FechaInput) pista2FechaInput.value = data.config.pista2 || '';
+      } else {
+        console.error('Error al cargar configuración:', data.error);
+      }
+    } catch (error) {
+      console.error('Error al cargar configuración de ciclos:', error);
+    }
+  }
+
+  // Mostrar/ocultar sección de configuración
+  if (btnConfigCiclos) {
+    btnConfigCiclos.addEventListener('click', () => {
+      if (configCiclosSection) {
+        const isVisible = configCiclosSection.style.display !== 'none';
+        configCiclosSection.style.display = isVisible ? 'none' : 'block';
+        
+        // Cargar configuración si se muestra
+        if (!isVisible) {
+          cargarConfigCiclos();
+        }
+
+        // Cambiar estilo del botón
+        btnConfigCiclos.style.backgroundColor = isVisible ? '#8b5cf6' : '#7c3aed';
+      }
+    });
+  }
+
+  // Cancelar configuración
+  if (btnCancelarConfig) {
+    btnCancelarConfig.addEventListener('click', () => {
+      if (configCiclosSection) {
+        configCiclosSection.style.display = 'none';
+        if (btnConfigCiclos) {
+          btnConfigCiclos.style.backgroundColor = '#8b5cf6';
+        }
+      }
+    });
+  }
+
+  // Guardar configuración
+  if (btnGuardarConfig) {
+    btnGuardarConfig.addEventListener('click', async () => {
+      const pista1 = pista1FechaInput ? pista1FechaInput.value : null;
+      const pista2 = pista2FechaInput ? pista2FechaInput.value : null;
+
+      // Validación
+      if (!pista1 || !pista2) {
+        alert('Por favor complete ambas fechas');
+        return;
+      }
+
+      // Validar que sean fechas válidas
+      const fecha1 = new Date(pista1);
+      const fecha2 = new Date(pista2);
+
+      if (isNaN(fecha1.getTime()) || isNaN(fecha2.getTime())) {
+        alert('Fechas inválidas. Verifique el formato YYYY-MM-DD');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/config-turnos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pista1: pista1,
+            pista2: pista2
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          alert('Ciclos re-calibrados correctamente');
+
+          // Ocultar sección
+          if (configCiclosSection) {
+            configCiclosSection.style.display = 'none';
+            if (btnConfigCiclos) {
+              btnConfigCiclos.style.backgroundColor = '#8b5cf6';
+            }
+          }
+        } else {
+          alert(data.error || 'Error al guardar la configuración');
+        }
+      } catch (error) {
+        console.error('Error al guardar configuración:', error);
+        alert('Error al guardar la configuración: ' + error.message);
       }
     });
   }

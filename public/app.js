@@ -1,8 +1,8 @@
 // IMPORTAR CONFIGURACIÓN
-// Turnos de 14 días trabajo + 14 días descanso, empezando en sábado
-// Referencia: sábado 17 enero 2026 = día 0
-// Pista 1: AB (0-13), CD (14-27), BA (28-41), DC (42-55), luego se repite
-// Pista 2 (desplazada 7 días): EF (7-20), HG (21-34), FE (35-48), GH (49-62), luego se repite
+// Nueva lógica de turnos 2026
+// Pista 1 (A-B-C-D + AB, CD): Referencia C-D empiezan 21/02/2026
+// Pista 2 (E-F-G-H + EF, GH): Mismo patrón que Pista 1 pero con desfase de 7 días
+// Grupos J, K: Mantienen lógica semanal antigua
 import { FECHA_BASE, GRUPOS, COLORES } from './config.js';
 
 // Configuración y estado global
@@ -12,80 +12,16 @@ let currentYear = new Date().getFullYear();
 let today = new Date();
 today.setHours(0, 0, 0, 0);
 
-// Inicio del ciclo: sábado 17 enero 2026 (día 0)
-const INICIO_CICLO = new Date(2026, 0, 17);
-INICIO_CICLO.setHours(0, 0, 0, 0);
+// Fechas de referencia para las 2 pistas
+const INICIO_CD = new Date(2026, 1, 21); // 21 de febrero 2026 (Pista 1: C-D)
+INICIO_CD.setHours(0, 0, 0, 0);
+
+const INICIO_EFGH = new Date(2026, 1, 14); // 14 de febrero 2026 (Pista 2: G-H, 7 días antes)
+INICIO_EFGH.setHours(0, 0, 0, 0);
 
 const MS_PER_DAY = 86400000;
 const DIAS_POR_BLOQUE = 14;
 const CICLO_COMPLETO = DIAS_POR_BLOQUE * 4; // 56 días (4 bloques de 14)
-
-function obtenerTurnoABCDEFGH(fecha) {
-  const t = new Date(fecha);
-  t.setHours(0, 0, 0, 0);
-  const dias = Math.floor((t - INICIO_CICLO) / MS_PER_DAY);
-  
-  let manana = null;
-  let tarde = null;
-  
-  // Pista 1: ciclo de 56 días
-  const ciclo1 = ((dias % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO; // manejar negativos
-  if (ciclo1 >= 0 && ciclo1 < DIAS_POR_BLOQUE) {
-    // Días 0-13: AB
-    manana = 'A';
-    tarde = 'B';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE && ciclo1 < DIAS_POR_BLOQUE * 2) {
-    // Días 14-27: CD
-    manana = 'C';
-    tarde = 'D';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE * 2 && ciclo1 < DIAS_POR_BLOQUE * 3) {
-    // Días 28-41: BA (invertido)
-    manana = 'B';
-    tarde = 'A';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE * 3 && ciclo1 < CICLO_COMPLETO) {
-    // Días 42-55: DC (invertido)
-    manana = 'D';
-    tarde = 'C';
-  }
-  
-  // Pista 2: ciclo de 56 días, desplazado 7 días
-  // Cuando hay solapamiento, la pista 2 tiene prioridad (se muestra primero)
-  const dias2 = dias - 7;
-  if (dias2 >= 0) {
-    const ciclo2 = ((dias2 % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
-    if (ciclo2 >= 0 && ciclo2 < DIAS_POR_BLOQUE) {
-      // Días 7-20: EF
-      // Si hay solapamiento, mostrar EF primero (pista 2 tiene prioridad)
-      if (manana && tarde) {
-        // Ya hay pista 1, mantener pista 1 como manana/tarde
-        // La pista 2 se mostrará como bloques adicionales si es necesario
-      } else {
-        manana = 'E';
-        tarde = 'F';
-      }
-    } else if (ciclo2 >= DIAS_POR_BLOQUE && ciclo2 < DIAS_POR_BLOQUE * 2) {
-      // Días 21-34: HG
-      if (!manana) manana = 'H';
-      if (!tarde) tarde = 'G';
-    } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
-      if (!manana) manana = 'F';
-      if (!tarde) tarde = 'E';
-    } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
-      // Días 49-62: GH (invertido)
-      if (!manana) manana = 'G';
-      if (!tarde) tarde = 'H';
-    }
-  }
-  
-  // Si no hay turno asignado (días negativos antes de pista 2), usar AB
-  if (!manana || !tarde) {
-    manana = manana || 'A';
-    tarde = tarde || 'B';
-  }
-  
-  return { manana, tarde };
-}
 
 // Nombres de meses en español
 const monthNames = [
@@ -134,72 +70,55 @@ function contarDiasConsecutivos(desde, hasta) {
 }
 
 // Función para determinar qué grupos trabajan en una fecha específica
-// Devuelve { pista1: {manana, tarde}, pista2: {manana, tarde} o null, semanales }
-// Pista 1: días 0-55 repetidos (AB, CD, BA, DC)
-// Pista 2: días 7+ repetidos desplazados (EF, HG, FE, GH)
+// Devuelve { pista1: {manana, tarde, doble}, pista2: {manana, tarde, doble}, semanales }
+// Pista 1: A-B-C-D + AB, CD (referencia C-D = 21/02/2026)
+// Pista 2: E-F-G-H + EF, GH (mismo patrón que Pista 1 pero desfase de 7 días)
 function obtenerGruposDelDia(fecha) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
   
-  const t = new Date(fechaCopy);
-  t.setHours(0, 0, 0, 0);
-  const dias = Math.floor((t - INICIO_CICLO) / MS_PER_DAY);
+  // ===== PISTA 1: A-B-C-D + grupos dobles AB, CD =====
+  const diasCD = Math.floor((fechaCopy - INICIO_CD) / MS_PER_DAY);
+  const cicloCD = ((diasCD % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
   
-  // PISTA 1: ciclo de 56 días (AB → CD → BA → DC, repetido)
-  const ciclo1 = ((dias % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
-  let grupo1Manana = null;
-  let grupo1Tarde = null;
+  let pista1 = null;
   
-  if (ciclo1 >= 0 && ciclo1 < DIAS_POR_BLOQUE) {
-    // Días 0-13: A mañana, B tarde
-    grupo1Manana = 'A';
-    grupo1Tarde = 'B';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE && ciclo1 < DIAS_POR_BLOQUE * 2) {
-    // Días 14-27: C mañana, D tarde
-    grupo1Manana = 'C';
-    grupo1Tarde = 'D';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE * 2 && ciclo1 < DIAS_POR_BLOQUE * 3) {
-    // Días 28-41: B mañana, A tarde
-    grupo1Manana = 'B';
-    grupo1Tarde = 'A';
-  } else if (ciclo1 >= DIAS_POR_BLOQUE * 3 && ciclo1 < CICLO_COMPLETO) {
-    // Días 42-55: D mañana, C tarde
-    grupo1Manana = 'D';
-    grupo1Tarde = 'C';
+  if (cicloCD >= 0 && cicloCD < 14) {
+    // C-D trabajando, turno normal
+    pista1 = { manana: 'C', tarde: 'D', doble: 'CD' };
+  } else if (cicloCD >= 14 && cicloCD < 28) {
+    // A-B trabajando, turno normal
+    pista1 = { manana: 'A', tarde: 'B', doble: 'AB' };
+  } else if (cicloCD >= 28 && cicloCD < 42) {
+    // C-D trabajando, turno INVERTIDO
+    pista1 = { manana: 'D', tarde: 'C', doble: 'CD' };
+  } else if (cicloCD >= 42 && cicloCD < 56) {
+    // A-B trabajando, turno INVERTIDO
+    pista1 = { manana: 'B', tarde: 'A', doble: 'AB' };
   }
   
-  // PISTA 2: ciclo de 56 días desplazado 7 días (EF → HG → FE → GH, repetido)
-  const dias2 = dias - 7;
-  let grupo2Manana = null;
-  let grupo2Tarde = null;
+  // ===== PISTA 2: E-F-G-H + grupos dobles EF, GH =====
+  // Misma lógica que Pista 1 pero con G-H en lugar de C-D y E-F en lugar de A-B
+  const diasEFGH = Math.floor((fechaCopy - INICIO_EFGH) / MS_PER_DAY);
+  const cicloEFGH = ((diasEFGH % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
   
-  if (dias2 >= 0) {
-    const ciclo2 = ((dias2 % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
-    
-    if (ciclo2 >= 0 && ciclo2 < DIAS_POR_BLOQUE) {
-      // Días 7-20: E mañana, F tarde
-      grupo2Manana = 'E';
-      grupo2Tarde = 'F';
-    } else if (ciclo2 >= DIAS_POR_BLOQUE && ciclo2 < DIAS_POR_BLOQUE * 2) {
-      // Días 21-34: H mañana, G tarde
-      grupo2Manana = 'H';
-      grupo2Tarde = 'G';
-    } else if (ciclo2 >= DIAS_POR_BLOQUE * 2 && ciclo2 < DIAS_POR_BLOQUE * 3) {
-      // Días 35-48: F mañana, E tarde
-      grupo2Manana = 'F';
-      grupo2Tarde = 'E';
-    } else if (ciclo2 >= DIAS_POR_BLOQUE * 3 && ciclo2 < CICLO_COMPLETO) {
-      // Días 49-62: G mañana, H tarde
-      grupo2Manana = 'G';
-      grupo2Tarde = 'H';
-    }
+  let pista2 = null;
+  
+  if (cicloEFGH >= 0 && cicloEFGH < 14) {
+    // G-H trabajando, turno normal
+    pista2 = { manana: 'G', tarde: 'H', doble: 'GH' };
+  } else if (cicloEFGH >= 14 && cicloEFGH < 28) {
+    // E-F trabajando, turno normal
+    pista2 = { manana: 'E', tarde: 'F', doble: 'EF' };
+  } else if (cicloEFGH >= 28 && cicloEFGH < 42) {
+    // G-H trabajando, turno INVERTIDO
+    pista2 = { manana: 'H', tarde: 'G', doble: 'GH' };
+  } else if (cicloEFGH >= 42 && cicloEFGH < 56) {
+    // E-F trabajando, turno INVERTIDO
+    pista2 = { manana: 'F', tarde: 'E', doble: 'EF' };
   }
   
-  // Retornar ambas pistas por separado
-  const pista1 = (grupo1Manana && grupo1Tarde) ? { manana: grupo1Manana, tarde: grupo1Tarde } : null;
-  const pista2 = (grupo2Manana && grupo2Tarde) ? { manana: grupo2Manana, tarde: grupo2Tarde } : null;
-  
-  // Grupos semanales: J (Lun–Jue), K (Mar–Vie), todas las semanas
+  // ===== GRUPOS SEMANALES J, K (lógica antigua) =====
   const semanales = [];
   const dia = fechaCopy.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sab
   if ([1, 2, 3, 4].includes(dia)) semanales.push('J');
@@ -451,8 +370,12 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
     if (gruposDelDia.pista1) {
       const gManana1 = gruposDelDia.pista1.manana;
       const gTarde1 = gruposDelDia.pista1.tarde;
+      const gDoble1 = gruposDelDia.pista1.doble;
+      
       const tieneManana1 = trabajadoresDelDia.some(t => t.grupo === gManana1 && t.pista === 1);
       const tieneTarde1 = trabajadoresDelDia.some(t => t.grupo === gTarde1 && t.pista === 1);
+      const tieneDoble1 = trabajadoresDelDia.some(t => t.grupo === gDoble1 && t.pista === 1);
+      
       if (tieneManana1) {
         const grupoBlock = document.createElement('div');
         grupoBlock.className = 'grupo-block manana';
@@ -467,14 +390,25 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
         grupoBlockTarde.textContent = gTarde1;
         dayRight.appendChild(grupoBlockTarde);
       }
+      if (tieneDoble1) {
+        const grupoBlockDoble = document.createElement('div');
+        grupoBlockDoble.className = 'grupo-block manana doble';
+        grupoBlockDoble.style.backgroundColor = COLORES[gDoble1];
+        grupoBlockDoble.textContent = gDoble1;
+        dayRight.appendChild(grupoBlockDoble);
+      }
     }
 
     // Pista 2 (mostrar solo si hay trabajadores asignados a ese grupo y pista)
     if (gruposDelDia.pista2) {
       const gManana2 = gruposDelDia.pista2.manana;
       const gTarde2 = gruposDelDia.pista2.tarde;
+      const gDoble2 = gruposDelDia.pista2.doble;
+      
       const tieneManana2 = trabajadoresDelDia.some(t => t.grupo === gManana2 && t.pista === 2);
       const tieneTarde2 = trabajadoresDelDia.some(t => t.grupo === gTarde2 && t.pista === 2);
+      const tieneDoble2 = trabajadoresDelDia.some(t => t.grupo === gDoble2 && t.pista === 2);
+      
       if (tieneManana2) {
         const grupoBlock = document.createElement('div');
         grupoBlock.className = 'grupo-block manana';
@@ -488,6 +422,13 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
         grupoBlockTarde.style.backgroundColor = COLORES[gTarde2];
         grupoBlockTarde.textContent = gTarde2;
         dayRight.appendChild(grupoBlockTarde);
+      }
+      if (tieneDoble2) {
+        const grupoBlockDoble = document.createElement('div');
+        grupoBlockDoble.className = 'grupo-block manana doble';
+        grupoBlockDoble.style.backgroundColor = COLORES[gDoble2];
+        grupoBlockDoble.textContent = gDoble2;
+        dayRight.appendChild(grupoBlockDoble);
       }
     }
 
@@ -527,9 +468,9 @@ function obtenerTrabajadoresDelDia(fecha) {
     return [];
   }
   
-  // Pista 1: grupos de mañana y tarde
+  // PISTA 1: A-B-C-D + AB/CD
   if (gruposDelDia.pista1) {
-    // Trabajadores del grupo de mañana (pista 1)
+    // Trabajadores del grupo de mañana
     const trabajadoresManana = trabajadores.filter(t => t.grupo === gruposDelDia.pista1.manana);
     trabajadoresManana.forEach(t => {
       trabajadoresDelDia.push({
@@ -541,7 +482,7 @@ function obtenerTrabajadoresDelDia(fecha) {
       });
     });
     
-    // Trabajadores del grupo de tarde (pista 1)
+    // Trabajadores del grupo de tarde
     const trabajadoresTarde = trabajadores.filter(t => t.grupo === gruposDelDia.pista1.tarde);
     trabajadoresTarde.forEach(t => {
       trabajadoresDelDia.push({
@@ -552,11 +493,25 @@ function obtenerTrabajadoresDelDia(fecha) {
         pista: 1
       });
     });
+    
+    // Grupo doble (AB o CD) - siempre turno mañana
+    if (gruposDelDia.pista1.doble) {
+      const trabajadoresDoble = trabajadores.filter(t => t.grupo === gruposDelDia.pista1.doble);
+      trabajadoresDoble.forEach(t => {
+        trabajadoresDelDia.push({
+          ...t,
+          horario: 'manana',
+          grupo: gruposDelDia.pista1.doble,
+          color: COLORES[gruposDelDia.pista1.doble],
+          pista: 1
+        });
+      });
+    }
   }
   
-  // Pista 2: grupos de mañana y tarde
+  // PISTA 2: E-F + EF
   if (gruposDelDia.pista2) {
-    // Trabajadores del grupo de mañana (pista 2)
+    // Trabajadores del grupo de mañana
     const trabajadoresManana = trabajadores.filter(t => t.grupo === gruposDelDia.pista2.manana);
     trabajadoresManana.forEach(t => {
       trabajadoresDelDia.push({
@@ -568,7 +523,7 @@ function obtenerTrabajadoresDelDia(fecha) {
       });
     });
     
-    // Trabajadores del grupo de tarde (pista 2)
+    // Trabajadores del grupo de tarde
     const trabajadoresTarde = trabajadores.filter(t => t.grupo === gruposDelDia.pista2.tarde);
     trabajadoresTarde.forEach(t => {
       trabajadoresDelDia.push({
@@ -579,6 +534,20 @@ function obtenerTrabajadoresDelDia(fecha) {
         pista: 2
       });
     });
+    
+    // Grupo doble EF - siempre turno mañana
+    if (gruposDelDia.pista2.doble) {
+      const trabajadoresDoble = trabajadores.filter(t => t.grupo === gruposDelDia.pista2.doble);
+      trabajadoresDoble.forEach(t => {
+        trabajadoresDelDia.push({
+          ...t,
+          horario: 'manana',
+          grupo: gruposDelDia.pista2.doble,
+          color: COLORES[gruposDelDia.pista2.doble],
+          pista: 2
+        });
+      });
+    }
   }
   
   // Grupos semanales: J (Lun–Jue), K (Mar–Vie)

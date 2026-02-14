@@ -618,6 +618,374 @@ app.post("/eliminar-trabajador", async (req, res) => {
   }
 });
 
+// ============================================
+// ENDPOINTS: Excepciones de Turno
+// ============================================
+
+// POST /api/excepciones - Guardar nueva excepción de turno
+app.post("/api/excepciones", async (req, res) => {
+  try {
+    const { rut, inicio, fin, motivo } = req.body;
+
+    // Validación básica
+    if (!rut || !inicio || !fin) {
+      return res.status(400).json({ error: "Faltan datos requeridos (rut, inicio, fin)" });
+    }
+
+    // Calcular diferencia de días
+    const fechaInicio = new Date(inicio);
+    const fechaFin = new Date(fin);
+    
+    if (fechaFin < fechaInicio) {
+      return res.status(400).json({ error: "La fecha de fin no puede ser anterior a la fecha de inicio" });
+    }
+
+    const diffTime = Math.abs(fechaFin - fechaInicio);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 para incluir ambos días
+
+    // Insertar en la base de datos
+    await pool.execute(
+      'INSERT INTO excepciones_turno (rut_trabajador, fecha_inicio, fecha_fin, dias_duracion, motivo) VALUES (?, ?, ?, ?, ?)',
+      [rut, inicio, fin, diffDays, motivo || null]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "Excepción de turno guardada correctamente",
+      dias_duracion: diffDays
+    });
+  } catch (error) {
+    console.error("Error al guardar excepción de turno:", error);
+    res.status(500).json({ error: "Error al guardar excepción de turno" });
+  }
+});
+
+// GET /api/excepciones/:rut - Obtener historial de excepciones de un trabajador
+app.get("/api/excepciones/:rut", async (req, res) => {
+  try {
+    const { rut } = req.params;
+
+    if (!rut) {
+      return res.status(400).json({ error: "RUT no proporcionado" });
+    }
+
+    const [rows] = await pool.execute(
+      'SELECT * FROM excepciones_turno WHERE rut_trabajador = ? ORDER BY fecha_inicio DESC',
+      [rut]
+    );
+
+    res.json({ success: true, excepciones: rows });
+  } catch (error) {
+    console.error("Error al obtener excepciones:", error);
+    res.status(500).json({ error: "Error al obtener excepciones" });
+  }
+});
+
+// ============================================
+// LÓGICA DE TURNOS ROTATIVOS (CICLO 56 DÍAS)
+// ============================================
+
+/**
+ * Obtener la semilla (fecha referencia) para un grupo
+ * @param {string} grupo - Letra del grupo (A-H)
+ * @returns {Promise<Date>} - Fecha semilla del ciclo
+ */
+async function obtenerSemillaGrupo(grupo) {
+  try {
+    const pista = ['A', 'B', 'C', 'D'].includes(grupo.toUpperCase()) ? 'PISTA_1' : 'PISTA_2';
+    const [rows] = await pool.execute(
+      'SELECT fecha_semilla FROM configuracion_ciclos WHERE pista = ?',
+      [pista]
+    );
+    
+    if (rows.length === 0) {
+      console.error(`No se encontró semilla para ${pista}`);
+      return null;
+    }
+    
+    return new Date(rows[0].fecha_semilla);
+  } catch (error) {
+    console.error('Error al obtener semilla:', error);
+    return null;
+  }
+}
+
+/**
+ * Calcular el día del ciclo (0-55) para una fecha dada
+ * @param {Date} fechaConsulta - Fecha a calcular
+ * @param {Date} fechaSemilla - Fecha semilla del ciclo
+ * @returns {number} - Día del ciclo (0-55)
+ */
+function calcularDiaCiclo(fechaConsulta, fechaSemilla) {
+  if (!fechaConsulta || !fechaSemilla) return 0;
+  
+  // Normalizar a medianoche para comparación correcta
+  const consulta = new Date(fechaConsulta);
+  consulta.setHours(0, 0, 0, 0);
+  
+  const semilla = new Date(fechaSemilla);
+  semilla.setHours(0, 0, 0, 0);
+  
+  // Diferencia en milisegundos
+  const diffMs = consulta - semilla;
+  
+  // Convertir a días
+  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  // Normalizar a rango 0-55 (asegurar que negativos se conviertan a positivos)
+  let diaCiclo = diffDias % 56;
+  if (diaCiclo < 0) {
+    diaCiclo += 56;
+  }
+  
+  return diaCiclo;
+}
+
+/**
+ * Determinar la fase (0-3) basada en el día del ciclo
+ * @param {number} diaCiclo - Día del ciclo (0-55)
+ * @returns {number} - Fase (0-3)
+ */
+function determinarFase(diaCiclo) {
+  return Math.floor(diaCiclo / 14);
+}
+
+/**
+ * Obtener reglas de turno para PISTA 1 (grupos A, B, C, D)
+ * @param {number} fase - Fase del ciclo (0-3)
+ * @returns {object} - Objeto con reglas de turno por grupo
+ */
+function obtenerReglasPista1(fase) {
+  const reglas = {
+    0: { // Fase 0: C=Día, D=Noche, CD=Día (refuerzo), A/B/AB=Descanso
+      A: { turno: 'Descanso', es_refuerzo: false },
+      B: { turno: 'Descanso', es_refuerzo: false },
+      C: { turno: 'Día', es_refuerzo: false },
+      D: { turno: 'Noche', es_refuerzo: false },
+      AB: { turno: 'Descanso', es_refuerzo: false },
+      CD: { turno: 'Día', es_refuerzo: true }
+    },
+    1: { // Fase 1: A=Día, B=Noche, AB=Día (refuerzo), C/D/CD=Descanso
+      A: { turno: 'Día', es_refuerzo: false },
+      B: { turno: 'Noche', es_refuerzo: false },
+      C: { turno: 'Descanso', es_refuerzo: false },
+      D: { turno: 'Descanso', es_refuerzo: false },
+      AB: { turno: 'Día', es_refuerzo: true },
+      CD: { turno: 'Descanso', es_refuerzo: false }
+    },
+    2: { // Fase 2: D=Día, C=Noche, CD=Día (refuerzo), A/B/AB=Descanso
+      A: { turno: 'Descanso', es_refuerzo: false },
+      B: { turno: 'Descanso', es_refuerzo: false },
+      C: { turno: 'Noche', es_refuerzo: false },
+      D: { turno: 'Día', es_refuerzo: false },
+      AB: { turno: 'Descanso', es_refuerzo: false },
+      CD: { turno: 'Día', es_refuerzo: true }
+    },
+    3: { // Fase 3: B=Día, A=Noche, AB=Día (refuerzo), C/D/CD=Descanso
+      A: { turno: 'Noche', es_refuerzo: false },
+      B: { turno: 'Día', es_refuerzo: false },
+      C: { turno: 'Descanso', es_refuerzo: false },
+      D: { turno: 'Descanso', es_refuerzo: false },
+      AB: { turno: 'Día', es_refuerzo: true },
+      CD: { turno: 'Descanso', es_refuerzo: false }
+    }
+  };
+  
+  return reglas[fase] || reglas[0];
+}
+
+/**
+ * Obtener reglas de turno para PISTA 2 (grupos E, F, G, H)
+ * Mapeo: E=C, F=D, G=A, H=B
+ * @param {number} fase - Fase del ciclo (0-3)
+ * @returns {object} - Objeto con reglas de turno por grupo
+ */
+function obtenerReglasPista2(fase) {
+  const reglasPista1 = obtenerReglasPista1(fase);
+  
+  // Mapeo: C->E, D->F, A->G, B->H
+  const mapeo = {
+    C: 'E',
+    D: 'F',
+    A: 'G',
+    B: 'H',
+    CD: 'EF',
+    AB: 'GH'
+  };
+  
+  const reglasPista2 = {};
+  
+  // Mapear las reglas de Pista 1 a Pista 2
+  for (const [grupo, regla] of Object.entries(reglasPista1)) {
+    const grupoMapeado = mapeo[grupo];
+    if (grupoMapeado) {
+      reglasPista2[grupoMapeado] = regla;
+    }
+  }
+  
+  return reglasPista2;
+}
+
+/**
+ * Calcular el turno de un grupo en una fecha específica
+ * @param {Date} fecha - Fecha a calcular
+ * @param {string} grupo - Grupo (A-H, AB, CD, EF, GH)
+ * @returns {Promise<object>} - { turno: 'Día'|'Noche'|'Descanso', es_refuerzo: boolean }
+ */
+async function calcularTurno(fecha, grupo) {
+  if (!fecha || !grupo) {
+    return { turno: 'Descanso', es_refuerzo: false };
+  }
+  
+  const grupoUpper = String(grupo).toUpperCase();
+  
+  // Obtener semilla según el grupo
+  const semilla = await obtenerSemillaGrupo(grupoUpper);
+  if (!semilla) {
+    console.error(`No se puede calcular turno sin semilla para ${grupoUpper}`);
+    return { turno: 'Descanso', es_refuerzo: false };
+  }
+  
+  // Calcular día del ciclo
+  const diaCiclo = calcularDiaCiclo(fecha, semilla);
+  
+  // Determinar fase
+  const fase = determinarFase(diaCiclo);
+  
+  // Obtener reglas según pista
+  let reglas;
+  if (['A', 'B', 'C', 'D', 'AB', 'CD'].includes(grupoUpper)) {
+    reglas = obtenerReglasPista1(fase);
+  } else if (['E', 'F', 'G', 'H', 'EF', 'GH'].includes(grupoUpper)) {
+    reglas = obtenerReglasPista2(fase);
+  } else {
+    // Grupos J y K (semanales) - no usan ciclos
+    return { turno: 'Descanso', es_refuerzo: false };
+  }
+  
+  // Retornar el turno del grupo
+  return reglas[grupoUpper] || { turno: 'Descanso', es_refuerzo: false };
+}
+
+// GET /api/calcular-turno - Endpoint para calcular el turno de un grupo en una fecha
+app.get("/api/calcular-turno", async (req, res) => {
+  try {
+    const { fecha, grupo } = req.query;
+    
+    if (!fecha || !grupo) {
+      return res.status(400).json({ 
+        error: "Parámetros requeridos: fecha (YYYY-MM-DD) y grupo (A-H, AB, CD, EF, GH)" 
+      });
+    }
+    
+    // Validar formato de fecha
+    const fechaObj = new Date(fecha);
+    if (isNaN(fechaObj.getTime())) {
+      return res.status(400).json({ error: "Formato de fecha inválido. Use YYYY-MM-DD" });
+    }
+    
+    // Calcular turno
+    const resultado = await calcularTurno(fechaObj, grupo);
+    
+    res.json({
+      success: true,
+      fecha: fecha,
+      grupo: grupo.toUpperCase(),
+      turno: resultado.turno,
+      es_refuerzo: resultado.es_refuerzo
+    });
+  } catch (error) {
+    console.error("Error al calcular turno:", error);
+    res.status(500).json({ error: "Error al calcular turno" });
+  }
+});
+
+// ============================================
+// ENDPOINTS: Configuración de Ciclos de Turnos
+// ============================================
+
+// GET /api/config-turnos - Obtener fechas semilla actuales
+app.get("/api/config-turnos", async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT pista, fecha_semilla FROM configuracion_ciclos WHERE pista IN ("PISTA_1", "PISTA_2") ORDER BY pista'
+    );
+
+    if (rows.length < 2) {
+      return res.status(500).json({ 
+        error: "No se encontraron ambas pistas en la configuración" 
+      });
+    }
+
+    const config = {};
+    rows.forEach(row => {
+      if (row.pista === 'PISTA_1') {
+        config.pista1 = row.fecha_semilla.toISOString().split('T')[0];
+      } else if (row.pista === 'PISTA_2') {
+        config.pista2 = row.fecha_semilla.toISOString().split('T')[0];
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      config: config 
+    });
+  } catch (error) {
+    console.error("Error al obtener configuración de ciclos:", error);
+    res.status(500).json({ error: "Error al obtener configuración de ciclos" });
+  }
+});
+
+// PUT /api/config-turnos - Actualizar fechas semilla
+app.put("/api/config-turnos", async (req, res) => {
+  try {
+    const { pista1, pista2 } = req.body;
+
+    // Validación de fechas
+    if (!pista1 || !pista2) {
+      return res.status(400).json({ 
+        error: "Se requieren ambas fechas (pista1 y pista2) en formato YYYY-MM-DD" 
+      });
+    }
+
+    // Validar formato de fechas
+    const fechaPista1 = new Date(pista1);
+    const fechaPista2 = new Date(pista2);
+
+    if (isNaN(fechaPista1.getTime()) || isNaN(fechaPista2.getTime())) {
+      return res.status(400).json({ 
+        error: "Formato de fecha inválido. Use YYYY-MM-DD" 
+      });
+    }
+
+    // Actualizar PISTA_1
+    await pool.execute(
+      'UPDATE configuracion_ciclos SET fecha_semilla = ? WHERE pista = "PISTA_1"',
+      [pista1]
+    );
+
+    // Actualizar PISTA_2
+    await pool.execute(
+      'UPDATE configuracion_ciclos SET fecha_semilla = ? WHERE pista = "PISTA_2"',
+      [pista2]
+    );
+
+    console.log(`[ACTUALIZACIÓN] Ciclos re-calibrados: PISTA_1=${pista1}, PISTA_2=${pista2}`);
+
+    res.json({ 
+      success: true, 
+      message: "Ciclos re-calibrados correctamente",
+      config: {
+        pista1: pista1,
+        pista2: pista2
+      }
+    });
+  } catch (error) {
+    console.error("Error al actualizar configuración de ciclos:", error);
+    res.status(500).json({ error: "Error al actualizar configuración de ciclos" });
+  }
+});
+
 // Endpoint para cerrar aplicación
 app.post("/cerrar", (req, res) => {
   console.log("Solicitud de cierre recibida");
