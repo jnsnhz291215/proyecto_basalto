@@ -33,7 +33,7 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 async function obtenerTrabajadores(incluirInactivos = false) {
   const connection = await pool.getConnection();
   try {
-    let query = 'SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo, activo FROM trabajadores';
+    let query = 'SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo, activo, fecha_nacimiento, ciudad FROM trabajadores';
     if (!incluirInactivos) {
       query += ' WHERE activo = 1';
     }
@@ -49,7 +49,9 @@ async function obtenerTrabajadores(incluirInactivos = false) {
       telefono: r.telefono,
       grupo: (typeof r.id_grupo === 'number' && r.id_grupo >= 1 && r.id_grupo <= GRUPOS.length) ? GRUPOS[r.id_grupo - 1] : (r.id_grupo ? String(r.id_grupo) : ''),
       cargo: r.cargo,
-      activo: r.activo === 1 || r.activo === true
+      activo: r.activo === 1 || r.activo === true,
+      fecha_nacimiento: r.fecha_nacimiento || null,
+      ciudad: r.ciudad || null
     }));
   } finally {
     connection.release();

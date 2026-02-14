@@ -213,23 +213,74 @@ body {
   padding: 8px;
   min-width: min-content;
   width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-/* Columna de grupo */
+.grupos-columnas::-webkit-scrollbar {
+  height: 10px;
+}
+
+.grupos-columnas::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.grupos-columnas::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.grupos-columnas::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Columna de grupo - Vista Kanban (ancho fijo, scroll vertical) */
 .grupo-col {
-  flex: 0 0 280px;
-  min-width: 280px;
+  flex: 0 0 350px;
+  min-width: 350px;
+  max-height: 70vh;
   border-radius: 8px;
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border: 1px solid #e5e7eb; /* subtle outer border */
-  background-color: #ffffff; /* card background */
+  gap: 0;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  border-top-width: 4px; /* accent line width; color applied per group via additional class/JS */
+  border-top-width: 4px;
   border-top-style: solid;
   border-top-color: var(--accent, #3b82f6);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Contenedor de tarjetas dentro de la columna */
+.grupo-cards-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.grupo-cards-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.grupo-cards-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.grupo-cards-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.grupo-cards-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 /* Acentos por grupo: variables CSS usadas por .grupo-col */
@@ -248,6 +299,32 @@ body {
 .grupo-col.focus {
   border-color: #9333ea;
   box-shadow: 0 0 0 1px #9333ea;
+}
+
+/* Modo Grid Expandido - cuando se filtra a un grupo específico */
+.modo-grid-expandido {
+  flex: 1 1 100% !important;
+  min-width: 100% !important;
+  max-height: none;
+  overflow: visible;
+  padding: 20px;
+}
+
+.modo-grid-expandido .grupo-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  overflow: visible;
+  flex-direction: row;
+  padding-right: 0;
+}
+
+.modo-grid-expandido .grupo-cards-container::-webkit-scrollbar {
+  display: none;
+}
+
+.modo-grid-expandido .grupo-col-titulo {
+  grid-column: 1 / -1;
 }
 
 .grupo-col-titulo, .grupo-title {
@@ -270,6 +347,7 @@ body {
   gap: 10px;
   align-items: flex-start;
   transition: transform 0.18s, box-shadow 0.18s, background-color 0.18s, opacity 0.18s;
+  flex-shrink: 0;
 }
 
 .trabajador-card:hover {
@@ -277,6 +355,12 @@ body {
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   background-color: #ffffff;
   border-color: #d1d5db;
+}
+
+/* En modo grid, las tarjetas tienen mejor espaciado y tamaño */
+.modo-grid-expandido .trabajador-card {
+  flex-shrink: 1;
+  min-height: 150px;
 }
 
 /* Estilos para trabajadores inactivos (ocultos) */
@@ -459,4 +543,12 @@ body {
   font-size: 0.95rem;
   font-style: italic;
   background: transparent;
+}
+
+/* En modo grid expandido, el placeholder ocupa una columna completa */
+.modo-grid-expandido .grupo-empty {
+  grid-column: 1 / -1;
+  padding: 40px 20px;
+  font-size: 1.1rem;
+}
 }

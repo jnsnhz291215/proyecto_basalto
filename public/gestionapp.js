@@ -116,7 +116,11 @@ function render() {
   }
 
   el.gruposColumnas.innerHTML = '';
-  gruposAmostrar.forEach(g => {
+  
+  // Determinar si estamos en vista filtrada (grupo específico)
+  const esVistaFiltrada = filterGrupo && filterGrupo !== '';
+  
+  gruposAmostrar.forEach((g, idx) => {
     const workers = porGrupo[g] || [];
     const col = document.createElement('div');
     
@@ -128,11 +132,20 @@ function render() {
       col.className = 'grupo-col grupo-' + String(g).toLowerCase();
       col.style.setProperty('--accent', COLORES[g] || '#22c55e');
     }
+    
+    // Aplicar clase modo-grid-expandido solo cuando hay filtro específico
+    if (esVistaFiltrada) {
+      col.classList.add('modo-grid-expandido');
+    }
 
     const tit = document.createElement('div');
     tit.className = 'grupo-col-titulo';
     tit.textContent = g === 'sin_grupo' ? 'Sin Grupo / Por Asignar' : 'Grupo ' + g;
     col.appendChild(tit);
+
+    // Contenedor interno para tarjetas (scrolleable verticalmente en modo Kanban)
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'grupo-cards-container';
 
     workers.forEach(t => {
       const card = document.createElement('div');
@@ -224,15 +237,17 @@ function render() {
 
       card.appendChild(body);
       card.appendChild(btnActions);
-      col.appendChild(card);
+      cardsContainer.appendChild(card);
     });
+
+    col.appendChild(cardsContainer);
 
     // si el grupo está vacío, mostrar placeholder informativo
     if (!workers || workers.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'grupo-empty';
       empty.textContent = g === 'sin_grupo' ? 'Todos tienen grupo asignado' : 'Sin trabajadores activos';
-      col.appendChild(empty);
+      cardsContainer.appendChild(empty);
     }
 
     el.gruposColumnas.appendChild(col);
@@ -552,12 +567,22 @@ function comprobarLogin(e) {
       const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
       const d = await resp.json().catch(()=>({}));
       if (resp.ok && d && d.success) {
-        // persist admin session
+        // persist admin session con datos completos
         try { 
-          localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); 
-          // También guardar userRUT para que datos.html lo detecte
+          const adminFullName = d.user && d.user.fullName ? d.user.fullName : rut;
+          localStorage.setItem('usuarioActivo', JSON.stringify({ 
+            rol: 'admin', 
+            nombre: adminFullName,
+            rut: rut,
+            isAdmin: true
+          })); 
+          // También guardar datos para que datos.html los detecte
           localStorage.setItem('userRUT', rut);
-          if (d.user && d.user.name) localStorage.setItem('userName', d.user.name);
+          localStorage.setItem('userName', adminFullName);
+          // Guardar todos los datos del admin para acceso directo
+          if (d.user) {
+            localStorage.setItem('adminData', JSON.stringify(d.user));
+          }
         } catch(e){}
         el.modalLogin.classList.remove('show');
         cargar();

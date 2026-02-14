@@ -140,8 +140,20 @@ app.post('/admin-login', async (req, res) => {
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
       console.log(`[ADMIN LOGIN OK] rut=${rutNorm} ip=${req.ip||req.connection.remoteAddress}`);
-      // devolver respuesta mínima
-      return res.json({ success: true, user: { id: user.id || null, rut: user.rut || null, name: user.name || null } });
+      // Devolver respuesta con datos completos del admin
+      const fullName = `${user.nombres || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim();
+      return res.json({ 
+        success: true, 
+        user: { 
+          id: user.id || null, 
+          rut: user.rut || null, 
+          nombres: user.nombres || null,
+          apellido_paterno: user.apellido_paterno || null,
+          apellido_materno: user.apellido_materno || null,
+          email: user.email || null,
+          fullName: fullName
+        } 
+      });
     }catch(qe){
       console.error('Error query admin_users:', qe);
       return res.status(500).json({ error: 'Error en servidor' });
