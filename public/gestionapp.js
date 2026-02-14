@@ -4,6 +4,8 @@ import { GRUPOS, COLORES } from './config.js';
 
 let trabajadores = [];
 let rutParaBorrar = null;
+let rutParaOcultar = null;
+let esReactivar = false;
 
 const el = {
   modalLogin: null,
@@ -21,7 +23,9 @@ const el = {
   confirmTitle: null,
   confirmMsg: null,
   confirmCancel: null,
-  confirmOk: null
+  confirmOk: null,
+  modalOcultar: null,
+  modalEliminar: null
 };
 
 function formatearRUT(val) {
@@ -214,13 +218,7 @@ function render() {
       btnOcultar.style.backgroundColor = t.activo === false ? '#f59e0b' : '#f97316';
       btnOcultar.innerHTML = t.activo === false ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
       btnOcultar.addEventListener('click', () => {
-        const accion = t.activo === false ? 'reactivar' : 'ocultar';
-        const mensaje = accion === 'ocultar' 
-          ? '¿Desea ocultar a este trabajador? No se perderá su historial.'
-          : '¿Desea reactivar a este trabajador?';
-        if (confirm(mensaje)) {
-          cambiarEstadoTrabajador(t.RUT, accion === 'reactivar');
-        }
+        abrirModalOcultar(t.RUT, `${t.nombres} ${t.apellidos}`, t.activo === false);
       });
 
       // Botón Eliminar Definitivamente (Hard Delete)
@@ -228,7 +226,7 @@ function render() {
       btnBorrar.className = 'btn btn-borrar';
       btnBorrar.title = 'Eliminar definitivamente';
       btnBorrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
-      btnBorrar.addEventListener('click', () => abrirConfirmacionBorrar(t.RUT, `${t.nombres} ${t.apellidos}`));
+      btnBorrar.addEventListener('click', () => abrirModalEliminar(t.RUT, `${t.nombres} ${t.apellidos}`));
 
       btnActions.appendChild(btnExcepciones);
       btnActions.appendChild(btnEdit);
@@ -286,18 +284,54 @@ async function cambiarEstadoTrabajador(rut, reactivar = false) {
   }
 }
 
-// HARD DELETE - Eliminación definitiva con double confirmation
-function abrirConfirmacionBorrar(rut, nombreTrabajador) {
-  const confirmacion = confirm(
-    `⚠️ ADVERTENCIA: ¿Está seguro de que desea ELIMINAR DEFINITIVAMENTE a:\n\n${nombreTrabajador}\n\nEsta acción NO se puede deshacer y borrará TODO el registro del trabajador.`
-  );
+// MODAL OCULTAR/REACTIVAR TRABAJADOR
+function abrirModalOcultar(rut, nombreTrabajador, esReactivarFlag) {
+  rutParaOcultar = rut;
+  esReactivar = esReactivarFlag;
   
-  if (confirmacion) {
-    // Segunda confirmación con contraseña
-    const password = prompt('Ingrese su contraseña de administrador para confirmar la eliminación definitiva:');
-    if (password !== null && password !== '') {
-      ejecutarBorrarDefinitivo(rut, password);
+  const modal = document.getElementById('modal-ocultar');
+  if (modal) {
+    const titulo = document.getElementById('ocultar-titulo');
+    const mensaje = document.getElementById('ocultar-mensaje');
+    const icono = document.getElementById('ocultar-icon');
+    const nombre = document.getElementById('ocultar-nombre-trabajador');
+    const btnConfirm = document.getElementById('confirm-ocultar-texto');
+    
+    if (esReactivarFlag) {
+      titulo.textContent = 'Reactivar Trabajador';
+      icono.classList.remove('fa-eye-slash');
+      icono.classList.add('fa-eye');
+      mensaje.textContent = '¿Desea reactivar a este trabajador?';
+      btnConfirm.textContent = 'Reactivar';
+    } else {
+      titulo.textContent = 'Ocultar Trabajador';
+      icono.classList.remove('fa-eye');
+      icono.classList.add('fa-eye-slash');
+      mensaje.textContent = '¿Desea ocultar a este trabajador? No se perderá su historial.';
+      btnConfirm.textContent = 'Ocultar';
     }
+    
+    if (nombre) nombre.textContent = nombreTrabajador;
+    modal.classList.add('show');
+  }
+}
+
+// MODAL ELIMINAR DEFINITIVAMENTE
+function abrirModalEliminar(rut, nombreTrabajador) {
+  rutParaBorrar = rut;
+  
+  const modal = document.getElementById('modal-eliminar');
+  if (modal) {
+    const nombre = document.getElementById('eliminar-nombre-trabajador');
+    const passwordInput = document.getElementById('eliminar-password');
+    
+    if (nombre) nombre.textContent = nombreTrabajador;
+    if (passwordInput) {
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+    
+    modal.classList.add('show');
   }
 }
 
@@ -658,27 +692,34 @@ async function cargarCargos() {
     
     const cargos = await res.json();
     const selectCargo = document.getElementById('cargo');
+    const selectEditCargo = document.getElementById('edit-cargo');
     
-    if (!selectCargo) return;
+    const renderizarSelect = (select) => {
+      if (!select) return;
+      
+      // Limpiar opciones anteriores (excepto la primera "Seleccione...")
+      select.innerHTML = '<option value="" disabled selected>Seleccione un cargo...</option>';
+      
+      // Agregar cargos dinámicos
+      cargos.forEach(cargo => {
+        const option = document.createElement('option');
+        option.value = cargo;
+        option.textContent = cargo;
+        select.appendChild(option);
+      });
+      
+      // Agregar opción para crear nuevo cargo (con estilo diferenciado)
+      const optionNuevo = document.createElement('option');
+      optionNuevo.value = 'nuevo_cargo';
+      optionNuevo.textContent = '+ Crear nuevo cargo...';
+      optionNuevo.style.color = '#8b5cf6';
+      optionNuevo.style.fontWeight = '600';
+      select.appendChild(optionNuevo);
+    };
     
-    // Limpiar opciones anteriores (excepto la primera "Seleccione...")
-    selectCargo.innerHTML = '<option value="" disabled selected>Seleccione un cargo...</option>';
-    
-    // Agregar cargos dinámicos
-    cargos.forEach(cargo => {
-      const option = document.createElement('option');
-      option.value = cargo;
-      option.textContent = cargo;
-      selectCargo.appendChild(option);
-    });
-    
-    // Agregar opción para crear nuevo cargo (con estilo diferenciado)
-    const optionNuevo = document.createElement('option');
-    optionNuevo.value = 'nuevo_cargo';
-    optionNuevo.textContent = '+ Crear nuevo cargo...';
-    optionNuevo.style.color = '#8b5cf6';
-    optionNuevo.style.fontWeight = '600';
-    selectCargo.appendChild(optionNuevo);
+    // Renderizar en ambos selects
+    renderizarSelect(selectCargo);
+    renderizarSelect(selectEditCargo);
     
   } catch (error) {
     console.error('Error al cargar cargos:', error);
@@ -774,6 +815,8 @@ document.addEventListener('DOMContentLoaded', () => {
   el.modalAgregar = document.getElementById('modal-agregar');
   el.modalEditar = document.getElementById('modal-editar');
   el.modalConfirm = document.getElementById('modal-confirm');
+  el.modalOcultar = document.getElementById('modal-ocultar');
+  el.modalEliminar = document.getElementById('modal-eliminar');
   el.formAgregar = document.getElementById('form-agregar');
   el.formEditar = document.getElementById('form-editar');
   el.cancelAdd = document.getElementById('cancel-add');
@@ -817,6 +860,80 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   el.confirmOk.addEventListener('click', ejecutarBorrar);
 
+  // Event listeners para modal ocultar/reactivar
+  const cancelOcultar = document.getElementById('cancel-ocultar');
+  if (cancelOcultar) {
+    cancelOcultar.addEventListener('click', () => {
+      rutParaOcultar = null;
+      if (el.modalOcultar) el.modalOcultar.classList.remove('show');
+    });
+  }
+
+  const confirmOcultar = document.getElementById('confirm-ocultar');
+  if (confirmOcultar) {
+    confirmOcultar.addEventListener('click', () => {
+      if (rutParaOcultar) {
+        cambiarEstadoTrabajador(rutParaOcultar, esReactivar);
+        if (el.modalOcultar) el.modalOcultar.classList.remove('show');
+        rutParaOcultar = null;
+      }
+    });
+  }
+
+  // Cerrar modal ocultar al hacer click fuera
+  if (el.modalOcultar) {
+    el.modalOcultar.addEventListener('click', (ev) => {
+      if (ev.target === el.modalOcultar) {
+        rutParaOcultar = null;
+        el.modalOcultar.classList.remove('show');
+      }
+    });
+  }
+
+  // Event listeners para modal eliminar
+  const cancelEliminar = document.getElementById('cancel-eliminar');
+  if (cancelEliminar) {
+    cancelEliminar.addEventListener('click', () => {
+      rutParaBorrar = null;
+      const passwordInput = document.getElementById('eliminar-password');
+      if (passwordInput) passwordInput.value = '';
+      if (el.modalEliminar) el.modalEliminar.classList.remove('show');
+    });
+  }
+
+  const confirmEliminar = document.getElementById('confirm-eliminar');
+  if (confirmEliminar) {
+    confirmEliminar.addEventListener('click', () => {
+      const passwordInput = document.getElementById('eliminar-password');
+      const password = passwordInput ? passwordInput.value : '';
+      
+      if (rutParaBorrar && password) {
+        ejecutarBorrarDefinitivo(rutParaBorrar, password);
+        if (el.modalEliminar) el.modalEliminar.classList.remove('show');
+      } else if (!password) {
+        // Mostrar error
+        if (passwordInput) {
+          passwordInput.classList.add('input-error');
+          setTimeout(() => {
+            passwordInput.classList.remove('input-error');
+          }, 2000);
+        }
+      }
+    });
+  }
+
+  // Cerrar modal eliminar al hacer click fuera
+  if (el.modalEliminar) {
+    el.modalEliminar.addEventListener('click', (ev) => {
+      if (ev.target === el.modalEliminar) {
+        rutParaBorrar = null;
+        const passwordInput = document.getElementById('eliminar-password');
+        if (passwordInput) passwordInput.value = '';
+        el.modalEliminar.classList.remove('show');
+      }
+    });
+  }
+
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {
       if (el.modalResult) el.modalResult.classList.remove('show');
@@ -841,12 +958,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  el.modalAgregar.addEventListener('click', ev => {
-    if (ev.target === el.modalAgregar) cerrarAgregar();
-  });
-  el.modalEditar.addEventListener('click', ev => {
-    if (ev.target === el.modalEditar) cerrarEditar();
-  });
+  // Los modales de agregar y editar NO se cierran al hacer click afuera
+  // (descomentados estos listeners si se desea reactivar este comportamiento)
+  // el.modalAgregar.addEventListener('click', ev => {
+  //   if (ev.target === el.modalAgregar) cerrarAgregar();
+  // });
+  // el.modalEditar.addEventListener('click', ev => {
+  //   if (ev.target === el.modalEditar) cerrarEditar();
+  // });
   el.modalConfirm.addEventListener('click', ev => {
     if (ev.target === el.modalConfirm) {
       rutParaBorrar = null;
@@ -877,29 +996,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ============================================
-  // EVENT LISTENERS: MODAL NUEVO CARGO
+  // EVENT LISTENERS: MODAL NUEVO CARGO (AGREGAR Y EDITAR)
   // ============================================
   
   // Select de cargo: abrir modal cuando se elige "nuevo_cargo"
   const selectCargo = document.getElementById('cargo');
-  if (selectCargo) {
-    selectCargo.addEventListener('change', (e) => {
-      if (e.target.value === 'nuevo_cargo') {
-        const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-        if (modalNuevoCargo) {
-          modalNuevoCargo.classList.add('show');
+  const selectEditCargo = document.getElementById('edit-cargo');
+  
+  const agregarEventoNuevoCargo = (select) => {
+    if (select) {
+      select.addEventListener('change', (e) => {
+        if (e.target.value === 'nuevo_cargo') {
+          const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
+          if (modalNuevoCargo) {
+            modalNuevoCargo.classList.add('show');
+          }
+          // Resetear el select a la primera opción
+          e.target.selectedIndex = 0;
+          
+          // Enfocar el input
+          setTimeout(() => {
+            const inputNombre = document.getElementById('nuevoNombreCargo');
+            if (inputNombre) inputNombre.focus();
+          }, 100);
         }
-        // Resetear el select a la primera opción
-        e.target.selectedIndex = 0;
-        
-        // Enfocar el input
-        setTimeout(() => {
-          const inputNombre = document.getElementById('nuevoNombreCargo');
-          if (inputNombre) inputNombre.focus();
-        }, 100);
-      }
-    });
-  }
+      });
+    }
+  };
+  
+  agregarEventoNuevoCargo(selectCargo);
+  agregarEventoNuevoCargo(selectEditCargo);
   
   // Botón cerrar modal (X)
   const closeNuevoCargo = document.getElementById('close-nuevo-cargo');

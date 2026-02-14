@@ -256,9 +256,11 @@
           <div class="form-grid">
             <div class="form-group">
               <label for="edit-cargo">Cargo</label>
-              <div class="input-wrapper">
-                <i class="fa-solid fa-helmet-safety input-icon"></i>
-                <input type="text" id="edit-cargo" name="cargo" placeholder="Ej: Operador Maquinaria" class="modern-input">
+              <div class="select-wrapper">
+                <select id="edit-cargo" name="cargo" class="modern-input">
+                  <option value="" disabled selected>Seleccione un cargo...</option>
+                </select>
+                <i class="fa-solid fa-chevron-down select-arrow"></i>
               </div>
             </div>
             <div class="form-group">
@@ -511,6 +513,88 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Ocultar/Reactivar Trabajador -->
+  <div id="modal-ocultar" class="modal">
+    <div class="modal-content modal-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-eye-slash highlight-icon" id="ocultar-icon"></i>
+          <span id="ocultar-titulo">Ocultar Trabajador</span>
+        </h3>
+      </div>
+
+      <div class="modal-body">
+        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 16px;">
+          <i class="fa-solid fa-triangle-exclamation" style="color: #d97706; margin-top: 2px;"></i>
+          <div>
+            <p style="margin: 0; font-weight: 600; color: #92400e;">Confirmar acción</p>
+            <p id="ocultar-mensaje" style="margin: 4px 0 0 0; font-size: 14px; color: #78350f;">
+              ¿Desea ocultar a este trabajador? No se perderá su historial.
+            </p>
+          </div>
+        </div>
+
+        <div style="padding: 12px; background-color: #f3f4f6; border-radius: 8px; border-left: 4px solid #6b7280;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #374151;">Trabajador:</p>
+          <p id="ocultar-nombre-trabajador" style="margin: 0; font-size: 15px; font-weight: 600; color: #1f2937;">—</p>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" id="cancel-ocultar" class="btn-cancel">Cancelar</button>
+        <button type="button" id="confirm-ocultar" class="btn-save">
+          <i class="fa-solid fa-check"></i> <span id="confirm-ocultar-texto">Ocultar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Eliminar Definitivamente -->
+  <div id="modal-eliminar" class="modal">
+    <div class="modal-content modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-trash highlight-icon" style="color: #dc2626;"></i> Eliminar Definitivamente
+        </h3>
+      </div>
+
+      <div class="modal-body">
+        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid #dc2626; margin-bottom: 16px;">
+          <i class="fa-solid fa-circle-exclamation" style="color: #dc2626; margin-top: 2px;"></i>
+          <div>
+            <p style="margin: 0; font-weight: 700; color: #7f1d1d; font-size: 14px;">⚠️ ADVERTENCIA</p>
+            <p style="margin: 6px 0 0 0; font-size: 13px; color: #991b1b; line-height: 1.5;">
+              Esta acción <strong>NO se puede deshacer</strong> y borrará <strong>TODO el registro</strong> del trabajador incluyendo su historial de turnos, excepciones, y logs.
+            </p>
+          </div>
+        </div>
+
+        <div style="padding: 12px; background-color: #f3f4f6; border-radius: 8px; border-left: 4px solid #6b7280; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #374151;">Trabajador a eliminar:</p>
+          <p id="eliminar-nombre-trabajador" style="margin: 0; font-size: 15px; font-weight: 600; color: #1f2937;">—</p>
+        </div>
+
+        <div class="form-group">
+          <label for="eliminar-password">Contraseña de Administrador</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-key input-icon"></i>
+            <input type="password" id="eliminar-password" placeholder="••••••••" class="modern-input" autocomplete="off" required>
+          </div>
+          <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">
+            Se requiere tu contraseña para confirmar la eliminación definitiva
+          </small>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" id="cancel-eliminar" class="btn-cancel">Cancelar</button>
+        <button type="button" id="confirm-eliminar" class="btn btn-danger">
+          <i class="fa-solid fa-trash"></i> Eliminar Definitivamente
+        </button>
       </div>
     </div>
   </div>
