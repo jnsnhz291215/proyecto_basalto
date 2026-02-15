@@ -45,13 +45,21 @@
   function mostrarPerfil(datos) {
     if (!datos) return;
     
+    console.log('[DATOS.JS] mostrarPerfil llamado con:', datos);
+    
     // Para admin: usar nombres, apellido_paterno, apellido_materno
     // Para trabajador: usar nombres, apellidos
     if (datos.isAdmin) {
-      const fullName = ((datos.nombres || '') + ' ' + (datos.apellido_paterno || '') + ' ' + (datos.apellido_materno || '')).trim() || (datos.rut || datos.RUT || 'Administrador');
-      perfilNombre.textContent = fullName;
-      perfilRut.textContent = datos.rut || datos.RUT || '';
-      perfilEmail.textContent = datos.email || '';
+      const nombres = datos.nombres || '';
+      const apellidoP = datos.apellido_paterno || '';
+      const apellidoM = datos.apellido_materno || '';
+      const fullName = (nombres + ' ' + apellidoP + ' ' + apellidoM).trim();
+      
+      console.log('[DATOS.JS] Admin detectado. Nombre completo:', fullName);
+      
+      perfilNombre.textContent = fullName || (datos.rut || datos.RUT || 'Administrador');
+      perfilRut.textContent = datos.rut || datos.RUT || '---';
+      perfilEmail.textContent = datos.email || '---';
       perfilTelefono.textContent = '---'; // Admins no tienen teléfono en la tabla
       perfilCargo.textContent = 'Administrador';
       perfilGrupo.textContent = 'Administrador';
@@ -95,17 +103,22 @@
     const adminRut = localStorage.getItem('userRUT');
     const adminDataStr = localStorage.getItem('adminData');
     
+    console.log('[DATOS.JS] verificarAdminLogeado - userRUT:', adminRut);
+    console.log('[DATOS.JS] verificarAdminLogeado - adminData:', adminDataStr);
+    
     if (adminRut && adminDataStr) {
       try {
         const adminData = JSON.parse(adminDataStr);
         // Asegurar que tiene el flag isAdmin
         adminData.isAdmin = true;
         
+        console.log('[DATOS.JS] Admin data parsed:', adminData);
+        
         // Mostrar datos del admin
         mostrarPerfil(adminData);
         return true;
       } catch(e) {
-        console.error('Error parsing adminData:', e);
+        console.error('[DATOS.JS] Error parsing adminData:', e);
       }
     }
     
@@ -175,9 +188,19 @@
   }
 
   // Secuencia de verificación al cargar
-  if (!verificarAdminLogeado() && !verificarSesionTrabajador()) {
-    // No hay sesión, mostrar modal de login
-    if (modalDatos) modalDatos.classList.add('show');
+  console.log('[DATOS.JS] Iniciando verificación de sesión...');
+  const adminLogged = verificarAdminLogeado();
+  console.log('[DATOS.JS] Admin logged:', adminLogged);
+  
+  if (!adminLogged) {
+    const trabajadorLogged = verificarSesionTrabajador();
+    console.log('[DATOS.JS] Trabajador logged:', trabajadorLogged);
+    
+    if (!trabajadorLogged) {
+      // No hay sesión, mostrar modal de login
+      console.log('[DATOS.JS] No hay sesión, mostrando modal de login');
+      if (modalDatos) modalDatos.classList.add('show');
+    }
   }
 
   btnClear.addEventListener('click', ()=>{
