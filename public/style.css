@@ -832,6 +832,15 @@ body {
 .select-wrapper { position: relative; }
 .select-arrow { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 0.8rem; }
 
+/* Asegura que el menú se muestre cuando JS le ponga la clase 'show' */
+.dropdown-menu.show {
+  display: block !important;
+  position: absolute;
+  inset: 0px 0px auto auto;
+  margin: 0px;
+  transform: translate3d(0px, 40px, 0px);
+}
+
 /* ---------- Ajustes sugeridos: espacio para iconos, inputs y teléfono ---------- */
 /* Asegura que el contenedor del input sea la referencia para el ícono */
 .input-wrapper {

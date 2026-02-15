@@ -56,9 +56,10 @@
   // Ejecutar toggleAuthUI cuando los elementos estén disponibles
   function initAuthUI() {
     const loginBtn = document.getElementById('nav-login-btn');
-    const userToggle = document.getElementById('user-toggle');
+    const userToggleBtn = document.getElementById('user_toggle_btn');
+    const userDropdown = document.getElementById('user-dropdown');
     
-    if (loginBtn || userToggle) {
+    if (loginBtn || userToggleBtn || userDropdown) {
       // Elementos encontrados, ejecutar toggleAuthUI
       toggleAuthUI();
     } else {
@@ -79,6 +80,9 @@
 
     // Manejar cierre de sesión
     setupLogout();
+
+    // Control manual del dropdown
+    setupUserDropdown();
     
     // Asegurar que la UI de auth esté correcta
     toggleAuthUI();
@@ -87,17 +91,19 @@
   // Función para mostrar/ocultar botones de autenticación
   function toggleAuthUI() {
     const loginBtn = document.getElementById('nav-login-btn');
-    const userToggle = document.getElementById('user-toggle');
+    const userDropdown = document.getElementById('user-dropdown');
+    const userMenu = document.getElementById('user_dropdown_menu');
     
     if (userRole && userRut) {
       // Usuario autenticado: ocultar login, mostrar user toggle
       if (loginBtn) loginBtn.style.display = 'none';
-      if (userToggle) userToggle.style.display = 'flex';
+      if (userDropdown) userDropdown.style.display = 'block';
       console.log('[AUTH_GUARD] UI: Usuario autenticado');
     } else {
       // No autenticado: mostrar login, ocultar user toggle
       if (loginBtn) loginBtn.style.display = 'inline-block';
-      if (userToggle) userToggle.style.display = 'none';
+      if (userDropdown) userDropdown.style.display = 'none';
+      if (userMenu) userMenu.classList.remove('show');
       console.log('[AUTH_GUARD] UI: Usuario no autenticado');
     }
   }
@@ -106,19 +112,10 @@
   function updateUserName() {
     if (userName) {
       // Buscar el elemento del nombre de usuario en el navbar
-      const userNameElement = document.querySelector('.user-name');
+      const userNameElement = document.getElementById('user_name_span');
       if (userNameElement) {
         userNameElement.textContent = userName;
         console.log('[AUTH_GUARD] Nombre de usuario actualizado:', userName);
-      }
-
-      // También actualizar el usuario en el toggle si existe
-      const userToggle = document.querySelector('.user-toggle');
-      if (userToggle) {
-        const nameSpan = userToggle.querySelector('.user-name');
-        if (nameSpan) {
-          nameSpan.textContent = userName;
-        }
       }
     }
   }
@@ -144,27 +141,43 @@
 
   // Función para configurar el cierre de sesión
   function setupLogout() {
-    // Buscar todos los botones de logout
-    const logoutButtons = document.querySelectorAll('.logout-btn, [data-action="logout"], .user-menu .danger');
-    
-    logoutButtons.forEach(button => {
-      button.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        console.log('[AUTH_GUARD] Cerrando sesión');
-        
-        // Limpiar localStorage
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('user_rut');
-        localStorage.removeItem('user_name');
-        localStorage.removeItem('usuarioActivo');
-        localStorage.removeItem('userRUT');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('adminData');
-        
-        // Redirigir a inicio
-        window.location.href = '/index.html';
-      });
+    const logoutBtn = document.getElementById('btn_logout');
+    if (!logoutBtn) return;
+
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+
+      console.log('[AUTH_GUARD] Cerrando sesión');
+
+      // Limpiar localStorage de forma explícita
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('user_rut');
+      localStorage.removeItem('user_name');
+      localStorage.removeItem('usuarioActivo');
+      localStorage.removeItem('userRUT');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('adminData');
+      localStorage.clear();
+
+      // Redirigir al login
+      window.location.href = '/index.html';
+    });
+  }
+
+  function setupUserDropdown() {
+    const toggleBtn = document.getElementById('user_toggle_btn');
+    const menu = document.getElementById('user_dropdown_menu');
+    if (!toggleBtn || !menu) return;
+
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!toggleBtn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('show');
+      }
     });
   }
 
