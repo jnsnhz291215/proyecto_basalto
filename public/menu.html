@@ -152,6 +152,51 @@
   }
   .dropdown-divider{height:1px;background:#f3f4f6;margin:6px 0;border:0}
   .text-danger{color:#ef4444}
+  
+  /* ============================================ */
+  /* CSS DE EMERGENCIA - Z-INDEX Y ESTILOS BOTONES */
+  /* ============================================ */
+  
+  /* Z-index máximo para menú de usuario */
+  #user_dropdown_menu {
+    z-index: 9999 !important;
+  }
+  
+  /* Estilos para botones del navbar */
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .btn-login-nav {
+    background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(147, 51, 234, 0.3);
+  }
+  
+  .btn-login-nav:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+  }
+  
+  .btn-secondary {
+    background: #6b7280;
+    color: white;
+  }
+  
+  .btn-secondary:hover {
+    background: #4b5563;
+  }
+  
   @media (max-width:800px){
     .nav{padding:10px}
     .nav-toggle{display:block}
