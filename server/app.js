@@ -3,12 +3,14 @@ const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editar
 
 const app = express();
 
+// Middleware para parsear JSON - DEBE IR PRIMERO
+app.use(express.json());
+
 // ============================================
 // RUTAS DE AUTENTICACIÓN (SISTEMA UNIFICADO)
 // ============================================
 const authRoutes = require('./routes/auth');
 app.use('/api', authRoutes);
-app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
