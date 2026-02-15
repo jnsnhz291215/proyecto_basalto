@@ -406,6 +406,8 @@ function abrirEditar(rut) {
   document.getElementById('edit-email').value = trabajador.email || '';
   document.getElementById('edit-cargo').value = trabajador.cargo || '';
   document.getElementById('edit-grupo').value = trabajador.grupo || '';
+  document.getElementById('edit-ciudad').value = trabajador.ciudad || '';
+  document.getElementById('edit-fecha-nacimiento').value = trabajador.fecha_nacimiento || '';
   
   el.modalEditar.classList.add('show');
 }
@@ -424,6 +426,8 @@ async function enviarAgregar(e) {
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const grupo = fd.get('grupo') || '';
+  const ciudad = (fd.get('ciudad') || '').trim();
+  const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
   if (!nombre || !apellido || !rutRaw || !email || !telefonoRaw || !grupo) {
     alert('Complete todos los campos requeridos.');
@@ -451,6 +455,8 @@ async function enviarAgregar(e) {
     grupo
   };
   if (cargo) obj.cargo = cargo.trim();
+  if (ciudad) obj.ciudad = ciudad.trim();
+  if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case en frontend para mostrar inmediatamente
   obj.nombres = titleCase(obj.nombres);
@@ -493,6 +499,8 @@ async function enviarEdicion(e) {
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const grupo = fd.get('grupo') || '';
+  const ciudad = (fd.get('ciudad') || '').trim();
+  const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
   if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
     alert('Complete todos los campos requeridos.');
@@ -518,6 +526,8 @@ async function enviarEdicion(e) {
     grupo
   };
   if (cargo) obj.cargo = cargo.trim();
+  if (ciudad) obj.ciudad = ciudad.trim();
+  if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case
   obj.nombres = titleCase(obj.nombres);
@@ -771,6 +781,79 @@ async function cargarCargos() {
   }
 }
 
+// ============================================
+// GESTIÓN DE CIUDADES
+// ============================================
+
+async function cargarCiudades(seleccionarValor = '') {
+  try {
+    const res = await fetch('/api/ciudades');
+    if (!res.ok) throw new Error('Error al cargar ciudades');
+
+    const ciudades = await res.json();
+    const selectCiudad = document.getElementById('ciudad');
+    const selectEditCiudad = document.getElementById('edit-ciudad');
+
+    const renderizarSelect = (select) => {
+      if (!select) return;
+      select.innerHTML = '<option value="" disabled selected>Seleccione una ciudad...</option>';
+
+      ciudades.forEach(ciudad => {
+        const option = document.createElement('option');
+        option.value = ciudad;
+        option.textContent = ciudad;
+        select.appendChild(option);
+      });
+    };
+
+    renderizarSelect(selectCiudad);
+    renderizarSelect(selectEditCiudad);
+
+    if (seleccionarValor) {
+      if (selectCiudad) selectCiudad.value = seleccionarValor;
+      if (selectEditCiudad) selectEditCiudad.value = seleccionarValor;
+    }
+  } catch (error) {
+    console.error('Error al cargar ciudades:', error);
+  }
+}
+
+async function guardarNuevaCiudad(nombreCiudad) {
+  try {
+    const res = await fetch('/api/ciudades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre_ciudad: nombreCiudad })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (res.status === 409) {
+        showResult('Error', 'Esta ciudad ya existe', true);
+      } else {
+        showResult('Error', data.error || 'Error al crear la ciudad', true);
+      }
+      return null;
+    }
+
+    await cargarCiudades(data.nombre_ciudad);
+    showResult('Éxito', 'Ciudad creada exitosamente');
+    return data.nombre_ciudad;
+  } catch (error) {
+    console.error('Error al guardar ciudad:', error);
+    showResult('Error', 'Error al crear la ciudad: ' + (error.message || 'Error desconocido'), true);
+    return null;
+  }
+}
+
+function pedirNuevaCiudad() {
+  const nombre = window.prompt('Ingrese nombre de la ciudad');
+  const nombreTrim = String(nombre || '').trim();
+  if (!nombreTrim) return;
+  guardarNuevaCiudad(nombreTrim);
+}
+
 function mostrarResultadoCargo(titulo, mensaje) {
   const modalResult = document.getElementById('modal-result');
   const resultTitle = document.getElementById('result-title');
@@ -871,6 +954,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cargar cargos al iniciar
   cargarCargos();
+
+  // Cargar ciudades al iniciar
+  cargarCiudades();
+
+  const btnNuevaCiudad = document.getElementById('btn-nueva-ciudad');
+  if (btnNuevaCiudad) btnNuevaCiudad.addEventListener('click', pedirNuevaCiudad);
+  const btnNuevaCiudadEdit = document.getElementById('btn-nueva-ciudad-edit');
+  if (btnNuevaCiudadEdit) btnNuevaCiudadEdit.addEventListener('click', pedirNuevaCiudad);
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);

@@ -59,7 +59,7 @@ async function obtenerTrabajadores(incluirInactivos = false) {
 }
 
 // Función para agregar trabajador (incluye cargo)
-async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null) {
+async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
     // Normalizar capitalización: primera letra en mayúscula por palabra
@@ -72,10 +72,11 @@ async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, ru
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
     const cargoNorm = cargo ? titleCase(cargo) : null;
+    const ciudadNorm = ciudad ? titleCase(ciudad) : null;
 
     const [result] = await connection.execute(
-      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoNorm]
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoNorm, ciudadNorm, fecha_nacimiento]
     );
     return result;
   } finally {
@@ -107,7 +108,7 @@ async function eliminarTrabajador(rut) {
 }
 
 // Función para editar trabajador
-async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo = null) {
+async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
     // Normalizar capitalización
@@ -120,6 +121,7 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
     const cargoNorm = cargo ? titleCase(cargo) : null;
+    const ciudadNorm = ciudad ? titleCase(ciudad) : null;
 
     // Verificar existencia
     const [checkRows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadores WHERE RUT = ?', [rut]);
@@ -131,8 +133,8 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
     }
 
     const [result] = await connection.execute(
-      'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ? WHERE RUT = ?',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoNorm, rut]
+      'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ?, ciudad = ?, fecha_nacimiento = ? WHERE RUT = ?',
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoNorm, ciudadNorm, fecha_nacimiento, rut]
     );
     return result;
   } finally {

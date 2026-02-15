@@ -22,14 +22,26 @@ router.post('/login', async (req, res) => {
     }
 
     const rutLimpio = limpiarRUT(rut);
-    const passwordLimpio = String(password).trim();
+
+    // Limpieza condicional de password
+    const passwordOriginal = String(password).trim();
+    const passwordLimpiada = String(password)
+      .replace(/[.\-]/g, '')
+      .trim()
+      .toUpperCase();
+
+    // Si la password limpiada coincide con el RUT limpio, usamos la versión limpia
+    // En caso contrario, usamos la password original (para claves complejas)
+    const passwordParaBuscar = (passwordLimpiada === rutLimpio)
+      ? rutLimpio
+      : passwordOriginal;
 
     console.log(`[AUTH] Intento de login - RUT: ${rutLimpio}`);
 
     // PASO 1: Intentar login como ADMIN
     try {
       const sqlAdmin = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? LIMIT 1';
-      const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordLimpio]);
+      const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordParaBuscar]);
 
       if (admins && admins.length > 0) {
         const admin = admins[0];
@@ -60,7 +72,7 @@ router.post('/login', async (req, res) => {
     // PASO 2: Intentar login como USER (Trabajador)
     try {
       const sqlUser = 'SELECT * FROM users WHERE rut = ? AND password = ? LIMIT 1';
-      const [users] = await pool.execute(sqlUser, [rutLimpio, passwordLimpio]);
+      const [users] = await pool.execute(sqlUser, [rutLimpio, passwordParaBuscar]);
 
       if (users && users.length > 0) {
         const user = users[0];
@@ -74,7 +86,7 @@ router.post('/login', async (req, res) => {
           rut: user.rut || rutLimpio,
           nombre: nombreCompleto,
           email: user.email || null,
-          redirect: '/inicio.html',
+          redirect: '/index.html',
           user: {
             rut: user.rut || rutLimpio,
             nombres: user.nombres || null,

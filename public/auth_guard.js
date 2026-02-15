@@ -45,13 +45,31 @@
   if (requiresAdmin && userRole !== 'admin') {
     console.log('[AUTH_GUARD] Acceso denegado - Solo administradores');
     alert('Acceso denegado. Solo administradores pueden acceder a esta página.');
-    window.location.href = '/inicio.html';
+    window.location.href = '/index.html';
     return;
   }
 
   // ============================================
   // 3. ACTUALIZAR INTERFAZ: Mostrar nombre y ocultar elementos
   // ============================================
+  
+  // Ejecutar toggleAuthUI cuando los elementos estén disponibles
+  function initAuthUI() {
+    const loginBtn = document.getElementById('nav-login-btn');
+    const userToggle = document.getElementById('user-toggle');
+    
+    if (loginBtn || userToggle) {
+      // Elementos encontrados, ejecutar toggleAuthUI
+      toggleAuthUI();
+    } else {
+      // Elementos no encontrados, esperar un poco y reintentar
+      setTimeout(initAuthUI, 50);
+    }
+  }
+  
+  // Intentar inmediatamente (para páginas sin inyección dinámica)
+  initAuthUI();
+  
   document.addEventListener('DOMContentLoaded', function() {
     // Actualizar nombre de usuario en el navbar
     updateUserName();
@@ -61,7 +79,28 @@
 
     // Manejar cierre de sesión
     setupLogout();
+    
+    // Asegurar que la UI de auth esté correcta
+    toggleAuthUI();
   });
+
+  // Función para mostrar/ocultar botones de autenticación
+  function toggleAuthUI() {
+    const loginBtn = document.getElementById('nav-login-btn');
+    const userToggle = document.getElementById('user-toggle');
+    
+    if (userRole && userRut) {
+      // Usuario autenticado: ocultar login, mostrar user toggle
+      if (loginBtn) loginBtn.style.display = 'none';
+      if (userToggle) userToggle.style.display = 'flex';
+      console.log('[AUTH_GUARD] UI: Usuario autenticado');
+    } else {
+      // No autenticado: mostrar login, ocultar user toggle
+      if (loginBtn) loginBtn.style.display = 'inline-block';
+      if (userToggle) userToggle.style.display = 'none';
+      console.log('[AUTH_GUARD] UI: Usuario no autenticado');
+    }
+  }
 
   // Función para actualizar el nombre del usuario en el navbar
   function updateUserName() {

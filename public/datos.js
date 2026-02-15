@@ -128,7 +128,22 @@
       perfilTelefono.textContent = perfil.telefono || '---';
       perfilEmail.textContent = perfil.email || '---';
       perfilCargo.textContent = perfil.cargo || '---';
-      perfilFechaNacimiento.textContent = perfil.fecha_nacimiento || '---';
+      
+      // Formatear fecha de nacimiento
+      let fechaNacimientoFormateada = '---';
+      if (perfil.fecha_nacimiento) {
+        try {
+          const fecha = new Date(perfil.fecha_nacimiento);
+          fechaNacimientoFormateada = fecha.toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        } catch(e) {
+          fechaNacimientoFormateada = perfil.fecha_nacimiento;
+        }
+      }
+      perfilFechaNacimiento.textContent = fechaNacimientoFormateada;
       perfilCiudad.textContent = perfil.ciudad || '---';
 
       //Grupo

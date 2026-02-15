@@ -276,6 +276,55 @@ app.post('/api/cargos', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINTS: GESTIÓN DE CIUDADES
+// ============================================
+
+// GET /api/ciudades - Obtener lista de ciudades
+app.get('/api/ciudades', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT nombre_ciudad FROM ciudades ORDER BY nombre_ciudad ASC'
+    );
+    const ciudades = rows.map(row => row.nombre_ciudad);
+    res.json(ciudades);
+  } catch (error) {
+    console.error('Error al obtener ciudades:', error);
+    res.status(500).json({ error: 'Error al obtener ciudades' });
+  }
+});
+
+// POST /api/ciudades - Crear nueva ciudad
+app.post('/api/ciudades', async (req, res) => {
+  try {
+    const { nombre_ciudad } = req.body;
+    
+    if (!nombre_ciudad || !nombre_ciudad.trim()) {
+      return res.status(400).json({ error: 'El nombre de la ciudad es requerido' });
+    }
+
+    const ciudadNormalizada = nombre_ciudad.trim();
+
+    // Insertar la nueva ciudad
+    await pool.execute(
+      'INSERT INTO ciudades (nombre_ciudad) VALUES (?)',
+      [ciudadNormalizada]
+    );
+
+    console.log(`[CIUDAD CREADA] ${ciudadNormalizada}`);
+    res.json({ success: true, nombre_ciudad: ciudadNormalizada });
+    
+  } catch (error) {
+    // Error de duplicado (código 1062 en MySQL/MariaDB)
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Esta ciudad ya existe' });
+    }
+    
+    console.error('Error al crear ciudad:', error);
+    res.status(500).json({ error: 'Error al crear la ciudad' });
+  }
+});
+
+// ============================================
 // ENDPOINT: CREAR INFORME DE TURNO
 // ============================================
 app.post('/api/informes', async (req, res) => {
@@ -511,7 +560,9 @@ app.post("/agregar-trabajador", async (req, res) => {
       nuevoTrabajador.email,
       nuevoTrabajador.telefono,
       id_grupo,
-      nuevoTrabajador.cargo || null
+      nuevoTrabajador.cargo || null,
+      nuevoTrabajador.ciudad || null,
+      nuevoTrabajador.fecha_nacimiento || null
     );
     
     // Registrar log de auditoría (si se proporcionó admin_rut)
@@ -597,7 +648,9 @@ app.post("/editar-trabajador", async (req, res) => {
         trabajador.email,
         trabajador.telefono,
         id_grupo,
-        trabajador.cargo || null
+        trabajador.cargo || null,
+        trabajador.ciudad || null,
+        trabajador.fecha_nacimiento || null
       );
     } catch (e) {
       if (e && e.code === 'RUT_NOT_FOUND') {
