@@ -2,6 +2,12 @@ const express = require("express");
 const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador } = require("../ejemploconexion.js");
 
 const app = express();
+
+// ============================================
+// RUTAS DE AUTENTICACIÓN (SISTEMA UNIFICADO)
+// ============================================
+const authRoutes = require('./routes/auth');
+app.use('/api', authRoutes);
 app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -71,7 +77,13 @@ app.get('/ping-db', async (req, res) => {
   }
 });
 
-// Endpoint de login (validación en servidor)
+// ============================================
+// ENDPOINTS ANTIGUOS DE LOGIN (DESHABILITADOS)
+// Se mantienen comentados para referencia
+// ============================================
+
+/*
+// ANTIGUO: Endpoint de login (validación en servidor)
 app.post('/login', async (req, res) => {
   try {
     const { usuario, clave } = req.body || {};
@@ -118,8 +130,10 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Error en servidor' });
   }
 });
+*/
 
-// Endpoint admin-login: valida en tabla admin_users usando RUT (sin puntos/guion) y password
+/*
+// ANTIGUO: Endpoint admin-login: valida en tabla admin_users usando RUT (sin puntos/guion) y password
 app.post('/admin-login', async (req, res) => {
   try {
     const { rut, password } = req.body || {};
@@ -179,6 +193,7 @@ app.post('/admin-login', async (req, res) => {
     res.status(500).json({ error: 'Error en servidor' });
   }
 });
+*/
 
 // ============================================
 // ENDPOINTS: LOGS DE AUDITORÍA

@@ -1,14 +1,12 @@
-// Script for datos.html: login usando nombre+primerApellido como usuario y RUT como clave
-// Soporta tanto trabajadores como administradores
-(async function(){
-  const loginUsuario = document.getElementById('login-usuario');
-  const loginClave = document.getElementById('login-clave');
-  const btnLogin = document.getElementById('btn-login');
-  const btnClear = document.getElementById('btn-clear');
-  const loginError = document.getElementById('login-error');
-  const modalDatos = document.getElementById('modal-datos');
-  const perfilCard = document.getElementById('perfil-card');
+// ============================================
+// PÁGINA DE DATOS PERSONALES - Sistema Unificado
+// ============================================
 
+(async function() {
+  'use strict';
+
+  // Elementos del DOM
+  const perfilCard = document.getElementById('perfil-card');
   const perfilNombre = document.getElementById('perfil-nombre');
   const perfilRut = document.getElementById('perfil-rut');
   const perfilTelefono = document.getElementById('perfil-telefono');
@@ -17,297 +15,154 @@
   const perfilCargo = document.getElementById('perfil-cargo');
   const perfilFechaNacimiento = document.getElementById('perfil-fecha-nacimiento');
   const perfilCiudad = document.getElementById('perfil-ciudad');
+  
+  // Obtener datos de sesión
+  const userRole = localStorage.getItem('user_role');
+  const userRut = localStorage.getItem('user_rut');
+  const userName = localStorage.getItem('user_name');
 
-  function capitalizeWord(w){
-    if (!w) return '';
-    return String(w).charAt(0).toUpperCase() + String(w).slice(1).toLowerCase();
+  console.log('[DATOS] Sesión actual:', { userRole, userRut, userName });
+
+  // Si no hay sesión, redirigir (el auth_guard ya debería hacerlo, pero por seguridad)
+  if (!userRole || !userRut) {
+    console.log('[DATOS] No hay sesión, redirigiendo a index.html');
+    window.location.href = '/index.html';
+    return;
   }
 
-  function normalizeRut(s){
-    return String(s||'').replace(/[.\-\s]/g,'').trim().toUpperCase();
-  }
+  // Cargar datos del perfil
+  await cargarPerfil();
 
-  let trabajadores = [];
-  async function loadTrabajadores(){
-    try{
-      const res = await fetch('/datos');
-      if (!res.ok) throw new Error('Error fetching trabajadores');
-      trabajadores = await res.json();
-    }catch(e){
-      console.error('No se pudo cargar lista de trabajadores:', e);
-      trabajadores = [];
+  // ============================================
+  // Función para cargar datos del perfil
+  // ============================================
+  async function cargarPerfil() {
+    try {
+      console.log('[DATOS] Cargando perfil para RUT:', userRut);
+
+      if (userRole === 'admin') {
+        // Para admin, mostrar datos básicos
+        mostrarPerfilAdmin();
+      } else {
+        // Para trabajadores, obtener datos completos del servidor
+        await mostrarPerfilTrabajador();
+      }
+    } catch (error) {
+      console.error('[DATOS] Error cargando perfil:', error);
+      alert('Error al cargar los datos del perfil');
     }
   }
 
-  await loadTrabajadores();
+  // ============================================
+  // Mostrar perfil de Admin
+  // ============================================
+  function mostrarPerfilAdmin() {
+    console.log('[DATOS] Mostrando perfil de admin');
+    
+    // Intentar obtener datos completos del admin si están disponibles
+    const adminDataStr = localStorage.getItem('adminData');
+    let adminData = null;
+    
+    if (adminDataStr) {
+      try {
+        adminData = JSON.parse(adminDataStr);
+      } catch(e) {
+        console.error('[DATOS] Error parsing adminData:', e);
+      }
+    }
 
-  // Función para mostrar perfil con datos
-  function mostrarPerfil(datos) {
-    if (!datos) return;
+    const nombres = adminData?.nombres || '';
+    const apellidoP = adminData?.apellido_paterno || '';
+    const apellidoM = adminData?.apellido_materno || '';
+    const fullName = (nombres + ' ' + apellidoP + ' ' + apellidoM).trim() || userName || userRut;
+
+    perfilNombre.textContent = fullName;
+    perfilRut.textContent = adminData?.rut || userRut;
+    perfilEmail.textContent = adminData?.email || '---';
+    perfilTelefono.textContent = '---';
+    perfilCargo.textContent = 'Administrador';
+    perfilGrupo.textContent = 'Administrador';
     
-    console.log('[DATOS.JS] mostrarPerfil llamado con:', datos);
-    
-    // Para admin: usar nombres, apellido_paterno, apellido_materno
-    // Para trabajador: usar nombres, apellidos
-    if (datos.isAdmin) {
-      const nombres = datos.nombres || '';
-      const apellidoP = datos.apellido_paterno || '';
-      const apellidoM = datos.apellido_materno || '';
-      const fullName = (nombres + ' ' + apellidoP + ' ' + apellidoM).trim();
-      
-      console.log('[DATOS.JS] Admin detectado. Nombre completo:', fullName);
-      
-      perfilNombre.textContent = fullName || (datos.rut || datos.RUT || 'Administrador');
-      perfilRut.textContent = datos.rut || datos.RUT || '---';
-      perfilEmail.textContent = datos.email || '---';
-      perfilTelefono.textContent = '---'; // Admins no tienen teléfono en la tabla
-      perfilCargo.textContent = 'Administrador';
-      perfilGrupo.textContent = 'Administrador';
+    // Ocultar campos no aplicables
+    if (perfilFechaNacimiento && perfilFechaNacimiento.parentElement) {
       perfilFechaNacimiento.parentElement.style.display = 'none';
-      perfilCiudad.parentElement.style.display = 'none';
-      // Remover clase profile-badge para admins
-      perfilGrupo.classList.remove('profile-badge');
-      perfilGrupo.style.backgroundColor = '#dc2626';
-      perfilGrupo.style.color = '#fff';
-      perfilGrupo.style.display = 'inline-block';
-      perfilGrupo.style.padding = '4px 8px';
-      perfilGrupo.style.borderRadius = '4px';
-      perfilGrupo.style.fontSize = '0.875rem';
-      perfilGrupo.style.fontWeight = '600';
-    } else {
-      perfilNombre.textContent = ((datos.nombres || '') + ' ' + (datos.apellidos || '')).trim();
-      perfilRut.textContent = datos.RUT || '';
-      perfilTelefono.textContent = datos.telefono || '';
-      perfilEmail.textContent = datos.email || '';
-      perfilCargo.textContent = datos.cargo || '';
-      // Mostrar ciudad y fecha de nacimiento
-      perfilFechaNacimiento.textContent = datos.fecha_nacimiento || '---';
-      perfilCiudad.textContent = datos.ciudad || '---';
-      perfilFechaNacimiento.parentElement.style.display = '';
-      perfilCiudad.parentElement.style.display = '';
-      // Cambiar texto del grupo a "Sin grupo asignado" cuando sea null/vacío
-      const grupoText = datos.grupo ? ('Grupo: ' + datos.grupo) : 'Sin grupo asignado';
-      perfilGrupo.textContent = grupoText;
-      // Asegurar que tiene la clase profile-badge para trabajadores
-      perfilGrupo.classList.add('profile-badge');
-      perfilGrupo.style.backgroundColor = '';
-      perfilGrupo.style.color = '';
     }
-    
-    if (modalDatos) modalDatos.classList.remove('show');
+    if (perfilCiudad && perfilCiudad.parentElement) {
+      perfilCiudad.parentElement.style.display = 'none';
+    }
+
+    // Estilos del badge de admin
+    perfilGrupo.classList.remove('profile-badge');
+    perfilGrupo.style.backgroundColor = '#dc2626';
+    perfilGrupo.style.color = '#fff';
+    perfilGrupo.style.display = 'inline-block';
+    perfilGrupo.style.padding = '4px 8px';
+    perfilGrupo.style.borderRadius = '4px';
+    perfilGrupo.style.fontSize = '0.875rem';
+    perfilGrupo.style.fontWeight = '600';
+
     perfilCard.style.display = 'block';
   }
 
-  // Verificar si es admin logeado en gestionar.html
-  function verificarAdminLogeado() {
-    const adminRut = localStorage.getItem('userRUT');
-    const adminDataStr = localStorage.getItem('adminData');
-    
-    console.log('[DATOS.JS] verificarAdminLogeado - userRUT:', adminRut);
-    console.log('[DATOS.JS] verificarAdminLogeado - adminData:', adminDataStr);
-    
-    if (adminRut && adminDataStr) {
-      try {
-        const adminData = JSON.parse(adminDataStr);
-        // Asegurar que tiene el flag isAdmin
-        adminData.isAdmin = true;
-        
-        console.log('[DATOS.JS] Admin data parsed:', adminData);
-        
-        // Mostrar datos del admin
-        mostrarPerfil(adminData);
-        return true;
-      } catch(e) {
-        console.error('[DATOS.JS] Error parsing adminData:', e);
-      }
-    }
-    
-    return false;
-  }
-
-  // Verificar sesión previa (trabajador o admin)
-  async function verificarSesionTrabajador() {
+  // ============================================
+  // Mostrar perfil de Trabajador
+  // ============================================
+  async function mostrarPerfilTrabajador() {
     try {
-      const s = localStorage.getItem('usuarioActivo');
-      if (s) {
-        const u = JSON.parse(s);
-        
-        console.log('[DATOS.JS] verificarSesionTrabajador - usuarioActivo:', u);
-        
-        if (u.isAdmin || u.rol === 'admin') {
-          console.log('[DATOS.JS] Es admin - intentando recuperar datos completos');
-          // Es admin desde localStorage - intentar recuperar adminData si está disponible
-          const adminDataStr = localStorage.getItem('adminData');
-          if (adminDataStr) {
-            try {
-              const adminData = JSON.parse(adminDataStr);
-              adminData.isAdmin = true;
-              console.log('[DATOS.JS] Admin data encontrada en localStorage:', adminData);
-              mostrarPerfil(adminData);
-              return true;
-            } catch(e) {
-              console.error('[DATOS.JS] Error parsing adminData:', e);
-            }
-          }
-          
-          // Si no hay adminData, hacer consulta al servidor para obtener los datos completos
-          if (u.rut) {
-            console.log('[DATOS.JS] No hay adminData, consultando servidor con RUT:', u.rut);
-            try {
-              const resp = await fetch('/admin-login', { 
-                method: 'POST', 
-                headers: {'Content-Type':'application/json'}, 
-                body: JSON.stringify({ rut: u.rut, password: '' }) 
-              });
-              
-              // Aunque el password esté mal, podemos obtener el RUT al menos
-              // Mejor opción: crear un endpoint específico para obtener datos del admin
-              // Por ahora, usar los datos que tenemos
-            } catch(e) {
-              console.error('[DATOS.JS] Error consultando datos admin:', e);
-            }
-          }
-          
-          // Fallback: mostrar datos básicos del admin desde usuarioActivo
-          console.log('[DATOS.JS] Usando fallback con datos de usuarioActivo');
-          if (modalDatos) modalDatos.classList.remove('show');
-          perfilCard.style.display = 'block';
-          perfilNombre.textContent = u.nombre || u.rut || 'Administrador';
-          perfilRut.textContent = u.rut || '---';
-          perfilEmail.textContent = '---';
-          perfilTelefono.textContent = '---';
-          perfilCargo.textContent = 'Administrador';
-          perfilGrupo.textContent = 'Administrador';
-          perfilFechaNacimiento.parentElement.style.display = 'none';
-          perfilCiudad.parentElement.style.display = 'none';
-          perfilGrupo.classList.remove('profile-badge');
-          perfilGrupo.style.backgroundColor = '#dc2626';
-          perfilGrupo.style.color = '#fff';
-          perfilGrupo.style.display = 'inline-block';
-          perfilGrupo.style.padding = '4px 8px';
-          perfilGrupo.style.borderRadius = '4px';
-          perfilGrupo.style.fontSize = '0.875rem';
-          perfilGrupo.style.fontWeight = '600';
-          return true;
-        } else if (u.nombre || u.rut) {
-          // Es trabajador normal
-          const found = trabajadores.find(t => 
-            normalizeRut(t.RUT) === normalizeRut(u.rut) || 
-            ((t.nombres || '') + ' ' + (t.apellidos || '')).trim() === u.nombre
-          );
-          
-          if (found) {
-            mostrarPerfil(found);
-            return true;
-          } else {
-            // Sesión pero sin datos en BD, mostrar solo nombre
-            if (modalDatos) modalDatos.classList.remove('show');
-            perfilCard.style.display = 'block';
-            perfilNombre.textContent = u.nombre;
-            return true;
-          }
-        }
+      console.log('[DATOS] Consultando datos del trabajador - RUT:', userRut);
+      
+      const response = await fetch(`/api/perfil/${userRut}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener datos del perfil');
       }
-    } catch (e) {
-      console.error('[DATOS.JS] Error verificando sesión:', e);
-    }
-    
-    return false;
-  }
 
-  // Secuencia de verificación al cargar
-  console.log('[DATOS.JS] Iniciando verificación de sesión...');
-  const adminLogged = verificarAdminLogeado();
-  console.log('[DATOS.JS] Admin logged:', adminLogged);
-  
-  if (!adminLogged) {
-    const trabajadorLogged = verificarSesionTrabajador();
-    console.log('[DATOS.JS] Trabajador logged:', trabajadorLogged);
-    
-    if (!trabajadorLogged) {
-      // No hay sesión, mostrar modal de login
-      console.log('[DATOS.JS] No hay sesión, mostrando modal de login');
-      if (modalDatos) modalDatos.classList.add('show');
-    }
-  }
+      const perfil = await response.json();
+      console.log('[DATOS] Datos del perfil recibidos:', perfil);
 
-  btnClear.addEventListener('click', ()=>{
-    loginUsuario.value = '';
-    loginClave.value = '';
-    loginError.style.display = 'none';
-  });
+      // Mostrar datos en la UI
+      const nombreCompleto = `${perfil.nombres || ''} ${perfil.apellidos || ''}`.trim() || userName;
+      
+      perfilNombre.textContent = nombreCompleto;
+      perfilRut.textContent = perfil.rut || userRut;
+      perfilTelefono.textContent = perfil.telefono || '---';
+      perfilEmail.textContent = perfil.email || '---';
+      perfilCargo.textContent = perfil.cargo || '---';
+      perfilFechaNacimiento.textContent = perfil.fecha_nacimiento || '---';
+      perfilCiudad.textContent = perfil.ciudad || '---';
 
-  // Hide error when user starts typing again
-  if (loginUsuario) loginUsuario.addEventListener('input', () => { loginError.style.display = 'none'; });
-  if (loginClave) loginClave.addEventListener('input', () => { loginError.style.display = 'none'; });
+      //Grupo
+      const grupoText = perfil.grupo ? `Grupo: ${perfil.grupo}` : 'Sin grupo asignado';
+      perfilGrupo.textContent = grupoText;
+      perfilGrupo.classList.add('profile-badge');
+      perfilGrupo.style.backgroundColor = '';
+      perfilGrupo.style.color = '';
 
-  // Visual error helper: show message and animate inputs/button/card
-  function showLoginError(msg) {
-    if (loginError) {
-      loginError.textContent = msg || 'Error';
-      loginError.style.display = 'block';
-    }
-    const loginCardEl = document.querySelector('#modal-datos .login-card');
-    if (loginCardEl) loginCardEl.classList.add('has-error');
-    if (loginUsuario) loginUsuario.classList.add('input-error');
-    if (loginClave) loginClave.classList.add('input-error');
-    if (btnLogin) btnLogin.classList.add('btn-error');
-    setTimeout(() => {
-      if (loginCardEl) loginCardEl.classList.remove('has-error');
-      if (loginUsuario) loginUsuario.classList.remove('input-error');
-      if (loginClave) loginClave.classList.remove('input-error');
-      if (btnLogin) btnLogin.classList.remove('btn-error');
-    }, 1800);
-  }
-
-  btnLogin.addEventListener('click', ()=>{
-    loginError.style.display = 'none';
-    const userInput = loginUsuario.value || '';
-    const claveInput = loginClave.value || '';
-    if (!userInput || !claveInput){
-      showLoginError('Ingrese usuario y clave');
-      return;
-    }
-
-    // Call server for validation
-    (async () => {
-      try{
-        // send clave without dots or hyphen
-        const payload = { usuario: String(userInput).replace(/\s+/g, ''), clave: String(claveInput).replace(/[.\-]/g, '') };
-        const resp = await fetch('/login', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify(payload) 
-        });
-        
-        const data = await resp.json().catch(()=>({}));
-        if (!resp.ok) {
-          showLoginError(data && data.error ? data.error : 'Error de autenticación');
-          return;
-        }
-
-        const found = data.trabajador;
-        if (!found) {
-          showLoginError('Respuesta inesperada del servidor');
-          return;
-        }
-        
-        // Persist session
-        try { 
-          localStorage.setItem('usuarioActivo', JSON.stringify({ 
-            rol: 'user', 
-            nombre: (found.nombres || '') + ' ' + (found.apellidos || ''),
-            rut: found.RUT,
-            isAdmin: false
-          })); 
-        } catch(e){}
-
-        mostrarPerfil(found);
-      }catch(e){
-        console.error('Error al autenticar:', e);
-        showLoginError('Error de conexión al servidor');
+      // Mostrar todos los campos
+      if (perfilFechaNacimiento && perfilFechaNacimiento.parentElement) {
+        perfilFechaNacimiento.parentElement.style.display = '';
       }
-    })();
-  });
+      if (perfilCiudad && perfilCiudad.parentElement) {
+        perfilCiudad.parentElement.style.display = '';
+      }
+
+      perfilCard.style.display = 'block';
+      
+    } catch (error) {
+      console.error('[DATOS] Error obteniendo perfil del trabajador:', error);
+      
+      // Fallback: mostrar datos básicos de la sesión
+      perfilNombre.textContent = userName || userRut;
+      perfilRut.textContent = userRut;
+      perfilEmail.textContent = '---';
+      perfilTelefono.textContent = '---';
+      perfilCargo.textContent = '---';
+      perfilGrupo.textContent = 'Sin datos';
+      
+      perfilCard.style.display = 'block';
+      
+      alert('No se pudieron cargar todos los datos del perfil. Mostrando información básica.');
+    }
+  }
 
 })();

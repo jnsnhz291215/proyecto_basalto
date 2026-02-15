@@ -191,56 +191,139 @@
     </div>
   </div>
 
+  <script src="auth_guard.js"></script>
   <script type="module" src="app.js"></script>
   <script>
-    // Dual login handlers: basic fetch to server endpoints if available
+    // ============================================
+    // SISTEMA DE LOGIN UNIFICADO
+    // ============================================
     document.addEventListener('DOMContentLoaded', () => {
       const dualModal = document.getElementById('dual-login-modal');
-      // show modal automatically if no active session
+      
+      // Mostrar modal automáticamente si no hay sesión activa
       try {
-        const s = localStorage.getItem('usuarioActivo');
-        if (!s) { if (dualModal) dualModal.classList.add('show'); } else { if (dualModal) dualModal.classList.remove('show'); }
+        const userRole = localStorage.getItem('user_role');
+        if (!userRole) { 
+          if (dualModal) dualModal.classList.add('show'); 
+        } else { 
+          if (dualModal) dualModal.classList.remove('show'); 
+        }
       } catch(e) {}
 
-      // user login
+      // ============================================
+      // LOGIN DE USUARIO (Trabajador)
+      // ============================================
       const userForm = document.getElementById('user-login-form');
       userForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const usuario = document.getElementById('user-rut').value.trim();
-        const clave = document.getElementById('user-pass').value.trim();
+        const rut = document.getElementById('user-rut').value.trim();
+        const password = document.getElementById('user-pass').value.trim();
+        
+        if (!rut || !password) {
+          alert('Por favor ingrese RUT y contraseña');
+          return;
+        }
+
         try {
-          const res = await fetch('/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ usuario, clave }) });
-          if (res.ok) {
-            const data = await res.json();
-            // persist session and redirect to perfil
-            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'user', nombre: (data.trabajador.nombres || '') + ' ' + (data.trabajador.apellidos || '') })); } catch(e){}
+          const res = await fetch('/api/login', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ rut, password }) 
+          });
+          
+          const data = await res.json();
+          
+          if (data.success) {
+            // Guardar sesión en localStorage
+            localStorage.setItem('user_role', data.role);
+            localStorage.setItem('user_rut', data.rut);
+            localStorage.setItem('user_name', data.nombre);
+            
+            // Mantener compatibilidad con código antiguo
+            localStorage.setItem('usuarioActivo', JSON.stringify({ 
+              rol: data.role, 
+              nombre: data.nombre,
+              rut: data.rut
+            }));
+            
+            console.log('[LOGIN] Usuario autenticado:', data.nombre);
+            
+            // Cerrar modal y redirigir
             if (dualModal) dualModal.classList.remove('show');
-            window.location.href = '/datos.html';
+            window.location.href = data.redirect;
           } else {
-            alert('Error de login de usuario');
+            alert(data.message || 'Credenciales inválidas');
           }
-        } catch (err) { alert('No fue posible contactar al servidor.'); }
+        } catch (err) {
+          console.error('[LOGIN] Error:', err);
+          alert('No fue posible contactar al servidor.');
+        }
       });
 
-      // admin login
+      // ============================================
+      // LOGIN DE ADMINISTRADOR
+      // ============================================
       const adminForm = document.getElementById('admin-login-form');
       adminForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const rut = document.getElementById('admin-rut').value.trim();
         const password = document.getElementById('admin-pass').value.trim();
+        
+        if (!rut || !password) {
+          alert('Por favor ingrese RUT y contraseña');
+          return;
+        }
+
         try {
-          const res = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
-          if (res.ok) {
-            try { localStorage.setItem('usuarioActivo', JSON.stringify({ rol: 'admin', nombre: rut })); } catch(e){}
+          const res = await fetch('/api/login', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ rut, password }) 
+          });
+          
+          const data = await res.json();
+          
+          if (data.success) {
+            // Guardar sesión en localStorage
+            localStorage.setItem('user_role', data.role);
+            localStorage.setItem('user_rut', data.rut);
+            localStorage.setItem('user_name', data.nombre);
+            
+            // Guardar datos completos del admin
+            if (data.user) {
+              localStorage.setItem('adminData', JSON.stringify({
+                ...data.user,
+                isAdmin: true
+              }));
+              localStorage.setItem('userRUT', data.rut);
+              localStorage.setItem('userName', data.nombre);
+            }
+            
+            // Mantener compatibilidad con código antiguo
+            localStorage.setItem('usuarioActivo', JSON.stringify({ 
+              rol: data.role, 
+              nombre: data.nombre,
+              rut: data.rut,
+              isAdmin: true
+            }));
+            
+            console.log('[LOGIN] Admin autenticado:', data.nombre);
+            
+            // Cerrar modal y redirigir
             if (dualModal) dualModal.classList.remove('show');
-            window.location.href = '/gestionar.html';
+            window.location.href = data.redirect;
           } else {
-            alert('Credenciales de administrador incorrectas');
+            alert(data.message || 'Credenciales de administrador incorrectas');
           }
-        } catch (err) { alert('No fue posible contactar al servidor.'); }
+        } catch (err) {
+          console.error('[LOGIN] Error:', err);
+          alert('No fue posible contactar al servidor.');
+        }
       });
 
-      // skip login
+      // ============================================
+      // SALTAR LOGIN (Ver calendario sin cuenta)
+      // ============================================
       document.getElementById('btn-skip-login').addEventListener('click', () => {
         if (dualModal) dualModal.classList.remove('show');
       });
