@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
 
     // PASO 2: Intentar login como USER (Trabajador)
     try {
-      const sqlUser = 'SELECT * FROM users WHERE rut = ? AND password = ? LIMIT 1';
+      const sqlUser = 'SELECT * FROM users WHERE rut = ? AND password = ? AND activo = 1 LIMIT 1';
       const [users] = await pool.execute(sqlUser, [rutLimpio, passwordParaBuscar]);
 
       if (users && users.length > 0) {
@@ -94,6 +94,16 @@ router.post('/login', async (req, res) => {
             apellido_materno: user.apellido_materno || null,
             email: user.email || null
           }
+        });
+      }
+
+      // Si existe pero esta inactivo, responder con mensaje especifico
+      const sqlUserInactivo = 'SELECT rut FROM users WHERE rut = ? AND password = ? AND activo = 0 LIMIT 1';
+      const [usersInactivos] = await pool.execute(sqlUserInactivo, [rutLimpio, passwordParaBuscar]);
+      if (usersInactivos && usersInactivos.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Su cuenta ha sido desactivada. Contacte al administrador.'
         });
       }
     } catch (userError) {

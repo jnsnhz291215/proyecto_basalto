@@ -493,8 +493,13 @@ function validarTelefonoServidor(telefono) {
   return telefonoRegex.test(telefono);
 }
 
+function limpiarRUTServidor(rut) {
+  return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+}
+
 // Endpoint para agregar trabajador
 app.post("/agregar-trabajador", async (req, res) => {
+  let connection;
   try {
     const nuevoTrabajador = req.body;
     
@@ -551,19 +556,56 @@ app.post("/agregar-trabajador", async (req, res) => {
     const idx = gruposValidos.indexOf(nuevoTrabajador.grupo);
     const id_grupo = idx >= 0 ? idx + 1 : null;
 
-    // Agregar el nuevo trabajador a la BD (apellido_paterno/materno, id_grupo)
-    await agregarTrabajador(
-      nuevoTrabajador.nombres,
-      apellido_paterno,
-      apellido_materno,
-      nuevoTrabajador.RUT,
-      nuevoTrabajador.email,
-      nuevoTrabajador.telefono,
-      id_grupo,
-      nuevoTrabajador.cargo || null,
-      nuevoTrabajador.ciudad || null,
-      nuevoTrabajador.fecha_nacimiento || null
+    // Normalizar capitalización: primera letra en mayúscula por palabra
+    const titleCase = s => {
+      if (!s && s !== '') return s;
+      return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+
+    const nombresNorm = titleCase(nuevoTrabajador.nombres);
+    const apellidoPaternoNorm = titleCase(apellido_paterno);
+    const apellidoMaternoNorm = titleCase(apellido_materno);
+    const cargoNorm = nuevoTrabajador.cargo ? titleCase(nuevoTrabajador.cargo) : null;
+    const ciudadNorm = nuevoTrabajador.ciudad ? titleCase(nuevoTrabajador.ciudad) : null;
+    const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
+
+    // Limpieza de RUT para password inicial en users
+    const rutLimpio = limpiarRUTServidor(nuevoTrabajador.RUT);
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // INSERT 1: trabajadores
+    await connection.execute(
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        nombresNorm,
+        apellidoPaternoNorm,
+        apellidoMaternoNorm,
+        nuevoTrabajador.RUT,
+        nuevoTrabajador.email,
+        nuevoTrabajador.telefono,
+        id_grupo,
+        cargoNorm,
+        ciudadNorm,
+        fechaNacimiento
+      ]
     );
+
+    // INSERT 2: users (password inicial = RUT limpio)
+    await connection.execute(
+      'INSERT INTO users (rut, nombres, apellido_paterno, apellido_materno, email, password) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = password',
+      [
+        rutLimpio,
+        nombresNorm,
+        apellidoPaternoNorm,
+        apellidoMaternoNorm,
+        nuevoTrabajador.email,
+        rutLimpio
+      ]
+    );
+
+    await connection.commit();
     
     // Registrar log de auditoría (si se proporcionó admin_rut)
     if (nuevoTrabajador.admin_rut) {
@@ -583,12 +625,19 @@ app.post("/agregar-trabajador", async (req, res) => {
       message: "Trabajador agregado exitosamente" 
     });
   } catch (error) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error('Error en rollback:', rollbackError);
+      }
+    }
     console.error("Error al agregar trabajador:", error);
     const resp = { error: "Error al agregar trabajador" };
     if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
       resp.detail = error && (error.message || String(error));
     }
     res.status(500).json(resp);
+  } finally {
+    if (connection) connection.release();
   }
 });
 
@@ -692,6 +741,7 @@ app.post("/editar-trabajador", async (req, res) => {
 
 // PUT /api/trabajadores/:rut/estado - Cambiar estado activo/inactivo (Soft Delete)
 app.put("/api/trabajadores/:rut/estado", async (req, res) => {
+  let connection;
   try {
     const { rut } = req.params;
     const { activo, admin_rut } = req.body;
@@ -706,12 +756,24 @@ app.put("/api/trabajadores/:rut/estado", async (req, res) => {
 
     // Normalizar RUT
     const rutNormalizado = rut.trim().toUpperCase();
+    const rutLimpio = limpiarRUTServidor(rut);
 
-    // Actualizar estado
-    await pool.execute(
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Operacion A: trabajadores
+    await connection.execute(
       'UPDATE trabajadores SET activo = ? WHERE RUT = ?',
       [activo ? 1 : 0, rutNormalizado]
     );
+
+    // Operacion B: users
+    await connection.execute(
+      'UPDATE users SET activo = ? WHERE rut = ?',
+      [activo ? 1 : 0, rutLimpio]
+    );
+
+    await connection.commit();
 
     // Registrar log de auditoría
     const accion = activo ? 'REACTIVAR_TRABAJADOR' : 'DESACTIVAR_TRABAJADOR';
@@ -729,8 +791,15 @@ app.put("/api/trabajadores/:rut/estado", async (req, res) => {
       trabajadores: trabajadoresDespues
     });
   } catch (error) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error('Error en rollback:', rollbackError);
+      }
+    }
     console.error("Error al cambiar estado de trabajador:", error);
     res.status(500).json({ error: "Error al cambiar estado del trabajador" });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
