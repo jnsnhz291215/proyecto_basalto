@@ -591,6 +591,12 @@ function showResult(title, msg, isError=false){
   // optional styling for error
   if (isError) t.style.color = '#b91c1c'; else t.style.color = '';
 }
+
+/* ============================================================
+   FUNCIONES DE LOGIN ANTIGUO - YA NO SE USAN
+   El sistema ahora usa un login unificado con auth_guard.js
+   ============================================================ */
+/*
 function comprobarLogin(e) {
   e.preventDefault();
   (async () => {
@@ -717,6 +723,8 @@ function showAdminLoginError(msg) {
     if (errEl) errEl.style.display = 'none';
   }, 1600);
 }
+*/
+/* ============================================================ */
 
 // ============================================
 // GESTIÓN DE CARGOS
@@ -833,19 +841,11 @@ async function guardarNuevoCargo() {
   }
 }
 
-// clear admin login error on input
+// ============================================
+// INICIALIZACIÓN
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-  const ir = document.getElementById('rut-login');
-  const ip = document.getElementById('pass-login');
-  [ir, ip].forEach(elm => { if (elm) elm.addEventListener('input', () => {
-    const e = document.querySelector('#modal-login #login-error'); if (e) e.style.display = 'none';
-    elm.classList.remove('input-error');
-  }); });
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  el.modalLogin = document.getElementById('modal-login');
-  el.formLogin = document.getElementById('form-login');
+  // Referencias a elementos del DOM
   el.gruposColumnas = document.getElementById('grupos-columnas');
   el.inputBuscar = document.getElementById('input-buscar');
   el.selectFiltro = document.getElementById('select-filtro');
@@ -862,17 +862,15 @@ document.addEventListener('DOMContentLoaded', () => {
   el.confirmMsg = document.getElementById('confirm-msg');
   el.confirmCancel = document.getElementById('confirm-cancel');
   el.confirmOk = document.getElementById('confirm-ok');
-
   el.modalResult = document.getElementById('modal-result');
   el.resultOk = document.getElementById('result-ok');
 
-  // verify session and potentially bypass admin login
-  verificarSesion();
+  // El auth_guard.js ya verificó que somos admin, cargar datos directamente
+  console.log('[GESTION] Inicializando página de gestión');
+  cargar();
 
   // Cargar cargos al iniciar
   cargarCargos();
-
-  if (el.formLogin) el.formLogin.addEventListener('submit', comprobarLogin);
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);

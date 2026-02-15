@@ -119,61 +119,41 @@
     </div>
   </div>
 
-  <!-- Dual login modal: usuario / administrador -->
+  <!-- Modal de login unificado -->
   <div id="dual-login-modal" class="modal">
-    <div class="modal-content" style="max-width:900px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;padding:22px">
-      <div class="login-card" style="flex:1;min-width:280px;max-width:420px">
+    <div class="modal-content" style="max-width:450px;padding:22px">
+      <div class="login-card">
         <div class="login-header">
           <div class="security-icon"><i class="fa-solid fa-user"></i></div>
-          <h2 class="login-title">Ingresar como Usuario</h2>
-          <p class="login-subtitle">Accede a tus datos personales</p>
+          <h2 class="login-title">Bienvenido</h2>
+          <p class="login-subtitle">Ingresa tus credenciales para continuar</p>
         </div>
-        <form id="user-login-form">
+        <form id="login-form">
           <div class="form-group">
-            <label>Usuario</label>
+            <label>RUT</label>
             <div class="input-wrapper">
-              <i class="fa-solid fa-user input-icon"></i>
-              <input id="user-rut" type="text" placeholder="Ej: JuanPerez" class="modern-input">
+              <i class="fa-solid fa-id-badge input-icon"></i>
+              <input id="login-rut" type="text" placeholder="RUT sin puntos" class="modern-input" autocomplete="username">
             </div>
+            <small class="helper-text">Ingresa tu RUT sin puntos ni guion</small>
           </div>
           <div class="form-group">
             <label>Contraseña</label>
             <div class="input-wrapper">
               <i class="fa-solid fa-lock input-icon"></i>
-              <input id="user-pass" type="password" placeholder="Tu clave" class="modern-input">
+              <input id="login-password" type="password" placeholder="Tu contraseña" class="modern-input" autocomplete="current-password">
             </div>
+            <small class="helper-text">Inicialmente es tu RUT</small>
           </div>
           <div class="login-actions">
-            <button id="btn-user-login" type="submit" class="btn-login-primary">Ingresar como usuario</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="login-card admin-login" style="flex:1;min-width:280px;max-width:420px">
-        <div class="login-header">
-          <div class="security-icon"><i class="fa-solid fa-user-shield"></i></div>
-          <h2 class="login-title">Ingresar como Admin</h2>
-          <p class="login-subtitle">Área de administración</p>
-        </div>
-        <form id="admin-login-form">
-          <div class="form-group">
-            <label>RUT</label>
-            <div class="input-wrapper">
-              <i class="fa-solid fa-id-badge input-icon"></i>
-              <input id="admin-rut" type="text" placeholder="RUT sin puntos" class="modern-input">
+            <button id="btn-login" type="submit" class="btn-login-primary">
+              Ingresar <i class="fa-solid fa-arrow-right" style="margin-left:8px"></i>
+            </button>
+            <div class="secondary-actions" style="margin-top:12px">
+              <button id="btn-skip-login" type="button" class="btn-text">Ver calendario sin cuenta</button>
             </div>
           </div>
-          <div class="form-group">
-            <label>Contraseña</label>
-            <div class="input-wrapper">
-              <i class="fa-solid fa-key input-icon"></i>
-              <input id="admin-pass" type="password" placeholder="••••••" class="modern-input">
-            </div>
-          </div>
-          <div class="login-actions" style="display:flex;gap:10px">
-            <button id="btn-admin-login" type="submit" class="btn-admin btn-login-primary">Acceder</button>
-            <button id="btn-skip-login" type="button" class="btn-cancel">Entrar sin logear</button>
-          </div>
+          <div id="login-error" style="color:#b91c1c;font-weight:600;display:none;margin-top:12px;text-align:center"></div>
         </form>
       </div>
     </div>
@@ -199,6 +179,8 @@
     // ============================================
     document.addEventListener('DOMContentLoaded', () => {
       const dualModal = document.getElementById('dual-login-modal');
+      const loginForm = document.getElementById('login-form');
+      const loginError = document.getElementById('login-error');
       
       // Mostrar modal automáticamente si no hay sesión activa
       try {
@@ -210,17 +192,24 @@
         }
       } catch(e) {}
 
+      // Ocultar error cuando el usuario empieza a escribir
+      const rutInput = document.getElementById('login-rut');
+      const passwordInput = document.getElementById('login-password');
+      
+      if (rutInput) rutInput.addEventListener('input', () => { if (loginError) loginError.style.display = 'none'; });
+      if (passwordInput) passwordInput.addEventListener('input', () => { if (loginError) loginError.style.display = 'none'; });
+
       // ============================================
-      // LOGIN DE USUARIO (Trabajador)
+      // LOGIN UNIFICADO (Admin o Trabajador)
       // ============================================
-      const userForm = document.getElementById('user-login-form');
-      userForm.addEventListener('submit', async (e) => {
+      loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const rut = document.getElementById('user-rut').value.trim();
-        const password = document.getElementById('user-pass').value.trim();
+        
+        const rut = document.getElementById('login-rut').value.trim();
+        const password = document.getElementById('login-password').value.trim();
         
         if (!rut || !password) {
-          alert('Por favor ingrese RUT y contraseña');
+          showError('Por favor ingrese RUT y contraseña');
           return;
         }
 
@@ -239,58 +228,8 @@
             localStorage.setItem('user_rut', data.rut);
             localStorage.setItem('user_name', data.nombre);
             
-            // Mantener compatibilidad con código antiguo
-            localStorage.setItem('usuarioActivo', JSON.stringify({ 
-              rol: data.role, 
-              nombre: data.nombre,
-              rut: data.rut
-            }));
-            
-            console.log('[LOGIN] Usuario autenticado:', data.nombre);
-            
-            // Cerrar modal y redirigir
-            if (dualModal) dualModal.classList.remove('show');
-            window.location.href = data.redirect;
-          } else {
-            alert(data.message || 'Credenciales inválidas');
-          }
-        } catch (err) {
-          console.error('[LOGIN] Error:', err);
-          alert('No fue posible contactar al servidor.');
-        }
-      });
-
-      // ============================================
-      // LOGIN DE ADMINISTRADOR
-      // ============================================
-      const adminForm = document.getElementById('admin-login-form');
-      adminForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const rut = document.getElementById('admin-rut').value.trim();
-        const password = document.getElementById('admin-pass').value.trim();
-        
-        if (!rut || !password) {
-          alert('Por favor ingrese RUT y contraseña');
-          return;
-        }
-
-        try {
-          const res = await fetch('/api/login', { 
-            method: 'POST', 
-            headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ rut, password }) 
-          });
-          
-          const data = await res.json();
-          
-          if (data.success) {
-            // Guardar sesión en localStorage
-            localStorage.setItem('user_role', data.role);
-            localStorage.setItem('user_rut', data.rut);
-            localStorage.setItem('user_name', data.nombre);
-            
-            // Guardar datos completos del admin
-            if (data.user) {
+            // Guardar datos completos si es admin
+            if (data.role === 'admin' && data.user) {
               localStorage.setItem('adminData', JSON.stringify({
                 ...data.user,
                 isAdmin: true
@@ -304,20 +243,20 @@
               rol: data.role, 
               nombre: data.nombre,
               rut: data.rut,
-              isAdmin: true
+              isAdmin: data.role === 'admin'
             }));
             
-            console.log('[LOGIN] Admin autenticado:', data.nombre);
+            console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre);
             
             // Cerrar modal y redirigir
             if (dualModal) dualModal.classList.remove('show');
             window.location.href = data.redirect;
           } else {
-            alert(data.message || 'Credenciales de administrador incorrectas');
+            showError(data.message || 'Credenciales inválidas');
           }
         } catch (err) {
           console.error('[LOGIN] Error:', err);
-          alert('No fue posible contactar al servidor.');
+          showError('No fue posible contactar al servidor');
         }
       });
 
@@ -327,6 +266,29 @@
       document.getElementById('btn-skip-login').addEventListener('click', () => {
         if (dualModal) dualModal.classList.remove('show');
       });
+
+      // Función para mostrar errores
+      function showError(msg) {
+        if (loginError) {
+          loginError.textContent = msg;
+          loginError.style.display = 'block';
+        }
+        
+        // Animar inputs y botón
+        const loginCard = document.querySelector('.login-card');
+        const inputs = loginForm.querySelectorAll('input');
+        const btn = loginForm.querySelector('button[type="submit"]');
+        
+        if (loginCard) loginCard.classList.add('has-error');
+        inputs.forEach(i => i.classList.add('input-error'));
+        if (btn) btn.classList.add('btn-error');
+        
+        setTimeout(() => {
+          if (loginCard) loginCard.classList.remove('has-error');
+          inputs.forEach(i => i.classList.remove('input-error'));
+          if (btn) btn.classList.remove('btn-error');
+        }, 1600);
+      }
     });
   </script>
 </body>
