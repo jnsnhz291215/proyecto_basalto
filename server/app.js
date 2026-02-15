@@ -11,6 +11,18 @@ app.use(express.json());
 // ============================================
 const authRoutes = require('./routes/auth');
 app.use('/api', authRoutes);
+
+// ============================================
+// RUTAS DE TURNOS
+// ============================================
+const turnosRoutes = require('./routes/turnos');
+app.use('/api', turnosRoutes);
+
+// ============================================
+// RUTAS DE VIAJES
+// ============================================
+const viajesRoutes = require('./routes/viajes');
+app.use('/api', viajesRoutes);
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -771,6 +783,12 @@ app.put("/api/trabajadores/:rut/estado", async (req, res) => {
     await connection.execute(
       'UPDATE users SET activo = ? WHERE rut = ?',
       [activo ? 1 : 0, rutLimpio]
+    );
+
+    // Operacion C: viajes (cascada)
+    await connection.execute(
+      'UPDATE viajes SET estado = ? WHERE rut_trabajador = ?',
+      [activo ? 'Programado' : 'Cancelado', rutNormalizado]
     );
 
     await connection.commit();

@@ -125,9 +125,26 @@
             <h2 id="perfil-nombre" class="profile-name">Nombre Apellido</h2>
             <span id="perfil-cargo" class="profile-role">Cargo</span>
             <div id="perfil-grupo" class="profile-badge" style="margin-top:8px;">Grupo A</div>
+            <!-- Badge de estado de turno -->
+            <div id="estado-turno-badge" class="turno-status-badge" style="display:none;margin-top:8px;">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Cargando estado...
+            </div>
           </div>
 
           <hr class="divider">
+
+          <!-- Sección de Próxima Jornada (solo para trabajadores) -->
+          <div id="proxima-jornada-section" style="display:none;margin-bottom:20px;">
+            <div style="background-color:#f9fafb;border-left:4px solid #3b82f6;border-radius:8px;padding:16px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <i class="fa-solid fa-calendar-check" style="color:#3b82f6;font-size:20px;"></i>
+                <h3 style="margin:0;font-size:16px;font-weight:600;color:#1f2937;">Mi Próxima Jornada</h3>
+              </div>
+              <div id="proxima-jornada-contenido" style="font-size:14px;color:#4b5563;">
+                <p style="margin:0;">Calculando...</p>
+              </div>
+            </div>
+          </div>
 
           <div class="profile-grid">
             <div class="data-item">

@@ -16,6 +16,11 @@
   const perfilFechaNacimiento = document.getElementById('perfil-fecha-nacimiento');
   const perfilCiudad = document.getElementById('perfil-ciudad');
   
+  // Elementos de estado de turno
+  const estadoTurnoBadge = document.getElementById('estado-turno-badge');
+  const proximaJornadaSection = document.getElementById('proxima-jornada-section');
+  const proximaJornadaContenido = document.getElementById('proxima-jornada-contenido');
+  
   // Obtener datos de sesión
   const userRole = localStorage.getItem('user_role');
   const userRut = localStorage.getItem('user_rut');
@@ -177,6 +182,115 @@
       perfilCard.style.display = 'block';
       
       alert('No se pudieron cargar todos los datos del perfil. Mostrando información básica.');
+    }
+    
+    // Cargar estado del turno (solo para trabajadores)
+    await cargarEstadoTurno();
+  }
+
+  // ============================================
+  // Cargar estado del turno
+  // ============================================
+  async function cargarEstadoTurno() {
+    try {
+      console.log('[DATOS] Cargando estado de turno para RUT:', userRut);
+      
+      const response = await fetch(`/api/estado-turno/${userRut}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener estado del turno');
+      }
+      
+      const estadoTurno = await response.json();
+      console.log('[DATOS] Estado de turno recibido:', estadoTurno);
+      
+      mostrarEstadoTurno(estadoTurno);
+      
+    } catch (error) {
+      console.error('[DATOS] Error cargando estado de turno:', error);
+      // No mostrar el badge si hay error
+      if (estadoTurnoBadge) estadoTurnoBadge.style.display = 'none';
+      if (proximaJornadaSection) proximaJornadaSection.style.display = 'none';
+    }
+  }
+
+  // ============================================
+  // Mostrar estado del turno en la UI
+  // ============================================
+  function mostrarEstadoTurno(estadoTurno) {
+    if (!estadoTurnoBadge || !proximaJornadaSection) return;
+    
+    // Si no tiene grupo o es grupo no reconocido, no mostrar nada
+    if (estadoTurno.estado === 'sin_grupo' || estadoTurno.estado === 'sin_datos') {
+      estadoTurnoBadge.style.display = 'none';
+      proximaJornadaSection.style.display = 'none';
+      return;
+    }
+    
+    // Configurar badge de estado
+    let badgeColor = '#6b7280'; // Gris por defecto
+    let badgeIcon = 'fa-circle';
+    let badgeText = estadoTurno.mensaje;
+    
+    if (estadoTurno.estado === 'en_turno') {
+      badgeColor = '#10b981'; // Verde
+      badgeIcon = 'fa-circle-check';
+      badgeText = '● En Turno';
+    } else if (estadoTurno.estado === 'proximo_turno') {
+      badgeColor = '#f59e0b'; // Amarillo
+      badgeIcon = 'fa-clock';
+      badgeText = `● Próximo a Turno (${estadoTurno.dias_restantes} día${estadoTurno.dias_restantes !== 1 ? 's' : ''})`;
+    } else if (estadoTurno.estado === 'en_descanso') {
+      badgeColor = '#6b7280'; // Gris
+      badgeIcon = 'fa-moon';
+      badgeText = '● En Descanso';
+    }
+    
+    estadoTurnoBadge.innerHTML = `<i class="fa-solid ${badgeIcon}"></i> ${badgeText}`;
+    estadoTurnoBadge.style.backgroundColor = badgeColor;
+    estadoTurnoBadge.style.color = '#ffffff';
+    estadoTurnoBadge.style.display = 'inline-block';
+    estadoTurnoBadge.style.padding = '6px 12px';
+    estadoTurnoBadge.style.borderRadius = '6px';
+    estadoTurnoBadge.style.fontSize = '14px';
+    estadoTurnoBadge.style.fontWeight = '600';
+    
+    // Configurar sección de próxima jornada
+    if (estadoTurno.proxima_jornada && estadoTurno.turno_tipo !== 'semanal') {
+      let contenidoHTML = '';
+      
+      if (estadoTurno.estado === 'en_turno') {
+        // Está trabajando - mostrar cuántos días le quedan y su próximo turno después del descanso
+        contenidoHTML = `
+          <p style="margin:0 0 8px 0;"><strong>Turno Actual:</strong> ${estadoTurno.dias_restantes} día${estadoTurno.dias_restantes !== 1 ? 's' : ''} restante${estadoTurno.dias_restantes !== 1 ? 's' : ''}</p>
+          <p style="margin:0;"><strong>Próximo Turno (después del descanso):</strong><br>
+          Del ${estadoTurno.proxima_jornada.inicio} al ${estadoTurno.proxima_jornada.fin}</p>
+        `;
+      } else {
+        // Está descansando - mostrar próximo turno
+        contenidoHTML = `
+          <p style="margin:0;"><strong>Próximo Turno:</strong><br>
+          Del ${estadoTurno.proxima_jornada.inicio} al ${estadoTurno.proxima_jornada.fin}</p>
+          <p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;">Faltan ${estadoTurno.dias_restantes} día${estadoTurno.dias_restantes !== 1 ? 's' : ''}</p>
+        `;
+      }
+      
+      if (estadoTurno.horario) {
+        contenidoHTML += `<p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;"><i class="fa-solid fa-clock"></i> ${estadoTurno.horario}</p>`;
+      }
+      
+      proximaJornadaContenido.innerHTML = contenidoHTML;
+      proximaJornadaSection.style.display = 'block';
+    } else if (estadoTurno.turno_tipo === 'semanal') {
+      // Grupos semanales - mostrar horario semanal
+      const diasTrabajo = estadoTurno.grupo === 'J' ? 'Lunes a Jueves' : 'Martes a Viernes';
+      proximaJornadaContenido.innerHTML = `
+        <p style="margin:0;"><strong>Horario Semanal:</strong> ${diasTrabajo}</p>
+        <p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;">Turno continuo de lunes a viernes</p>
+      `;
+      proximaJornadaSection.style.display = 'block';
+    } else {
+      proximaJornadaSection.style.display = 'none';
     }
   }
 

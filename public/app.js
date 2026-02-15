@@ -588,33 +588,26 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
     const pista2 = trabajadoresDelDia.filter(t => t.pista === 2);
     const semanales = trabajadoresDelDia.filter(t => t.pista === 0);
     
-    // Mostrar PISTA 1 (grupos AB/CD/BA/DC)
+    // Mostrar turnos de PISTA 1 (grupos AB/CD/BA/DC)
     if (pista1.length > 0) {
-      const pistaLabel = document.createElement('div');
-      pistaLabel.className = 'horario-label';
-      pistaLabel.textContent = 'PISTA 1';
-      pistaLabel.style.marginTop = '10px';
-      pistaLabel.style.marginBottom = '10px';
-      pistaLabel.style.fontWeight = '700';
-      pistaLabel.style.color = '#1f2937';
-      trabajadoresDiaEl.appendChild(pistaLabel);
-      
       // Grupo de mañana (pista 1)
       const manana = pista1.filter(t => t.horario === 'manana');
       if (manana.length > 0) {
         const horarioLabel = document.createElement('div');
         horarioLabel.className = 'horario-label';
-        horarioLabel.textContent = `  Turno Mañana - Grupo ${manana[0].grupo}`;
-        horarioLabel.style.marginTop = '5px';
-        horarioLabel.style.marginBottom = '5px';
-        horarioLabel.style.fontSize = '14px';
+        horarioLabel.textContent = `Grupo ${manana[0].grupo} - Turno de mañana (8:00 a 20:00)`;
+        horarioLabel.style.marginTop = '10px';
+        horarioLabel.style.marginBottom = '8px';
+        horarioLabel.style.fontSize = '15px';
+        horarioLabel.style.fontWeight = '600';
         trabajadoresDiaEl.appendChild(horarioLabel);
         
         manana.forEach(trabajador => {
           const item = document.createElement('div');
           item.className = 'trabajador-item manana';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
+          const cargo = trabajador.cargo ? ` - ${trabajador.cargo}` : '';
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}${cargo}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -626,17 +619,19 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
       if (tarde.length > 0) {
         const horarioLabel = document.createElement('div');
         horarioLabel.className = 'horario-label';
-        horarioLabel.textContent = `  Turno Tarde - Grupo ${tarde[0].grupo}`;
-        horarioLabel.style.marginTop = '8px';
-        horarioLabel.style.marginBottom = '5px';
-        horarioLabel.style.fontSize = '14px';
+        horarioLabel.textContent = `Grupo ${tarde[0].grupo} - Turno de noche (20:00 a 8:00)`;
+        horarioLabel.style.marginTop = '15px';
+        horarioLabel.style.marginBottom = '8px';
+        horarioLabel.style.fontSize = '15px';
+        horarioLabel.style.fontWeight = '600';
         trabajadoresDiaEl.appendChild(horarioLabel);
         
         tarde.forEach(trabajador => {
           const item = document.createElement('div');
           item.className = 'trabajador-item tarde';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
+          const cargo = trabajador.cargo ? ` - ${trabajador.cargo}` : '';
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}${cargo}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -644,33 +639,26 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
       }
     }
     
-    // Mostrar PISTA 2 (grupos EF/HG/FE/GH)
+    // Mostrar turnos de PISTA 2 (grupos EF/HG/FE/GH)
     if (pista2.length > 0) {
-      const pistaLabel = document.createElement('div');
-      pistaLabel.className = 'horario-label';
-      pistaLabel.textContent = 'PISTA 2';
-      pistaLabel.style.marginTop = '15px';
-      pistaLabel.style.marginBottom = '10px';
-      pistaLabel.style.fontWeight = '700';
-      pistaLabel.style.color = '#1f2937';
-      trabajadoresDiaEl.appendChild(pistaLabel);
-      
       // Grupo de mañana (pista 2)
       const manana = pista2.filter(t => t.horario === 'manana');
       if (manana.length > 0) {
         const horarioLabel = document.createElement('div');
         horarioLabel.className = 'horario-label';
-        horarioLabel.textContent = `  Turno Mañana - Grupo ${manana[0].grupo}`;
-        horarioLabel.style.marginTop = '5px';
-        horarioLabel.style.marginBottom = '5px';
-        horarioLabel.style.fontSize = '14px';
+        horarioLabel.textContent = `Grupo ${manana[0].grupo} - Turno de mañana (8:00 a 20:00)`;
+        horarioLabel.style.marginTop = '15px';
+        horarioLabel.style.marginBottom = '8px';
+        horarioLabel.style.fontSize = '15px';
+        horarioLabel.style.fontWeight = '600';
         trabajadoresDiaEl.appendChild(horarioLabel);
         
         manana.forEach(trabajador => {
           const item = document.createElement('div');
           item.className = 'trabajador-item manana';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
+          const cargo = trabajador.cargo ? ` - ${trabajador.cargo}` : '';
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}${cargo}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -682,17 +670,19 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
       if (tarde.length > 0) {
         const horarioLabel = document.createElement('div');
         horarioLabel.className = 'horario-label';
-        horarioLabel.textContent = `  Turno Tarde - Grupo ${tarde[0].grupo}`;
-        horarioLabel.style.marginTop = '8px';
-        horarioLabel.style.marginBottom = '5px';
-        horarioLabel.style.fontSize = '14px';
+        horarioLabel.textContent = `Grupo ${tarde[0].grupo} - Turno de noche (20:00 a 8:00)`;
+        horarioLabel.style.marginTop = '15px';
+        horarioLabel.style.marginBottom = '8px';
+        horarioLabel.style.fontSize = '15px';
+        horarioLabel.style.fontWeight = '600';
         trabajadoresDiaEl.appendChild(horarioLabel);
         
         tarde.forEach(trabajador => {
           const item = document.createElement('div');
           item.className = 'trabajador-item tarde';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
+          const cargo = trabajador.cargo ? ` - ${trabajador.cargo}` : '';
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}${cargo}`;
           item.style.fontSize = '14px';
           item.style.marginLeft = '10px';
           trabajadoresDiaEl.appendChild(item);
@@ -710,14 +700,17 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
         horarioLabel.textContent = `Grupo ${g} (semanal)`;
         horarioLabel.style.marginTop = '20px';
         horarioLabel.style.marginBottom = '10px';
+        horarioLabel.style.fontSize = '15px';
+        horarioLabel.style.fontWeight = '600';
         trabajadoresDiaEl.appendChild(horarioLabel);
         
         trabajadoresGrupo.forEach(trabajador => {
           const item = document.createElement('div');
           item.className = 'trabajador-item semanal';
           item.style.backgroundColor = trabajador.color;
-          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
-          item.style.fontSize = '16px';
+          const cargo = trabajador.cargo ? ` - ${trabajador.cargo}` : '';
+          item.textContent = `${trabajador.nombres} ${trabajador.apellidos}${cargo}`;
+          item.style.fontSize = '14px';
           trabajadoresDiaEl.appendChild(item);
         });
       }

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionar Viajes</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styleg.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="auth_guard.js"></script>
+  <script src="navbar.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #f3f4f6; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20px; margin: 0; }
+    
+    .tramo-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    
+    .tramo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .tramo-numero {
+      font-weight: 700;
+      color: #3b82f6;
+      font-size: 15px;
+    }
+    
+    .btn-eliminar-tramo {
+      background: #fee2e2;
+      color: #dc2626;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-eliminar-tramo:hover {
+      background: #fecaca;
+    }
+    
+    .btn-agregar-tramo {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    
+    .btn-agregar-tramo:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    }
+    
+    .trabajador-info {
+      background: #e0f2fe;
+      border-left: 4px solid #0284c7;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    
+    .trabajador-info.visible {
+      display: block;
+    }
+    
+    .info-item {
+      font-size: 14px;
+      color: #0c4a6e;
+      margin-bottom: 4px;
+    }
+    
+    .info-item strong {
+      font-weight: 600;
+    }
+    
+    .viaje-card {
+      background: white;
+      border-radius: 10px;
+      padding: 18px;
+      min-width: 350px;
+      max-width: 400px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid #3b82f6;
+      flex-shrink: 0;
+    }
+    
+    .viaje-card.oculto {
+      border-left-color: #9ca3af;
+      opacity: 0.7;
+    }
+    
+    .viajes-horizontal {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    
+    .viajes-horizontal::-webkit-scrollbar {
+      height: 8px;
+    }
+    
+    .viajes-horizontal::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    
+    .viajes-horizontal::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    
+    .viajes-horizontal::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    
+    .viaje-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    
+    .viaje-trabajador {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .viaje-fecha {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .tramos-resumen {
+      font-size: 14px;
+      color: #4b5563;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+    
+    .tramo-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    
+    .tramo-icon {
+      color: #3b82f6;
+      font-size: 16px;
+      width: 20px;
+    }
+    
+    .btn-eliminar-viaje {
+      background: #fee2e2;
+      color: #dc2626;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-eliminar-viaje:hover {
+      background: #fecaca;
+    }
+    
+    .viaje-acciones {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn-accion {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    
+    .btn-editar {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    
+    .btn-editar:hover {
+      background: #bae6fd;
+    }
+    
+    .btn-ocultar {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .btn-ocultar:hover {
+      background: #fde68a;
+    }
+    
+    .btn-borrar {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .btn-borrar:hover {
+      background: #fecaca;
+    }
+  </style>
+</head>
+<body>
+  <!-- Shared menu will be injected here -->
+  <div id="shared-menu-placeholder"></div>
+  <script>
+    fetch('menu.html').then(r => r.text()).then(html => {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      document.body.insertBefore(wrapper, document.body.firstChild);
+      const btn = wrapper.querySelector('#nav-toggle');
+      const items = wrapper.querySelector('#nav-items');
+      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
+      try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
+      if (btn && items) {
+        btn.addEventListener('click', () => {
+          items.classList.toggle('show');
+          const navRight = wrapper.querySelector('#usuario-container');
+          if (navRight) navRight.classList.toggle('show');
+        });
+        const navLinks = items.querySelectorAll('a');
+        navLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            items.classList.remove('show');
+            const navRight = wrapper.querySelector('#usuario-container');
+            if (navRight) navRight.classList.remove('show');
+          });
+        });
+      }
+      try {
+        const userToggle = wrapper.querySelector('.user-toggle');
+        const userMenu = wrapper.querySelector('.user-menu');
+        if (userToggle && userMenu) {
+          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
+          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
+        }
+        const logoutBtn = wrapper.querySelector('.user-menu .danger');
+        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
+        try {
+          const s = localStorage.getItem('usuarioActivo');
+          const navGest = wrapper.querySelector('#nav-gestionar');
+          const navRight = wrapper.querySelector('.nav-right');
+          if (!s) {
+            if (navRight) navRight.style.display = 'none';
+            if (navGest) navGest.style.display = 'none';
+          } else {
+            const u = JSON.parse(s);
+            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
+            if (navRight) navRight.style.display = '';
+            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
+          }
+        } catch(e){}
+      } catch(e){}
+      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
+    }).catch(err => console.error('No se pudo cargar el menú:', err));
+  </script>
+
+  <div class="gestionar-container">
+    <!-- Header con controles -->
+    <header class="gestionar-header">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-bus" style="color: white; font-size: 24px;"></i>
+        </div>
+        <div>
+          <h1 class="gestionar-title">Gestión de Viajes</h1>
+          <p style="margin: 0; font-size: 14px; color: #6b7280;">Administrar viajes y tramos de transporte</p>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <!-- Filtro de Tipo -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Vista:</label>
+          <div class="select-wrapper" style="min-width: 150px;">
+            <select id="filtro-tipo" class="modern-input plain" style="padding: 8px 12px;">
+              <option value="proximos">Próximos</option>
+              <option value="historial">Historial/Ocultos</option>
+            </select>
+            <i class="fa-solid fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+        
+        <!-- Filtro de Mes -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Mes:</label>
+          <div class="select-wrapper" style="min-width: 150px;">
+            <select id="filtro-mes" class="modern-input plain" style="padding: 8px 12px;">
+              <option value="">Todos</option>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+            <i class="fa-solid fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+        
+        <button id="btn-nuevo-viaje" class="btn-primary">
+          <i class="fa-solid fa-plus"></i> Nuevo Viaje
+        </button>
+      </div>
+    </header>
+
+    <!-- Vista de Viajes -->
+    <div id="viajes-container" style="margin-top: 24px;">
+      <!-- Contenedor horizontal con scroll -->
+      <div id="viajes-lista" class="viajes-horizontal" style="display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; scroll-behavior: smooth;">
+        <!-- Los viajes se cargarán aquí dinámicamente -->
+      </div>
+      <div id="sin-viajes" style="display:none;text-align:center;padding:60px 20px;color:#9ca3af;">
+        <i class="fa-solid fa-bus" style="font-size:64px;margin-bottom:16px;opacity:0.3;"></i>
+        <p style="font-size:18px;font-weight:600;margin-bottom:8px;">No hay viajes registrados</p>
+        <p style="font-size:14px;">Haz clic en "Nuevo Viaje" para comenzar</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nuevo Viaje -->
+  <div id="modal-nuevo-viaje" class="modal">
+    <div class="modal-content modal-card" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-bus highlight-icon"></i> Registrar Nuevo Viaje
+        </h3>
+      </div>
+
+      <div class="modal-body">
+        <form id="form-nuevo-viaje">
+          <!-- Selector de Trabajador -->
+          <div class="form-section-label">Trabajador</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nuevo-viaje-trabajador">Buscar por RUT o Nombre</label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input 
+                  type="text" 
+                  id="nuevo-viaje-trabajador" 
+                  placeholder="Ej: 12345678-9 o Juan Pérez" 
+                  class="modern-input"
+                  list="trabajadores-datalist"
+                  autocomplete="off"
+                  required>
+                <datalist id="trabajadores-datalist"></datalist>
+              </div>
+            </div>
+          </div>
+
+          <!-- Información del Trabajador Seleccionado -->
+          <div id="trabajador-info" class="trabajador-info">
+            <div class="info-item"><strong>Nombre:</strong> <span id="info-nombre">-</span></div>
+            <div class="info-item"><strong>Grupo:</strong> <span id="info-grupo">-</span></div>
+            <div class="info-item"><strong>Cargo:</strong> <span id="info-cargo">-</span></div>
+          </div>
+
+          <!-- Tramos -->
+          <div class="form-section-label" style="margin-top: 24px;">Tramos del Viaje</div>
+          <div id="tramos-container">
+            <!-- Los tramos se generarán aquí dinámicamente -->
+          </div>
+
+          <button type="button" id="btn-agregar-tramo" class="btn-agregar-tramo">
+            <i class="fa-solid fa-plus"></i> Agregar Tramo
+          </button>
+        </form>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" id="cancel-nuevo-viaje" class="btn-cancel">Cancelar</button>
+        <button type="button" id="guardar-nuevo-viaje" class="btn-save">
+          <i class="fa-solid fa-check"></i> Guardar Viaje
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmación -->
+  <div id="modal-confirm" class="modal">
+    <div class="modal-content modal-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="confirm-title" class="modal-title">Confirmar Acción</h3>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" style="font-size: 15px; color: #4b5563;"></p>
+      </div>
+      <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" id="confirm-cancel" class="btn-cancel">Cancelar</button>
+        <button type="button" id="confirm-ok" class="btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Resultado -->
+  <div id="modal-result" class="modal">
+    <div class="modal-content modal-card" style="max-width: 450px;">
+      <div class="modal-body" style="text-align: center; padding: 32px;">
+        <div id="result-icon" style="font-size: 64px; margin-bottom: 16px;"></div>
+        <h3 id="result-title" style="margin-bottom: 12px; font-size: 20px;"></h3>
+        <p id="result-message" style="color: #6b7280; font-size: 15px;"></p>
+        <button type="button" id="result-ok" class="btn-primary" style="margin-top: 24px;">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="gestionviajes.js"></script>
+</body>
+</html>

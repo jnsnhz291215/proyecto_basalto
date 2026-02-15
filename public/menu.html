@@ -8,7 +8,23 @@
     </div>
     <ul class="nav-items" id="nav-items">
       <li id="nav-inicio" class="nav-item"><a href="index.html">Inicio</a></li>
-      <li id="nav-gestionar" class="nav-item admin-only"><a href="gestionar.html">Gestionar</a></li>
+      <li id="nav-gestionar-parent" class="nav-item dropdown admin-only">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownGestionar" role="button" aria-expanded="false">
+          Gestionar
+        </a>
+        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdownGestionar">
+          <li>
+            <a class="dropdown-item" href="gestionar.html">
+              <i class="fa-solid fa-users"></i> Trabajadores
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="gestionviajes.html">
+              <i class="fa-solid fa-bus"></i> Viajes
+            </a>
+          </li>
+        </ul>
+      </li>
       <li id="nav-informe" class="nav-item"><a href="informe.html">Informe de turno</a></li>
       <li id="nav-viajes" class="nav-item"><a href="viajes.html">Viajes</a></li>
     </ul>
@@ -79,10 +95,23 @@
   .nav-right{display:flex;align-items:center;gap:12px}
   .dropdown{position:relative}
   .dropdown-toggle{display:flex;align-items:center;gap:8px;background:transparent;border:0;cursor:pointer;padding:6px 10px;border-radius:8px}
-  .dropdown-menu{display:none;position:absolute;right:0;top:46px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.08);min-width:200px;padding:8px;z-index:1300;list-style:none;margin:0}
+  .nav-link.dropdown-toggle{color:#1f2937;text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600;background:transparent;display:flex;align-items:center;gap:4px}
+  .nav-link.dropdown-toggle:hover{background:#f3f4f6}
+  .nav-item.dropdown{position:relative}
+  .dropdown-menu{display:none;position:absolute;left:0;top:100%;background:#fff;border:none;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,0.2);min-width:200px;padding:8px;z-index:1300;list-style:none;margin:0;margin-top:4px}
   .dropdown-menu.show{display:block}
-  .dropdown-item{display:flex;align-items:center;gap:10px;padding:8px 10px;color:#111827;text-decoration:none;border-radius:8px}
+  .dropdown-menu-dark{background:#1f2937}
+  .dropdown-item{display:flex;align-items:center;gap:10px;padding:10px 14px;color:#111827;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500}
+  .dropdown-menu-dark .dropdown-item{color:#f9fafb}
   .dropdown-item:hover{background:#f3f4f6}
+  .dropdown-menu-dark .dropdown-item:hover{background:#374151}
+  .dropdown-item i{font-size:16px;width:20px;text-align:center}
+  /* Efecto Hover en Desktop */
+  @media (min-width: 992px) {
+    .nav-item.dropdown:hover .dropdown-menu {
+      display: block;
+    }
+  }
   .dropdown-divider{height:1px;background:#f3f4f6;margin:6px 0;border:0}
   .text-danger{color:#ef4444}
   @media (max-width:800px){

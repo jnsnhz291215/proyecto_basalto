@@ -16,6 +16,7 @@
   // Páginas que requieren autenticación
   const authRequiredPages = [
     'gestionar.html',
+    'gestionviajes.html',
     'viajes.html',
     'informe.html',
     'datos.html'
@@ -23,7 +24,8 @@
 
   // Páginas solo para admin
   const adminOnlyPages = [
-    'gestionar.html'
+    'gestionar.html',
+    'gestionviajes.html'
   ];
 
   // Verificar si la página actual requiere autenticación
@@ -84,6 +86,9 @@
     // Control manual del dropdown
     setupUserDropdown();
     
+    // Control del dropdown de Gestionar
+    setupGestionarDropdown();
+    
     // Asegurar que la UI de auth esté correcta
     toggleAuthUI();
   });
@@ -126,15 +131,22 @@
       // Ocultar enlaces con clase .admin-only
       const adminElements = document.querySelectorAll('.admin-only');
       adminElements.forEach(element => {
-        element.style.display = 'none';
+        element.style.setProperty('display', 'none', 'important');
         console.log('[AUTH_GUARD] Ocultando elemento admin-only');
       });
 
-      // Ocultar el enlace de "Gestionar" en el navbar
+      // Ocultar el menú dropdown de "Gestionar" en el navbar
+      const navGestionarParent = document.getElementById('nav-gestionar-parent');
+      if (navGestionarParent) {
+        navGestionarParent.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando menú dropdown Gestionar');
+      }
+      
+      // Fallback: ocultar el antiguo enlace si existe
       const navGestionar = document.querySelector('#nav-gestionar');
       if (navGestionar) {
-        navGestionar.style.display = 'none';
-        console.log('[AUTH_GUARD] Ocultando menú Gestionar');
+        navGestionar.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando menú Gestionar (fallback)');
       }
     }
   }
@@ -177,6 +189,31 @@
     document.addEventListener('click', (e) => {
       if (!toggleBtn.contains(e.target) && !menu.contains(e.target)) {
         menu.classList.remove('show');
+      }
+    });
+  }
+
+  // Función para configurar el dropdown de Gestionar (móviles)
+  function setupGestionarDropdown() {
+    const gestionarToggle = document.getElementById('navbarDropdownGestionar');
+    const gestionarMenu = gestionarToggle?.nextElementSibling;
+    
+    if (!gestionarToggle || !gestionarMenu) return;
+
+    // Solo agregar click handler en móviles
+    gestionarToggle.addEventListener('click', (e) => {
+      // Verificar si es móvil (menos de 992px)
+      if (window.innerWidth < 992) {
+        e.preventDefault();
+        e.stopPropagation();
+        gestionarMenu.classList.toggle('show');
+      }
+    });
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', (e) => {
+      if (!gestionarToggle.contains(e.target) && !gestionarMenu.contains(e.target)) {
+        gestionarMenu.classList.remove('show');
       }
     });
   }
