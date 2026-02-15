@@ -609,7 +609,13 @@ function comprobarLogin(e) {
         
         try { 
           const serverRut = d.user.rut || rut;
-          const adminFullName = ((d.user.nombres || '') + ' ' + (d.user.apellido_paterno || '') + ' ' + (d.user.apellido_materno || '')).trim() || rut;
+          // Construir nombre completo, si está vacío usar RUT formateado
+          let adminFullName = ((d.user.nombres || '') + ' ' + (d.user.apellido_paterno || '') + ' ' + (d.user.apellido_materno || '')).trim();
+          
+          // Si no hay nombre, usar el RUT como fallback
+          if (!adminFullName) {
+            adminFullName = serverRut;
+          }
           
           console.log('[GESTION] serverRut:', serverRut);
           console.log('[GESTION] adminFullName:', adminFullName);
@@ -630,13 +636,22 @@ function comprobarLogin(e) {
           
           // Guardar todos los datos del admin para acceso directo (asegurar que adminData siempre se guarde correctamente)
           const adminDataToSave = {
-            ...d.user,
+            rut: serverRut,
+            nombres: d.user.nombres || null,
+            apellido_paterno: d.user.apellido_paterno || null,
+            apellido_materno: d.user.apellido_materno || null,
+            email: d.user.email || null,
             isAdmin: true
           };
           console.log('[GESTION] Guardando adminData:', adminDataToSave);
           localStorage.setItem('adminData', JSON.stringify(adminDataToSave));
           
           console.log('[GESTION] Todo guardado correctamente');
+          console.log('[GESTION] Verificando localStorage:');
+          console.log('  - usuarioActivo:', localStorage.getItem('usuarioActivo'));
+          console.log('  - userRUT:', localStorage.getItem('userRUT'));
+          console.log('  - userName:', localStorage.getItem('userName'));
+          console.log('  - adminData:', localStorage.getItem('adminData'));
         } catch(e){
           console.error('[GESTION] Error guardando sesión admin:', e);
         }

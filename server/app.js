@@ -134,15 +134,27 @@ app.post('/admin-login', async (req, res) => {
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
       const user = rows[0];
+      
+      console.log('[ADMIN LOGIN] Datos del usuario desde BD:', {
+        id: user.id,
+        rut: user.rut,
+        nombres: user.nombres,
+        apellido_paterno: user.apellido_paterno,
+        apellido_materno: user.apellido_materno,
+        email: user.email
+      });
+      
       // Comparar password (asumimos texto plano en columna `password`)
       if (String(user.password || '') !== String(password)) {
         console.log(`[ADMIN LOGIN FAIL] rut=${rutNorm} reason=bad_password ip=${req.ip||req.connection.remoteAddress}`);
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
       console.log(`[ADMIN LOGIN OK] rut=${rutNorm} ip=${req.ip||req.connection.remoteAddress}`);
+      
       // Devolver respuesta con datos completos del admin
       const fullName = `${user.nombres || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim();
-      return res.json({ 
+      
+      const responseData = { 
         success: true, 
         user: { 
           id: user.id || null, 
@@ -151,9 +163,13 @@ app.post('/admin-login', async (req, res) => {
           apellido_paterno: user.apellido_paterno || null,
           apellido_materno: user.apellido_materno || null,
           email: user.email || null,
-          fullName: fullName
+          fullName: fullName || user.rut || 'Administrador'
         } 
-      });
+      };
+      
+      console.log('[ADMIN LOGIN] Respuesta que se envía al cliente:', responseData);
+      
+      return res.json(responseData);
     }catch(qe){
       console.error('Error query admin_users:', qe);
       return res.status(500).json({ error: 'Error en servidor' });
