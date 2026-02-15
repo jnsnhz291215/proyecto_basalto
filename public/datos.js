@@ -126,32 +126,60 @@
   }
 
   // Verificar sesión previa (trabajador o admin)
-  function verificarSesionTrabajador() {
+  async function verificarSesionTrabajador() {
     try {
       const s = localStorage.getItem('usuarioActivo');
       if (s) {
         const u = JSON.parse(s);
         
-        if (u.isAdmin && u.rut) {
+        console.log('[DATOS.JS] verificarSesionTrabajador - usuarioActivo:', u);
+        
+        if (u.isAdmin || u.rol === 'admin') {
+          console.log('[DATOS.JS] Es admin - intentando recuperar datos completos');
           // Es admin desde localStorage - intentar recuperar adminData si está disponible
           const adminDataStr = localStorage.getItem('adminData');
           if (adminDataStr) {
             try {
               const adminData = JSON.parse(adminDataStr);
               adminData.isAdmin = true;
+              console.log('[DATOS.JS] Admin data encontrada en localStorage:', adminData);
               mostrarPerfil(adminData);
               return true;
             } catch(e) {
-              console.error('Error parsing adminData:', e);
+              console.error('[DATOS.JS] Error parsing adminData:', e);
             }
           }
-          // Fallback: mostrar datos básicos del admin
+          
+          // Si no hay adminData, hacer consulta al servidor para obtener los datos completos
+          if (u.rut) {
+            console.log('[DATOS.JS] No hay adminData, consultando servidor con RUT:', u.rut);
+            try {
+              const resp = await fetch('/admin-login', { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({ rut: u.rut, password: '' }) 
+              });
+              
+              // Aunque el password esté mal, podemos obtener el RUT al menos
+              // Mejor opción: crear un endpoint específico para obtener datos del admin
+              // Por ahora, usar los datos que tenemos
+            } catch(e) {
+              console.error('[DATOS.JS] Error consultando datos admin:', e);
+            }
+          }
+          
+          // Fallback: mostrar datos básicos del admin desde usuarioActivo
+          console.log('[DATOS.JS] Usando fallback con datos de usuarioActivo');
           if (modalDatos) modalDatos.classList.remove('show');
           perfilCard.style.display = 'block';
-          perfilNombre.textContent = u.nombre || u.rut;
-          perfilRut.textContent = u.rut;
+          perfilNombre.textContent = u.nombre || u.rut || 'Administrador';
+          perfilRut.textContent = u.rut || '---';
+          perfilEmail.textContent = '---';
+          perfilTelefono.textContent = '---';
           perfilCargo.textContent = 'Administrador';
           perfilGrupo.textContent = 'Administrador';
+          perfilFechaNacimiento.parentElement.style.display = 'none';
+          perfilCiudad.parentElement.style.display = 'none';
           perfilGrupo.classList.remove('profile-badge');
           perfilGrupo.style.backgroundColor = '#dc2626';
           perfilGrupo.style.color = '#fff';
@@ -161,7 +189,7 @@
           perfilGrupo.style.fontSize = '0.875rem';
           perfilGrupo.style.fontWeight = '600';
           return true;
-        } else if (u.nombre) {
+        } else if (u.nombre || u.rut) {
           // Es trabajador normal
           const found = trabajadores.find(t => 
             normalizeRut(t.RUT) === normalizeRut(u.rut) || 
@@ -181,7 +209,7 @@
         }
       }
     } catch (e) {
-      console.error('Error verificando sesión:', e);
+      console.error('[DATOS.JS] Error verificando sesión:', e);
     }
     
     return false;

@@ -600,27 +600,45 @@ function comprobarLogin(e) {
     try{
       const resp = await fetch('/admin-login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rut, password }) });
       const d = await resp.json().catch(()=>({}));
+      
+      console.log('[GESTION] Respuesta del servidor:', d);
+      
       if (resp.ok && d && d.success && d.user) {
         // persist admin session con datos completos del servidor
+        console.log('[GESTION] Login exitoso, datos del usuario:', d.user);
+        
         try { 
           const serverRut = d.user.rut || rut;
           const adminFullName = ((d.user.nombres || '') + ' ' + (d.user.apellido_paterno || '') + ' ' + (d.user.apellido_materno || '')).trim() || rut;
-          localStorage.setItem('usuarioActivo', JSON.stringify({ 
+          
+          console.log('[GESTION] serverRut:', serverRut);
+          console.log('[GESTION] adminFullName:', adminFullName);
+          
+          const usuarioActivo = { 
             rol: 'admin', 
             nombre: adminFullName,
             rut: serverRut,
             isAdmin: true
-          })); 
+          };
+          
+          console.log('[GESTION] Guardando usuarioActivo:', usuarioActivo);
+          localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo)); 
+          
           // También guardar datos para que datos.html los detecte
           localStorage.setItem('userRUT', serverRut);
           localStorage.setItem('userName', adminFullName);
+          
           // Guardar todos los datos del admin para acceso directo (asegurar que adminData siempre se guarde correctamente)
-          localStorage.setItem('adminData', JSON.stringify({
+          const adminDataToSave = {
             ...d.user,
             isAdmin: true
-          }));
+          };
+          console.log('[GESTION] Guardando adminData:', adminDataToSave);
+          localStorage.setItem('adminData', JSON.stringify(adminDataToSave));
+          
+          console.log('[GESTION] Todo guardado correctamente');
         } catch(e){
-          console.error('Error guardando sesión admin:', e);
+          console.error('[GESTION] Error guardando sesión admin:', e);
         }
         el.modalLogin.classList.remove('show');
         cargar();
