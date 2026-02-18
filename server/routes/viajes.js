@@ -3,6 +3,111 @@ const router = express.Router();
 const { pool } = require('../../ejemploconexion.js');
 
 /**
+ * GET /api/viajes/calendario
+ * Obtener todos los viajes para renderizar en el calendario
+ * Retorna: nombre, apellidos, cargo, ciudad origen/destino, hora_salida
+ * Solo viajes no cancelados
+ */
+router.get('/viajes/calendario', async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    const [viajes] = await connection.execute(
+      `SELECT 
+        vt.id_tramo,
+        v.id_viaje,
+        v.rut_trabajador,
+        v.estado,
+        t.nombres,
+        CONCAT(t.apellido_paterno, ' ', IFNULL(t.apellido_materno, '')) as apellidos,
+        t.cargo,
+        vt.fecha_salida,
+        vt.hora_salida,
+        c_origen.nombre_ciudad AS ciudad_origen,
+        c_destino.nombre_ciudad AS ciudad_destino,
+        vt.codigo_pasaje
+      FROM viajes v
+      INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
+      INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
+      LEFT JOIN ciudades c_origen ON vt.id_ciudad_origen = c_origen.id_ciudad
+      LEFT JOIN ciudades c_destino ON vt.id_ciudad_destino = c_destino.id_ciudad
+      WHERE v.estado != 'Cancelado'
+      ORDER BY vt.fecha_salida ASC, vt.hora_salida ASC`
+    );
+
+    res.json(viajes);
+
+  } catch (error) {
+    console.error('[ERROR] Error al obtener calendario de viajes:', error);
+    res.status(500).json({ error: 'Error al obtener el calendario de viajes' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * GET /api/viajes/mis-viajes?rut=xxxxx&ver_pasados=true|false
+ * Obtener viajes del trabajador actual
+ * por_defecto: mostrar viajes vigentes (desde ayer hasta futuro)
+ * ver_pasados=true: mostrar solo viajes anteriores a ayer
+ */
+router.get('/viajes/mis-viajes', async (req, res) => {
+  let connection;
+  try {
+    const { rut, ver_pasados = 'false' } = req.query;
+
+    if (!rut) {
+      return res.status(400).json({ error: 'RUT del trabajador es requerido' });
+    }
+
+    connection = await pool.getConnection();
+
+    let query = `
+      SELECT 
+        v.id_viaje,
+        v.rut_trabajador,
+        v.estado,
+        v.fecha_registro,
+        vt.id_tramo,
+        vt.codigo_pasaje,
+        vt.fecha_salida,
+        vt.hora_salida,
+        c_origen.nombre_ciudad AS ciudad_origen,
+        c_destino.nombre_ciudad AS ciudad_destino
+      FROM viajes v
+      INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
+      LEFT JOIN ciudades c_origen ON vt.id_ciudad_origen = c_origen.id_ciudad
+      LEFT JOIN ciudades c_destino ON vt.id_ciudad_destino = c_destino.id_ciudad
+      WHERE v.rut_trabajador = ?
+    `;
+
+    let params = [rut];
+
+    // Lógica de visibilidad
+    if (ver_pasados === 'true' || ver_pasados === true) {
+      // Mostrar viajes cuya fecha_salida sea anterior a ayer
+      query += ` AND vt.fecha_salida < DATE_SUB(CURDATE(), INTERVAL 1 DAY)`;
+    } else {
+      // Por defecto: mostrar viajes vigentes (desde ayer hasta futuro)
+      query += ` AND vt.fecha_salida >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)`;
+    }
+
+    query += ` ORDER BY vt.fecha_salida ASC, vt.hora_salida ASC`;
+
+    const [viajes] = await connection.execute(query, params);
+
+    res.json(viajes);
+
+  } catch (error) {
+    console.error('[ERROR] Error al obtener mis viajes:', error);
+    res.status(500).json({ error: 'Error al obtener tus viajes' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
  * POST /api/viajes
  * Crear un viaje con múltiples tramos usando transacción SQL
  */

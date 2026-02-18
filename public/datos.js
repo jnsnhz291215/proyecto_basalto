@@ -21,6 +21,11 @@
   const proximaJornadaSection = document.getElementById('proxima-jornada-section');
   const proximaJornadaContenido = document.getElementById('proxima-jornada-contenido');
   
+  // Elementos de Mi Itinerario
+  const miItinerarioSection = document.getElementById('mi-itinerario-section');
+  const itinerarioTbody = document.getElementById('itinerario-tbody');
+  const verViajesAnterioresCheckbox = document.getElementById('ver-viajes-anteriores');
+  
   // Obtener datos de sesión
   const userRole = localStorage.getItem('user_role');
   const userRut = localStorage.getItem('user_rut');
@@ -186,6 +191,9 @@
     
     // Cargar estado del turno (solo para trabajadores)
     await cargarEstadoTurno();
+    
+    // Cargar viajes (solo para trabajadores)
+    await cargarMiItinerario();
   }
 
   // ============================================
@@ -292,6 +300,149 @@
     } else {
       proximaJornadaSection.style.display = 'none';
     }
+  }
+
+  // ============================================
+  // Cargar Mi Itinerario (viajes)
+  // ============================================
+  async function cargarMiItinerario() {
+    try {
+      console.log('[DATOS] Cargando itinerario de viajes para RUT:', userRut);
+      
+      // Cargar viajes vigentes por defecto
+      await recargarTablaViajes(false);
+      
+      // Mostrar sección
+      if (miItinerarioSection) {
+        miItinerarioSection.style.display = 'block';
+      }
+      
+      // Listener para checkbox "Ver viajes anteriores"
+      if (verViajesAnterioresCheckbox) {
+        verViajesAnterioresCheckbox.addEventListener('change', async (e) => {
+          const verAnteriores = e.target.checked;
+          await recargarTablaViajes(verAnteriores);
+        });
+      }
+      
+    } catch (error) {
+      console.error('[DATOS] Error cargando itinerario:', error);
+      if (miItinerarioSection) {
+        miItinerarioSection.style.display = 'none';
+      }
+    }
+  }
+
+  // ============================================
+  // Recargar tabla de viajes
+  // ============================================
+  async function recargarTablaViajes(verAnteriores) {
+    try {
+      const params = new URLSearchParams({
+        rut: userRut,
+        ver_pasados: verAnteriores.toString()
+      });
+
+      const response = await fetch(`/api/viajes/mis-viajes?${params}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener viajes');
+      }
+
+      const viajes = await response.json();
+      console.log('[DATOS] Viajes cargados:', viajes.length);
+
+      // Renderizar tabla
+      renderizarTablaViajes(viajes);
+      
+    } catch (error) {
+      console.error('[DATOS] Error recargando tabla de viajes:', error);
+      if (itinerarioTbody) {
+        itinerarioTbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="padding:12px;text-align:center;color:#dc2626;">
+              Error al cargar los viajes
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  // ============================================
+  // Renderizar tabla de viajes
+  // ============================================
+  function renderizarTablaViajes(viajes) {
+    if (!itinerarioTbody) return;
+
+    if (viajes.length === 0) {
+      itinerarioTbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding:12px;text-align:center;color:#6b7280;">
+            No hay viajes disponibles
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    // Agrupar viajes por id_viaje para evitar duplicados
+    const viajesUnicos = {};
+    viajes.forEach(viaje => {
+      if (!viajesUnicos[viaje.id_viaje]) {
+        viajesUnicos[viaje.id_viaje] = [];
+      }
+      viajesUnicos[viaje.id_viaje].push(viaje);
+    });
+
+    let html = '';
+    
+    Object.keys(viajesUnicos).forEach(idViaje => {
+      const tramosDelViaje = viajesUnicos[idViaje];
+      
+      // Mostrar cada tramo del viaje como una fila
+      tramosDelViaje.forEach((tramo, index) => {
+        const codigoPasaje = tramo.codigo_pasaje || 'N/A';
+        const origen = tramo.ciudad_origen || 'N/A';
+        const destino = tramo.ciudad_destino || 'N/A';
+        
+        // Formatear fecha y hora
+        let fechaHora = 'N/A';
+        try {
+          const fecha = new Date(tramo.fecha_salida);
+          const hora = tramo.hora_salida.substring(0, 5);
+          const fechaFormateada = fecha.toLocaleDateString('es-CL', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+          });
+          fechaHora = `${fechaFormateada} ${hora}`;
+        } catch(e) {
+          fechaHora = tramo.fecha_salida;
+        }
+
+        const estado = tramo.estado || 'Programado';
+        const estadoColor = estado === 'Programado' ? '#3b82f6' : 
+                           estado === 'En curso' ? '#f59e0b' : 
+                           estado === 'Finalizado' ? '#10b981' : '#6b7280';
+
+        html += `
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:8px;color:#1f2937;">${codigoPasaje}</td>
+            <td style="padding:8px;color:#4b5563;">${origen}</td>
+            <td style="padding:8px;color:#4b5563;">${destino}</td>
+            <td style="padding:8px;color:#4b5563;">${fechaHora}</td>
+            <td style="padding:8px;">
+              <span style="display:inline-block;padding:4px 8px;border-radius:4px;background-color:${estadoColor};color:#fff;font-size:12px;font-weight:600;">
+                ${estado}
+              </span>
+            </td>
+          </tr>
+        `;
+      });
+    });
+
+    itinerarioTbody.innerHTML = html;
   }
 
 })();

@@ -147,6 +147,44 @@
             </div>
           </div>
 
+          <!-- Sección Mi Itinerario (solo para trabajadores) -->
+          <div id="mi-itinerario-section" style="display:none;margin-bottom:20px;">
+            <div style="background-color:#f9fafb;border-left:4px solid #8b5cf6;border-radius:8px;padding:16px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <i class="fa-solid fa-plane" style="color:#8b5cf6;font-size:20px;"></i>
+                <h3 style="margin:0;font-size:16px;font-weight:600;color:#1f2937;">Mi Itinerario</h3>
+              </div>
+              
+              <!-- Tabla de viajes -->
+              <div id="itinerario-contenido" style="overflow-x:auto;margin-bottom:12px;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                  <thead>
+                    <tr style="background-color:#e5e7eb;border-bottom:2px solid #d1d5db;">
+                      <th style="padding:8px;text-align:left;color:#1f2937;">Código</th>
+                      <th style="padding:8px;text-align:left;color:#1f2937;">Origen</th>
+                      <th style="padding:8px;text-align:left;color:#1f2937;">Destino</th>
+                      <th style="padding:8px;text-align:left;color:#1f2937;">Salida</th>
+                      <th style="padding:8px;text-align:left;color:#1f2937;">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itinerario-tbody">
+                    <tr>
+                      <td colspan="5" style="padding:12px;text-align:center;color:#6b7280;">Cargando viajes...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Botón Ver viajes anteriores -->
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="ver-viajes-anteriores" style="width:16px;height:16px;cursor:pointer;">
+                <label for="ver-viajes-anteriores" style="cursor:pointer;margin:0;color:#4b5563;font-size:13px;">
+                  Ver viajes anteriores
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="profile-grid">
             <div class="data-item">
               <label>RUT</label>
