@@ -965,6 +965,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);
+  
+  const btnDescargar = document.getElementById('btn-descargar');
+  if (btnDescargar) btnDescargar.addEventListener('click', descargarTrabajadoresExcel);
+  
   if (el.inputBuscar) el.inputBuscar.addEventListener('input', render);
   if (el.selectFiltro) el.selectFiltro.addEventListener('change', render);
   
@@ -1522,6 +1526,46 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Error al guardar la configuración: ' + error.message);
       }
     });
+  }
+
+  // ============================================
+  // DESCARGAR TRABAJADORES EN EXCEL
+  // ============================================
+  async function descargarTrabajadoresExcel() {
+    try {
+      console.log('[DESCARGA] Iniciando descarga de trabajadores en Excel...');
+      
+      const response = await fetch('/api/trabajadores/download');
+      
+      if (!response.ok) {
+        throw new Error('Error al descargar el archivo');
+      }
+      
+      // Obtener el blob
+      const blob = await response.blob();
+      
+      // Crear URL temporal
+      const url = window.URL.createObjectURL(blob);
+      
+      // Crear elemento <a> temporal
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Trabajadores_Basalto_Drilling.xlsx';
+      
+      // Insertar en el DOM, hacer click y remover
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Liberar memoria
+      window.URL.revokeObjectURL(url);
+      
+      console.log('[DESCARGA] Archivo descargado exitosamente');
+      
+    } catch (error) {
+      console.error('[ERROR DESCARGA] Error al descargar trabajadores:', error);
+      alert('Error al descargar el archivo: ' + error.message);
+    }
   }
 
   // cargar() se ejecuta solo tras login correcto en comprobarLogin

@@ -882,6 +882,83 @@ app.post("/eliminar-trabajador", async (req, res) => {
 });
 
 // ============================================
+// ENDPOINTS: Descarga de Trabajadores (Excel)
+// ============================================
+
+// GET /api/trabajadores/download - Descargar tabla de trabajadores en Excel
+app.get('/api/trabajadores/download', async (req, res) => {
+  try {
+    const ExcelJS = require('exceljs');
+    
+    console.log('[DESCARGA] Generando Excel de trabajadores...');
+    
+    // Obtener todos los trabajadores de la BD
+    const [trabajadores] = await pool.execute(
+      `SELECT RUT, nombres, apellido_paterno, apellido_materno, email, 
+              fecha_nacimiento, ciudad, telefono, id_grupo, cargo, activo
+       FROM trabajadores
+       ORDER BY apellido_paterno, apellido_materno, nombres ASC`
+    );
+    
+    // Crear workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Trabajadores');
+    
+    // Definir encabezados
+    const headers = ['RUT', 'NOMBRE', 'APELLIDO PATERNO', 'APELLIDO MATERNO', 
+                     'EMAIL', 'FECHA NACIMIENTO', 'CIUDAD', 'TELÉFONO', 'GRUPO', 'CARGO', 'ESTADO'];
+    
+    worksheet.columns = headers.map(header => ({ 
+      header: header, 
+      width: header === 'EMAIL' ? 25 : header === 'FECHA NACIMIENTO' ? 18 : 15
+    }));
+    
+    // Agregar filas de datos
+    trabajadores.forEach(t => {
+      const grupoLetra = t.id_grupo ? String.fromCharCode(64 + t.id_grupo) : 'N/A';
+      const estado = t.activo === 1 ? 'Activo' : 'Inactivo';
+      const fechaNacimiento = t.fecha_nacimiento ? new Date(t.fecha_nacimiento).toLocaleDateString('es-CL') : '';
+      
+      worksheet.addRow([
+        t.RUT || '',
+        t.nombres || '',
+        t.apellido_paterno || '',
+        t.apellido_materno || '',
+        t.email || '',
+        fechaNacimiento,
+        t.ciudad || '',
+        t.telefono || '',
+        grupoLetra,
+        t.cargo || '',
+        estado
+      ]);
+    });
+    
+    // Estilos básicos a los encabezados
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+    
+    // Generar buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    
+    // Configurar respuesta para descargar
+    const filename = `Trabajadores_Basalto_Drilling.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    console.log(`[DESCARGA] Excel generado correctamente: ${trabajadores.length} trabajadores`);
+    
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('[ERROR DESCARGA] Error al generar Excel:', error);
+    res.status(500).json({ error: 'Error al generar el archivo Excel' });
+  }
+});
+
+// ============================================
 // ENDPOINTS: Excepciones de Turno
 // ============================================
 
