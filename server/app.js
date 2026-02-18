@@ -295,10 +295,9 @@ app.post('/api/cargos', async (req, res) => {
 app.get('/api/ciudades', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT nombre_ciudad FROM ciudades ORDER BY nombre_ciudad ASC'
+      'SELECT id_ciudad, nombre_ciudad FROM ciudades ORDER BY nombre_ciudad ASC'
     );
-    const ciudades = rows.map(row => row.nombre_ciudad);
-    res.json(ciudades);
+    res.json(rows);
   } catch (error) {
     console.error('Error al obtener ciudades:', error);
     res.status(500).json({ error: 'Error al obtener ciudades' });

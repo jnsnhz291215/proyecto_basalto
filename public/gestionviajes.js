@@ -250,7 +250,7 @@ function agregarTramo() {
         <div class="select-wrapper">
           <select class="modern-input plain" required>
             <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre}</option>`).join('')}
+            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
           </select>
           <i class="fa-solid fa-chevron-down select-arrow"></i>
         </div>
@@ -261,7 +261,7 @@ function agregarTramo() {
         <div class="select-wrapper">
           <select class="modern-input plain" required>
             <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre}</option>`).join('')}
+            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
           </select>
           <i class="fa-solid fa-chevron-down select-arrow"></i>
         </div>
@@ -488,7 +488,7 @@ function crearCardViaje(viaje) {
         <div class="viaje-fecha" style="font-size:13px;color:#6b7280;">
           <i class="fa-solid fa-calendar"></i> Creado: ${fechaFormateada}
         </div>
-        ${viaje.grupo ? `<div style="font-size:13px;color:#6b7280;margin-top:2px;"><i class="fa-solid fa-users"></i> Grupo ${viaje.grupo}</div>` : ''}
+        ${viaje.id_grupo ? `<div style="font-size:13px;color:#6b7280;margin-top:2px;"><i class="fa-solid fa-users"></i> Grupo ${viaje.id_grupo}</div>` : ''}
       </div>
       ${estadoBadge}
     </div>
@@ -599,7 +599,7 @@ window.editarViaje = async function(idViaje) {
           <div class="select-wrapper">
             <select class="modern-input plain" required>
               <option value="">Seleccionar ciudad...</option>
-              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre}</option>`).join('')}
+              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
             </select>
             <i class="fa-solid fa-chevron-down select-arrow"></i>
           </div>
@@ -610,7 +610,7 @@ window.editarViaje = async function(idViaje) {
           <div class="select-wrapper">
             <select class="modern-input plain" required>
               <option value="">Seleccionar ciudad...</option>
-              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre}</option>`).join('')}
+              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
             </select>
             <i class="fa-solid fa-chevron-down select-arrow"></i>
           </div>

@@ -51,7 +51,7 @@ router.post('/viajes', async (req, res) => {
     // 2. Insertar cada tramo asociado al viaje
     for (const tramo of tramos) {
       await connection.execute(
-        `INSERT INTO tramos_viaje 
+        `INSERT INTO viajes_tramos 
         (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino) 
         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -105,15 +105,15 @@ router.get('/viajes', async (req, res) => {
       // Viajes programados o en curso
       whereConditions.push("v.estado IN ('Programado', 'En curso')");
       // Agregar condición de fecha futura usando MIN de fecha_salida de tramos
-      whereConditions.push('(SELECT MIN(fecha_salida) FROM tramos_viaje WHERE id_viaje = v.id_viaje) >= CURDATE()');
+      whereConditions.push('(SELECT MIN(fecha_salida) FROM viajes_tramos WHERE id_viaje = v.id_viaje) >= CURDATE()');
     } else if (tipo === 'historial') {
       // Viajes finalizados, cancelados o con fecha pasada
-      whereConditions.push("(v.estado IN ('Finalizado', 'Cancelado') OR (SELECT MIN(fecha_salida) FROM tramos_viaje WHERE id_viaje = v.id_viaje) < CURDATE())");
+      whereConditions.push("(v.estado IN ('Finalizado', 'Cancelado') OR (SELECT MIN(fecha_salida) FROM viajes_tramos WHERE id_viaje = v.id_viaje) < CURDATE())");
     }
     
     // Filtro por mes (basado en fecha_salida del primer tramo)
     if (mes && mes.match(/^(0[1-9]|1[0-2])$/)) {
-      whereConditions.push('MONTH((SELECT MIN(fecha_salida) FROM tramos_viaje WHERE id_viaje = v.id_viaje)) = ?');
+      whereConditions.push('MONTH((SELECT MIN(fecha_salida) FROM viajes_tramos WHERE id_viaje = v.id_viaje)) = ?');
       params.push(parseInt(mes));
     }
     
@@ -126,10 +126,10 @@ router.get('/viajes', async (req, res) => {
         v.rut_trabajador,
         v.fecha_registro,
         v.estado,
-        (SELECT MIN(fecha_salida) FROM tramos_viaje WHERE id_viaje = v.id_viaje) as fecha_salida,
+        (SELECT MIN(fecha_salida) FROM viajes_tramos WHERE id_viaje = v.id_viaje) as fecha_salida,
         t.nombres,
-        t.apellidos,
-        t.grupo,
+        CONCAT(t.apellido_paterno, ' ', t.apellido_materno) as apellidos,
+        t.id_grupo,
         t.cargo
       FROM viajes v
       INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
@@ -149,9 +149,9 @@ router.get('/viajes', async (req, res) => {
           tr.hora_salida as hora,
           tr.id_ciudad_origen,
           tr.id_ciudad_destino,
-          c_origen.nombre AS origen,
-          c_destino.nombre AS destino
-        FROM tramos_viaje tr
+          c_origen.nombre_ciudad AS origen,
+          c_destino.nombre_ciudad AS destino
+        FROM viajes_tramos tr
         LEFT JOIN ciudades c_origen ON tr.id_ciudad_origen = c_origen.id_ciudad
         LEFT JOIN ciudades c_destino ON tr.id_ciudad_destino = c_destino.id_ciudad
         WHERE tr.id_viaje = ?
@@ -253,14 +253,14 @@ router.put('/viajes/:id', async (req, res) => {
 
     // 2. Eliminar tramos antiguos
     await connection.execute(
-      'DELETE FROM tramos_viaje WHERE id_viaje = ?',
+      'DELETE FROM viajes_tramos WHERE id_viaje = ?',
       [id]
     );
 
     // 3. Insertar nuevos tramos
     for (const tramo of tramos) {
       await connection.execute(
-        `INSERT INTO tramos_viaje 
+        `INSERT INTO viajes_tramos 
         (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino) 
         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -305,7 +305,7 @@ router.delete('/viajes/:id', async (req, res) => {
 
     // Eliminar tramos primero
     await connection.execute(
-      'DELETE FROM tramos_viaje WHERE id_viaje = ?',
+      'DELETE FROM viajes_tramos WHERE id_viaje = ?',
       [id]
     );
 
