@@ -190,9 +190,33 @@ function seleccionarTrabajador() {
 }
 
 function mostrarInfoTrabajador(trabajador) {
-  document.getElementById('info-nombre').textContent = `${trabajador.nombres} ${trabajador.apellidos}`;
-  document.getElementById('info-grupo').textContent = trabajador.grupo || 'Sin grupo';
+  // NOMBRE: Concatenar nombres completos
+  const nombreCompleto = `${trabajador.nombres} ${trabajador.apellido_paterno || ''} ${trabajador.apellido_materno || ''}`.trim();
+  document.getElementById('info-nombre').textContent = nombreCompleto;
+  
+  // RUT
+  document.getElementById('info-rut').textContent = trabajador.RUT || '-';
+  
+  // FECHA NACIMIENTO: Formatear a DD/MM/AAAA
+  let fechaNacimientoFormateada = '-';
+  if (trabajador.fecha_nacimiento) {
+    try {
+      const fecha = new Date(trabajador.fecha_nacimiento);
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const anio = fecha.getFullYear();
+      fechaNacimientoFormateada = `${dia}/${mes}/${anio}`;
+    } catch (e) {
+      fechaNacimientoFormateada = '-';
+    }
+  }
+  document.getElementById('info-fecha-nacimiento').textContent = fechaNacimientoFormateada;
+  
+  // CARGO
   document.getElementById('info-cargo').textContent = trabajador.cargo || 'Sin cargo';
+  
+  // GRUPO
+  document.getElementById('info-grupo').textContent = trabajador.grupo || 'Sin grupo';
   
   el.trabajadorInfo.classList.add('visible');
 }
