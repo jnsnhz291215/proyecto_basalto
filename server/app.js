@@ -371,36 +371,37 @@ app.post('/api/informes', async (req, res) => {
     // PASO 3A: INSERT EN TABLA PRINCIPAL (informes_turno)
     const [resultInforme] = await connection.execute(
       `INSERT INTO informes_turno (
-        numero_informe, fecha, turno, horometro_inicial, horometro_final,
-        faena, equipo, operador, pozo_numero, sector, inclinacion,
-        profundidad_final, pulldown, rpm, petroleo, lubricantes, aceites,
-        otros_insumos, observaciones, firma_operador, firma_ito,
-        firma_supervisor, firma_cliente, estado, fecha_creacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        numero_informe, fecha, turno, horas_trabajadas, faena, lugar, equipo, operador_rut, 
+        ayudante_1, ayudante_2, pozo_numero, sector, diametro, inclinacion, profundidad_inicial,
+        profundidad_final, mts_perforados, pull_down, rpm, horometro_inicial, horometro_final, 
+        horometro_hrs, insumo_petroleo, insumo_lubricantes, observaciones, estado, creado_el
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         folio,
         datosGenerales.fecha || null,
         datosGenerales.turno || null,
-        datosGenerales.horometro_inicial || null,
-        datosGenerales.horometro_final || null,
+        datosGenerales.horas_trabajadas || null,
         datosGenerales.faena || null,
+        datosGenerales.lugar || null,
         datosGenerales.equipo || null,
-        datosGenerales.operador || null,
+        datosGenerales.operador_rut || null,
+        datosGenerales.ayudante_1 || null,
+        datosGenerales.ayudante_2 || null,
         datosGenerales.pozo_numero || null,
         datosGenerales.sector || null,
+        datosGenerales.diametro || null,
         datosGenerales.inclinacion || null,
+        datosGenerales.profundidad_inicial || null,
         datosGenerales.profundidad_final || null,
-        datosGenerales.pulldown || null,
+        datosGenerales.mts_perforados || null,
+        datosGenerales.pull_down || null,
         datosGenerales.rpm || null,
-        datosGenerales.petroleo || null,
-        datosGenerales.lubricantes || null,
-        datosGenerales.aceites || null,
-        datosGenerales.otros_insumos || null,
+        datosGenerales.horometro_inicial || null,
+        datosGenerales.horometro_final || null,
+        datosGenerales.horometro_hrs || null,
+        datosGenerales.insumo_petroleo || null,
+        datosGenerales.insumo_lubricantes || null,
         datosGenerales.observaciones || null,
-        datosGenerales.firma_operador || null,
-        datosGenerales.firma_ito || null,
-        datosGenerales.firma_supervisor || null,
-        datosGenerales.firma_cliente || null,
         datosGenerales.estado || 'Borrador'
       ]
     );
@@ -412,8 +413,8 @@ app.post('/api/informes', async (req, res) => {
     if (actividades && actividades.length > 0) {
       for (const act of actividades) {
         await connection.execute(
-          'INSERT INTO actividades_turno (id_informe, hora_inicio, hora_fin, detalle) VALUES (?, ?, ?, ?)',
-          [idInforme, act.hora_inicio || null, act.hora_fin || null, act.detalle || null]
+          'INSERT INTO actividades_turno (id_informe, hora_desde, hora_hasta, detalle, hrs_bd, hrs_cliente) VALUES (?, ?, ?, ?, ?, ?)',
+          [idInforme, act.hora_desde || null, act.hora_hasta || null, act.detalle || null, act.hrs_bd || null, act.hrs_cliente || null]
         );
       }
       console.log(`[INFORME] ${actividades.length} actividades insertadas`);
@@ -442,8 +443,8 @@ app.post('/api/informes', async (req, res) => {
     if (herramientas && herramientas.length > 0) {
       for (const herr of herramientas) {
         await connection.execute(
-          'INSERT INTO herramientas_turno (id_informe, categoria, tipo, cantidad) VALUES (?, ?, ?, ?)',
-          [idInforme, herr.categoria || null, herr.tipo || null, herr.cantidad || 0]
+          'INSERT INTO herramientas_turno (id_informe, tipo_elemente, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [idInforme, herr.tipo_elemente || null, herr.diametro || null, herr.numero_serie || null, herr.desde_mts || null, herr.hasta_mts || null, herr.detalle_extra || null]
         );
       }
       console.log(`[INFORME] ${herramientas.length} herramientas insertadas`);

@@ -242,16 +242,13 @@ function agregarTramo() {
     <div class="form-grid">
       <div class="form-group">
         <label>Tipo de Transporte</label>
-        <div class="select-wrapper">
-          <select class="modern-input plain" required>
-            <option value="" disabled selected>Seleccione...</option>
-            <option value="Bus">🚌 BUS</option>
-            <option value="Avión">✈️ AVIÓN</option>
-            <option value="Transfer">🚐 TRANSFER</option>
-            <option value="Otro">🚗 OTRO</option>
-          </select>
-          <i class="fa-solid fa-chevron-down select-arrow"></i>
-        </div>
+        <select class="modern-input plain" required>
+          <option value="" disabled selected>Seleccione...</option>
+          <option value="Bus">🚌 BUS</option>
+          <option value="Avión">✈️ AVIÓN</option>
+          <option value="Transfer">🚐 TRANSFER</option>
+          <option value="Otro">🚗 OTRO</option>
+        </select>
       </div>
       
       <div class="form-group">
@@ -271,24 +268,18 @@ function agregarTramo() {
       
       <div class="form-group">
         <label>Origen</label>
-        <div class="select-wrapper">
-          <select class="modern-input plain" required>
-            <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
-          </select>
-          <i class="fa-solid fa-chevron-down select-arrow"></i>
-        </div>
+        <select class="modern-input plain" required>
+          <option value="">Seleccionar ciudad...</option>
+          ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
+        </select>
       </div>
       
       <div class="form-group">
         <label>Destino</label>
-        <div class="select-wrapper">
-          <select class="modern-input plain" required>
-            <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
-          </select>
-          <i class="fa-solid fa-chevron-down select-arrow"></i>
-        </div>
+        <select class="modern-input plain" required>
+          <option value="">Seleccionar ciudad...</option>
+          ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
+        </select>
       </div>
     </div>
   `;
@@ -620,24 +611,18 @@ window.editarViaje = async function(idViaje) {
         
         <div class="form-group">
           <label>Origen</label>
-          <div class="select-wrapper">
-            <select class="modern-input plain" required>
-              <option value="">Seleccionar ciudad...</option>
-              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
-            </select>
-            <i class="fa-solid fa-chevron-down select-arrow"></i>
-          </div>
+          <select class="modern-input plain" required>
+            <option value="">Seleccionar ciudad...</option>
+            ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
+          </select>
         </div>
         
         <div class="form-group">
           <label>Destino</label>
-          <div class="select-wrapper">
-            <select class="modern-input plain" required>
-              <option value="">Seleccionar ciudad...</option>
-              ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
-            </select>
-            <i class="fa-solid fa-chevron-down select-arrow"></i>
-          </div>
+          <select class="modern-input plain" required>
+            <option value="">Seleccionar ciudad...</option>
+            ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
+          </select>
         </div>
       </div>
     `;

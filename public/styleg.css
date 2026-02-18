@@ -169,13 +169,21 @@ body {
 }
 
 .filtro-wrap select {
-  padding: 8px 12px;
+  padding: 8px 12px 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-family: inherit;
   font-size: 14px;
   background: #ffffff;
   min-width: 140px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239ca3af" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
 }
 
 .filtro-wrap select:focus {
@@ -491,11 +499,23 @@ body {
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 10px;
+  padding: 10px 12px;
   border: 2px solid #d1d5db;
   border-radius: 6px;
   font-family: inherit;
   font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-group select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239ca3af" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 20px;
+  padding-right: 40px;
 }
 
 .form-group input:focus,

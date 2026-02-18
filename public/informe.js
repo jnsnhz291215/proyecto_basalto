@@ -28,21 +28,27 @@ async function enviarInforme(estadoFinal) {
     const datosGenerales = {
       fecha: document.getElementById('input-fecha')?.value || '',
       turno: document.getElementById('input-turno')?.value || '',
-      horometro_inicial: parseFloat(document.getElementById('input-horometro-inicial')?.value) || null,
-      horometro_final: parseFloat(document.getElementById('input-horometro-final')?.value) || null,
+      horas_trabajadas: parseFloat(document.getElementById('input-horas-trabajadas')?.value) || null,
       faena: document.getElementById('input-faena')?.value || '',
+      lugar: document.getElementById('input-lugar')?.value || '',
       equipo: document.getElementById('input-equipo')?.value || '',
-      operador: document.getElementById('input-operador')?.value || '',
+      operador_rut: document.getElementById('input-operador')?.value || '',
+      ayudante_1: document.getElementById('input-ayudante-1')?.value || '',
+      ayudante_2: document.getElementById('input-ayudante-2')?.value || '',
       pozo_numero: document.getElementById('input-pozo-num')?.value || '',
       sector: document.getElementById('input-sector')?.value || '',
+      diametro: document.getElementById('input-diametro')?.value || '',
       inclinacion: document.getElementById('input-inclinacion')?.value || '',
-      profundidad_final: document.getElementById('input-profundidad')?.value || '',
-      pulldown: parseFloat(document.getElementById('input-pulldown')?.value) || null,
+      profundidad_inicial: parseFloat(document.getElementById('input-profundidad-inicial')?.value) || null,
+      profundidad_final: parseFloat(document.getElementById('input-profundidad')?.value) || null,
+      mts_perforados: parseFloat(document.getElementById('input-mts-perforados')?.value) || null,
+      pull_down: parseFloat(document.getElementById('input-pulldown')?.value) || null,
       rpm: parseFloat(document.getElementById('input-rpm')?.value) || null,
-      petroleo: parseFloat(document.getElementById('input-petroleo')?.value) || null,
-      lubricantes: parseFloat(document.getElementById('input-lubricantes')?.value) || null,
-      aceites: parseFloat(document.getElementById('input-aceites')?.value) || null,
-      otros_insumos: parseFloat(document.getElementById('input-otros')?.value) || null,
+      horometro_inicial: parseFloat(document.getElementById('input-horometro-inicial')?.value) || null,
+      horometro_final: parseFloat(document.getElementById('input-horometro-final')?.value) || null,
+      horometro_hrs: parseFloat(document.getElementById('input-horometro-hrs')?.value) || null,
+      insumo_petroleo: parseFloat(document.getElementById('input-petroleo')?.value) || null,
+      insumo_lubricantes: parseFloat(document.getElementById('input-lubricantes')?.value) || null,
       observaciones: document.getElementById('notas-observaciones')?.value || '',
       estado: estadoFinal
     };
@@ -56,7 +62,7 @@ async function enviarInforme(estadoFinal) {
         { campo: 'horometro_final', nombre: 'Horómetro Final' },
         { campo: 'faena', nombre: 'Faena' },
         { campo: 'equipo', nombre: 'Equipo' },
-        { campo: 'operador', nombre: 'Operador' }
+        { campo: 'operador_rut', nombre: 'Operador' }
       ];
 
       for (const { campo, nombre } of camposRequeridos) {
@@ -71,12 +77,14 @@ async function enviarInforme(estadoFinal) {
     const actividades = [];
     const filasActividades = document.querySelectorAll('#lista-actividades tr');
     filasActividades.forEach(fila => {
-      const horaInicio = fila.querySelector('[name="hora_inicio[]"]')?.value || '';
-      const horaFin = fila.querySelector('[name="hora_fin[]"]')?.value || '';
+      const horaDesde = fila.querySelector('[name="hora_desde[]"]')?.value || '';
+      const horaHasta = fila.querySelector('[name="hora_hasta[]"]')?.value || '';
       const detalle = fila.querySelector('[name="detalle[]"]')?.value || '';
+      const hrsBd = parseFloat(fila.querySelector('[name="hrs_bd[]"]')?.value) || null;
+      const hrsCliente = parseFloat(fila.querySelector('[name="hrs_cliente[]"]')?.value) || null;
       
-      if (horaInicio || horaFin || detalle) {
-        actividades.push({ hora_inicio: horaInicio, hora_fin: horaFin, detalle });
+      if (horaDesde || horaHasta || detalle) {
+        actividades.push({ hora_desde: horaDesde, hora_hasta: horaHasta, detalle, hrs_bd: hrsBd, hrs_cliente: hrsCliente });
       }
     });
 
@@ -99,58 +107,18 @@ async function enviarInforme(estadoFinal) {
     // 5. RECOLECTAR HERRAMIENTAS/MATERIALES (TABLAS PEQUEÑAS)
     const herramientas = [];
     
-    // Aceros
-    const filasAceros = document.querySelectorAll('#tabla-aceros tr');
-    filasAceros.forEach(fila => {
-      const inputs = fila.querySelectorAll('.input-compact');
-      if (inputs.length >= 2) {
-        const tipo = inputs[0]?.value || '';
-        const cantidad = parseInt(inputs[1]?.value) || 0;
-        if (tipo || cantidad) herramientas.push({ categoria: 'Aceros', tipo, cantidad });
-      }
-    });
-
-    // Rebaje
-    const filasRebaje = document.querySelectorAll('#tabla-rebaje tr');
-    filasRebaje.forEach(fila => {
-      const inputs = fila.querySelectorAll('.input-compact');
-      if (inputs.length >= 2) {
-        const tipo = inputs[0]?.value || '';
-        const cantidad = parseInt(inputs[1]?.value) || 0;
-        if (tipo || cantidad) herramientas.push({ categoria: 'Rebaje', tipo, cantidad });
-      }
-    });
-
-    // Accesorios
-    const filasAccesorios = document.querySelectorAll('#tabla-accesorios tr');
-    filasAccesorios.forEach(fila => {
-      const inputs = fila.querySelectorAll('.input-compact');
-      if (inputs.length >= 2) {
-        const tipo = inputs[0]?.value || '';
-        const cantidad = parseInt(inputs[1]?.value) || 0;
-        if (tipo || cantidad) herramientas.push({ categoria: 'Accesorios', tipo, cantidad });
-      }
-    });
-
-    // Casing
-    const filasCasing = document.querySelectorAll('#tabla-casing tr');
-    filasCasing.forEach(fila => {
-      const inputs = fila.querySelectorAll('.input-compact');
-      if (inputs.length >= 2) {
-        const tipo = inputs[0]?.value || '';
-        const cantidad = parseInt(inputs[1]?.value) || 0;
-        if (tipo || cantidad) herramientas.push({ categoria: 'Casing', tipo, cantidad });
-      }
-    });
-
-    // Aditivos
-    const filasAditivos = document.querySelectorAll('#tabla-aditivos tr');
-    filasAditivos.forEach(fila => {
-      const inputs = fila.querySelectorAll('.input-compact');
-      if (inputs.length >= 2) {
-        const tipo = inputs[0]?.value || '';
-        const cantidad = parseInt(inputs[1]?.value) || 0;
-        if (tipo || cantidad) herramientas.push({ categoria: 'Aditivos', tipo, cantidad });
+    // Herramientas (tipo_elemente, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra)
+    const filasHerramientas = document.querySelectorAll('#tabla-herramientas tr');
+    filasHerramientas.forEach(fila => {
+      const tipo_elemente = fila.querySelector('[name="herr_tipo_elemente[]"]')?.value || '';
+      const diametro = fila.querySelector('[name="herr_diametro[]"]')?.value || '';
+      const numero_serie = fila.querySelector('[name="herr_numero_serie[]"]')?.value || '';
+      const desde_mts = parseFloat(fila.querySelector('[name="herr_desde_mts[]"]')?.value) || null;
+      const hasta_mts = parseFloat(fila.querySelector('[name="herr_hasta_mts[]"]')?.value) || null;
+      const detalle_extra = fila.querySelector('[name="herr_detalle_extra[]"]')?.value || '';
+      
+      if (tipo_elemente || numero_serie) {
+        herramientas.push({ tipo_elemente, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra });
       }
     });
 
@@ -204,9 +172,11 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const nuevaFila = document.createElement('tr');
             nuevaFila.innerHTML = `
-                <td><input type="time" class="input-compact" name="hora_inicio[]"></td>
-                <td><input type="time" class="input-compact" name="hora_fin[]"></td>
+                <td><input type="time" class="input-compact" name="hora_desde[]"></td>
+                <td><input type="time" class="input-compact" name="hora_hasta[]"></td>
                 <td><input type="text" class="input-compact" placeholder="Detalle de la actividad" name="detalle[]"></td>
+                <td><input type="number" class="input-compact" placeholder="Hrs" name="hrs_bd[]" step="0.1"></td>
+                <td><input type="number" class="input-compact" placeholder="Hrs" name="hrs_cliente[]" step="0.1"></td>
                 <td style="text-align: center;"><button class="btn-delete" type="button" onclick="eliminarFila(this)"><i class="fa-solid fa-trash"></i></button></td>
             `;
             listaActividades.appendChild(nuevaFila);
@@ -243,6 +213,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         tablaPerforacion.addEventListener('click', function(ev) {
+            const b = ev.target.closest && ev.target.closest('.btn-delete');
+            if (b) {
+                ev.preventDefault();
+                eliminarFila(b);
+            }
+        });
+    }
+
+    // Tabla de Herramientas
+    const btnAgregarHerramienta = document.querySelector('#btnAgregarHerramienta');
+    const tablaHerramientas = document.getElementById('tabla-herramientas');
+
+    if (btnAgregarHerramienta && tablaHerramientas) {
+        btnAgregarHerramienta.addEventListener('click', function(e) {
+            e.preventDefault();
+            const nuevaFila = document.createElement('tr');
+            nuevaFila.innerHTML = `
+                <td><input type="text" class="input-compact" placeholder="Tipo elemento" name="herr_tipo_elemente[]"></td>
+                <td><input type="text" class="input-compact" placeholder="Diámetro" name="herr_diametro[]"></td>
+                <td><input type="text" class="input-compact" placeholder="Nº Serie" name="herr_numero_serie[]"></td>
+                <td><input type="number" class="input-compact" placeholder="Desde (m)" name="herr_desde_mts[]" step="0.1"></td>
+                <td><input type="number" class="input-compact" placeholder="Hasta (m)" name="herr_hasta_mts[]" step="0.1"></td>
+                <td><input type="text" class="input-compact" placeholder="Detalle" name="herr_detalle_extra[]"></td>
+                <td style="text-align: center;"><button class="btn-delete" type="button" onclick="eliminarFila(this)"><i class="fa-solid fa-trash"></i></button></td>
+            `;
+            tablaHerramientas.appendChild(nuevaFila);
+        });
+
+        tablaHerramientas.addEventListener('click', function(ev) {
             const b = ev.target.closest && ev.target.closest('.btn-delete');
             if (b) {
                 ev.preventDefault();

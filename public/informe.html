@@ -75,12 +75,20 @@
                 <select id="input-turno" class="modern-input"><option>A</option><option>B</option><option>C</option><option>D</option></select>
             </div>
             <div class="input-group">
+                <label>Horas Trabajadas</label>
+                <input type="number" id="input-horas-trabajadas" placeholder="Ej: 12.5" class="modern-input">
+            </div>
+            <div class="input-group">
                 <label>Horómetro Inicial</label>
                 <input type="number" id="input-horometro-inicial" placeholder="Ej: 1500.5" class="modern-input">
             </div>
             <div class="input-group">
                 <label>Horómetro Final</label>
                 <input type="number" id="input-horometro-final" placeholder="Ej: 1512.0" class="modern-input">
+            </div>
+            <div class="input-group">
+                <label>Horas Horómetro</label>
+                <input type="number" id="input-horometro-hrs" placeholder="Ej: 11.5" class="modern-input">
             </div>
         </div>
 
@@ -111,12 +119,30 @@
                             <input type="text" id="input-faena" placeholder="Ej: Centinela" class="modern-input">
                         </div>
                         <div class="input-group">
+                            <label>Lugar</label>
+                            <input type="text" id="input-lugar" placeholder="Ej: Sector 1" class="modern-input">
+                        </div>
+                        <div class="input-group">
                             <label>Equipo</label>
                             <input type="text" id="input-equipo" placeholder="Ej: ED-1200" class="modern-input">
                         </div>
+                    </div>
+                </div>
+
+                <div class="card-section">
+                    <h3 class="section-title">Operador y Ayudantes</h3>
+                    <div class="form-grid">
                         <div class="input-group">
                             <label>Operador</label>
                             <input type="text" id="input-operador" value="Juan Sanhueza" readonly class="modern-input input-readonly">
+                        </div>
+                        <div class="input-group">
+                            <label>Ayudante 1</label>
+                            <input type="text" id="input-ayudante-1" placeholder="RUT o nombre" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Ayudante 2</label>
+                            <input type="text" id="input-ayudante-2" placeholder="RUT o nombre" class="modern-input">
                         </div>
                     </div>
                 </div>
@@ -133,12 +159,24 @@
                             <input type="text" id="input-sector" class="modern-input">
                         </div>
                         <div class="input-group">
+                            <label>Diámetro</label>
+                            <input type="text" id="input-diametro" placeholder="Ej: 26 pulg" class="modern-input">
+                        </div>
+                        <div class="input-group">
                             <label>Inclinación</label>
                             <input type="text" id="input-inclinacion" placeholder="Ej: 90°" class="modern-input">
                         </div>
                         <div class="input-group">
+                            <label>Prof. Inicial</label>
+                            <input type="number" id="input-profundidad-inicial" placeholder="Ej: 500" class="modern-input">
+                        </div>
+                        <div class="input-group">
                             <label>Prof. Final</label>
-                            <input type="text" id="input-profundidad" class="modern-input">
+                            <input type="number" id="input-profundidad" placeholder="Ej: 600" class="modern-input">
+                        </div>
+                        <div class="input-group">
+                            <label>Mts. Perforados</label>
+                            <input type="number" id="input-mts-perforados" placeholder="Ej: 100" class="modern-input">
                         </div>
                     </div>
                 </div>
@@ -213,9 +251,11 @@
                     <table class="activity-table">
                         <thead>
                             <tr>
-                                <th style="width: 130px; padding: 10px;">Desde</th>
-                                <th style="width: 130px; padding: 10px;">Hasta</th>
+                                <th style="width: 100px; padding: 10px;">Desde</th>
+                                <th style="width: 100px; padding: 10px;">Hasta</th>
                                 <th style="padding: 10px;">Detalle de Actividad</th>
+                                <th style="width: 80px;">Hrs BD</th>
+                                <th style="width: 80px;">Hrs Cliente</th>
                                 <th style="width: 50px;"></th>
                             </tr>
                         </thead>
@@ -229,108 +269,30 @@
             </div>
         </div>
 
-        <!-- TAB 3: MATERIALES -->
+        <!-- TAB 3: MATERIALES Y HERRAMIENTAS -->
         <div id="tab-materiales" class="tab-content">
-            <div class="materiales-grid">
-                <div class="card-section">
-                    <h3 class="section-title">Aceros de Perforación</h3>
-                    <div class="table-responsive">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Tipo</th>
-                                    <th style="width: 80px;">Cantidad</th>
-                                    <th style="width: 50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-aceros">
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="btn-add-row-small" onclick="agregarFila('tabla-aceros', ['select-acero-tipo', 'input-acero-cant'])">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
+            <div class="card-section">
+                <h3 class="section-title">Herramientas de Perforación</h3>
+                <div class="table-responsive">
+                    <table class="activity-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Tipo Elemento</th>
+                                <th style="width: 80px;">Diámetro</th>
+                                <th style="width: 100px;">Nº Serie</th>
+                                <th style="width: 80px;">Desde (m)</th>
+                                <th style="width: 80px;">Hasta (m)</th>
+                                <th>Detalle Extra</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-herramientas">
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="card-section">
-                    <h3 class="section-title">Rebaje de Htas</h3>
-                    <div class="table-responsive">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Descripción</th>
-                                    <th style="width: 80px;">Cantidad</th>
-                                    <th style="width: 50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-rebaje">
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="btn-add-row-small" onclick="agregarFila('tabla-rebaje')">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-
-                <div class="card-section">
-                    <h3 class="section-title">Accesorios</h3>
-                    <div class="table-responsive">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Descripción</th>
-                                    <th style="width: 80px;">Cantidad</th>
-                                    <th style="width: 50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-accesorios">
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="btn-add-row-small" onclick="agregarFila('tabla-accesorios')">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-
-                <div class="card-section">
-                    <h3 class="section-title">Casing</h3>
-                    <div class="table-responsive">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 80px;">Diámetro</th>
-                                    <th style="width: 80px;">Metros</th>
-                                    <th style="width: 50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-casing">
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="btn-add-row-small" onclick="agregarFila('tabla-casing')">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-
-                <div class="card-section">
-                    <h3 class="section-title">Aditivos</h3>
-                    <div class="table-responsive">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Tipo</th>
-                                    <th style="width: 80px;">Cantidad</th>
-                                    <th style="width: 50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-aditivos">
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="btn-add-row-small" onclick="agregarFila('tabla-aditivos')">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
+                <button class="btn-add-row" id="btnAgregarHerramienta">
+                    <i class="fa-solid fa-plus"></i> Agregar herramienta
+                </button>
             </div>
         </div>
 
