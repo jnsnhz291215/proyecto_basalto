@@ -246,8 +246,6 @@ function agregarTramo() {
           <option value="" disabled selected>Seleccione...</option>
           <option value="Bus">🚌 BUS</option>
           <option value="Avión">✈️ AVIÓN</option>
-          <option value="Transfer">🚐 TRANSFER</option>
-          <option value="Otro">🚗 OTRO</option>
         </select>
       </div>
       
@@ -480,10 +478,6 @@ function crearCardViaje(viaje) {
     let icon = 'fa-bus'; // Por defecto Bus
     if (tramo.tipo_transporte === 'Avión') {
       icon = 'fa-plane';
-    } else if (tramo.tipo_transporte === 'Transfer') {
-      icon = 'fa-van-shuttle';
-    } else if (tramo.tipo_transporte === 'Otro') {
-      icon = 'fa-car';
     }
     
     const codigo = tramo.codigo_transporte ? ` (${tramo.codigo_transporte})` : '';
@@ -584,6 +578,11 @@ window.prepararEdicionViaje = async function(idViaje) {
         tramoDiv.className = 'tramo-item';
         tramoDiv.dataset.tramoId = tramoCounter;
 
+        // Formatear fecha correctamente para input date (YYYY-MM-DD)
+        const fechaFormato = tramo.fecha && tramo.fecha.includes('T') 
+          ? tramo.fecha.split('T')[0] 
+          : tramo.fecha;
+
         tramoDiv.innerHTML = `
           <div class="tramo-header">
             <span class="tramo-numero"><i class="fa-solid fa-route"></i> Tramo ${tramoCounter}</span>
@@ -600,8 +599,6 @@ window.prepararEdicionViaje = async function(idViaje) {
                   <option value="" disabled>Seleccione...</option>
                   <option value="Bus" ${tramo.tipo_transporte === 'Bus' ? 'selected' : ''}>🚌 BUS</option>
                   <option value="Avión" ${tramo.tipo_transporte === 'Avión' ? 'selected' : ''}>✈️ AVIÓN</option>
-                  <option value="Transfer" ${tramo.tipo_transporte === 'Transfer' ? 'selected' : ''}>🚐 TRANSFER</option>
-                  <option value="Otro" ${tramo.tipo_transporte === 'Otro' ? 'selected' : ''}>🚗 OTRO</option>
                 </select>
                 <i class="fa-solid fa-chevron-down select-arrow"></i>
               </div>
@@ -614,7 +611,7 @@ window.prepararEdicionViaje = async function(idViaje) {
             
             <div class="form-group">
               <label>Fecha</label>
-              <input type="date" value="${tramo.fecha}" class="modern-input plain" required>
+              <input type="date" value="${fechaFormato}" class="modern-input plain" required>
             </div>
             
             <div class="form-group">
