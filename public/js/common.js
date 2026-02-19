@@ -36,6 +36,14 @@
       return;
     }
 
+    // REGLA 2B: Si estamos en gestioninformes.html
+    // Marcar el item de "Gestión Informes" en el dropdown
+    if (currentPath.endsWith('gestioninformes.html')) {
+      const gestionInformesLink = document.querySelector('.dropdown-menu a[href="gestioninformes.html"], .dropdown-menu a[href="/gestioninformes.html"]');
+      if (gestionInformesLink) gestionInformesLink.classList.add('active');
+      return;
+    }
+
     // REGLA 3: Para otros links, buscar coincidencia simple
     const normalizeHref = (href) => href ? href.replace(/^\//, '') : '';
     const currentPage = currentPath.split('/').pop() || 'index.html';

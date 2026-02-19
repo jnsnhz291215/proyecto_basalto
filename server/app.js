@@ -28,6 +28,11 @@ app.use('/api', viajesRoutes);
 // ============================================
 const trabajadoresRoutes = require('./routes/trabajadores');
 app.use('/api', trabajadoresRoutes);
+// ============================================
+// RUTAS DE INFORMES
+// ============================================
+const informesRoutes = require('./routes/informes');
+app.use('/api', informesRoutes);
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");

@@ -97,6 +97,12 @@
       return;
     }
 
+    if (currentPath.endsWith('gestioninformes.html')) {
+      const gestionInformesLink = document.querySelector('.dropdown-menu a[href="gestioninformes.html"], .dropdown-menu a[href="/gestioninformes.html"]');
+      if (gestionInformesLink) gestionInformesLink.classList.add('active');
+      return;
+    }
+
     const matchLink = Array.from(document.querySelectorAll('.nav-item a, .dropdown-menu a'))
       .find(anchor => normalizeHref(anchor.getAttribute('href')) === currentPage);
 

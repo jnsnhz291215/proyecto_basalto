@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionar Informes</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styleg.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="js/navbar_core.js"></script>
+  <script src="js/common.js"></script>
+  <script src="auth_guard.js"></script>
+  <script src="navbar.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #f3f4f6; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20px; margin: 0; }
+    
+    .accordion-button {
+      background-color: #f9fafb;
+      color: #1f2937;
+      font-weight: 600;
+      padding: 1.2rem 1.5rem;
+    }
+    
+    .accordion-button:not(.collapsed) {
+      background-color: #4f46e5;
+      color: white;
+      box-shadow: none;
+    }
+    
+    .accordion-button:focus {
+      box-shadow: none;
+      border-color: #4f46e5;
+    }
+    
+    .accordion-body {
+      background-color: #ffffff;
+      padding: 1.5rem;
+    }
+    
+    .table-detail {
+      font-size: 14px;
+      margin-bottom: 0;
+    }
+    
+    .table-detail th {
+      background-color: #f3f4f6;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #4f46e5;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #4f46e5;
+    }
+    
+    .section-title:first-child {
+      margin-top: 0;
+    }
+    
+    .badge-activo {
+      background-color: #10b981;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .badge-inactivo {
+      background-color: #ef4444;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .btn-editar {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    
+    .btn-editar:hover {
+      background: #bae6fd;
+    }
+    
+    .btn-soft-delete {
+      background: #fef3c7;
+      color: #d97706;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    
+    .btn-soft-delete:hover {
+      background: #fde68a;
+    }
+    
+    .btn-hard-delete {
+      background: #fee2e2;
+      color: #dc2626;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    
+    .btn-hard-delete:hover {
+      background: #fecaca;
+    }
+    
+    .btn-restaurar {
+      background: #d1fae5;
+      color: #065f46;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    
+    .btn-restaurar:hover {
+      background: #a7f3d0;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      background-color: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    
+    .info-item {
+      font-size: 14px;
+    }
+    
+    .info-item .label {
+      font-weight: 600;
+      color: #6b7280;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .info-item .value {
+      color: #1f2937;
+    }
+  </style>
+</head>
+<body>
+  <!-- Shared menu will be injected here -->
+  <div id="shared-menu-placeholder"></div>
+  <script>
+    fetch('menu.html').then(r => r.text()).then(html => {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      document.body.insertBefore(wrapper, document.body.firstChild);
+      const btn = wrapper.querySelector('#nav-toggle');
+      const items = wrapper.querySelector('#nav-items');
+      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
+      try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
+      if (btn && items) {
+        btn.addEventListener('click', () => {
+          items.classList.toggle('show');
+          const navRight = wrapper.querySelector('#usuario-container');
+          if (navRight) navRight.classList.toggle('show');
+        });
+        const navLinks = items.querySelectorAll('a');
+        navLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            items.classList.remove('show');
+            const navRight = wrapper.querySelector('#usuario-container');
+            if (navRight) navRight.classList.remove('show');
+          });
+        });
+      }
+      try {
+        const userToggle = wrapper.querySelector('.user-toggle');
+        const userMenu = wrapper.querySelector('.user-menu');
+        if (userToggle && userMenu) {
+          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
+          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
+        }
+        const logoutBtn = wrapper.querySelector('.user-menu .danger');
+        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
+        try {
+          const s = localStorage.getItem('usuarioActivo');
+          const navGest = wrapper.querySelector('#nav-gestionar-parent');
+          const navRight = wrapper.querySelector('.nav-right');
+          if (!s) {
+            if (navRight) navRight.style.display = 'none';
+            if (navGest) navGest.style.display = 'none';
+          } else {
+            const u = JSON.parse(s);
+            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
+            if (navRight) navRight.style.display = '';
+            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
+          }
+        } catch(e){}
+      } catch(e){}
+      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
+    }).catch(err => console.error('No se pudo cargar el menú:', err));
+  </script>
+
+  <div class="gestionar-container">
+    <!-- Header con controles -->
+    <header class="gestionar-header">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-clipboard-list" style="color: white; font-size: 24px;"></i>
+        </div>
+        <div>
+          <h1 class="gestionar-title">Gestión de Informes</h1>
+          <p style="margin: 0; font-size: 14px; color: #6b7280;">Administrar informes de turno</p>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros -->
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <!-- Buscador por Operador -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Operador:</label>
+          <input type="text" id="filtro-operador" class="modern-input plain" placeholder="Buscar..." style="padding: 8px 12px; min-width: 180px;">
+        </div>
+        
+        <!-- Filtro Fecha Desde -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Desde:</label>
+          <input type="date" id="filtro-fecha-desde" class="modern-input plain" style="padding: 8px 12px;">
+        </div>
+        
+        <!-- Filtro Fecha Hasta -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Hasta:</label>
+          <input type="date" id="filtro-fecha-hasta" class="modern-input plain" style="padding: 8px 12px;">
+        </div>
+        
+        <!-- Filtro de Estado -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Estado:</label>
+          <select id="filtro-estado" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
+            <option value="activos">Activos</option>
+            <option value="inactivos">Papelera (Inactivos)</option>
+          </select>
+        </div>
+        
+        <button id="btn-aplicar-filtros" class="btn btn-primary">
+          <i class="fa-solid fa-filter"></i> Aplicar Filtros
+        </button>
+      </div>
+    </header>
+
+    <!-- Vista de Informes (Accordion) -->
+    <div id="informes-container" style="margin-top: 24px;">
+      <div id="accordion-informes" class="accordion">
+        <!-- Los informes se cargarán aquí dinámicamente -->
+      </div>
+      <div id="sin-informes" style="display:none;text-align:center;padding:60px 20px;color:#9ca3af;">
+        <i class="fa-solid fa-clipboard-list" style="font-size:64px;margin-bottom:16px;opacity:0.3;"></i>
+        <p style="font-size:18px;font-weight:600;margin-bottom:8px;">No hay informes registrados</p>
+        <p style="font-size:14px;">Ajusta los filtros para ver más resultados</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Informe -->
+  <div class="modal fade" id="modal-editar-informe" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header" style="background-color: #4f46e5; color: white;">
+          <h5 class="modal-title">
+            <i class="fa-solid fa-edit"></i> Editar Informe de Turno
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-editar-informe">
+            <input type="hidden" id="edit-id-informe">
+            
+            <!-- Información General -->
+            <div class="section-title">Información General</div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Número de Informe</label>
+                <input type="text" id="edit-numero-informe" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Fecha</label>
+                <input type="date" id="edit-fecha" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Turno</label>
+                <select id="edit-turno" class="form-select" required>
+                  <option value="Día">Día</option>
+                  <option value="Noche">Noche</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Horas Trabajadas</label>
+                <input type="number" id="edit-horas-trabajadas" class="form-control" step="0.5">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Faena</label>
+                <input type="text" id="edit-faena" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Lugar</label>
+                <input type="text" id="edit-lugar" class="form-control">
+              </div>
+            </div>
+            
+            <!-- Información de Personal -->
+            <div class="section-title">Personal</div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">RUT Operador</label>
+                <input type="text" id="edit-operador-rut" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Ayudante 1</label>
+                <input type="text" id="edit-ayudante-1" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Ayudante 2</label>
+                <input type="text" id="edit-ayudante-2" class="form-control">
+              </div>
+            </div>
+            
+            <!-- Información de Equipo -->
+            <div class="section-title">Equipo y Perforación</div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <label class="form-label">Equipo</label>
+                <input type="text" id="edit-equipo" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Pozo Número</label>
+                <input type="text" id="edit-pozo-numero" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Sector</label>
+                <input type="text" id="edit-sector" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Diámetro</label>
+                <input type="text" id="edit-diametro" class="form-control">
+              </div>
+            </div>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <label class="form-label">Inclinación</label>
+                <input type="text" id="edit-inclinacion" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Profundidad Inicial</label>
+                <input type="number" id="edit-profundidad-inicial" class="form-control" step="0.01">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Profundidad Final</label>
+                <input type="number" id="edit-profundidad-final" class="form-control" step="0.01">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Metros Perforados</label>
+                <input type="number" id="edit-mts-perforados" class="form-control" step="0.01">
+              </div>
+            </div>
+            
+            <!-- Parámetros Técnicos -->
+            <div class="section-title">Parámetros Técnicos</div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <label class="form-label">Pull Down</label>
+                <input type="text" id="edit-pull-down" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">RPM</label>
+                <input type="text" id="edit-rpm" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Horómetro Inicial</label>
+                <input type="number" id="edit-horometro-inicial" class="form-control" step="0.01">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Horómetro Final</label>
+                <input type="number" id="edit-horometro-final" class="form-control" step="0.01">
+              </div>
+            </div>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Horómetro Horas</label>
+                <input type="number" id="edit-horometro-hrs" class="form-control" step="0.01">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Insumo Petróleo</label>
+                <input type="text" id="edit-insumo-petroleo" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Insumo Lubricantes</label>
+                <input type="text" id="edit-insumo-lubricantes" class="form-control">
+              </div>
+            </div>
+            
+            <!-- Observaciones -->
+            <div class="section-title">Observaciones</div>
+            <div class="mb-3">
+              <textarea id="edit-observaciones" class="form-control" rows="4"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="btn-guardar-edicion" class="btn" style="background-color: #4f46e5; color: white;">
+            <i class="fa-solid fa-save"></i> Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmación -->
+  <div class="modal fade" id="modal-confirmar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-confirmar-titulo">Confirmar Acción</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="modal-confirmar-mensaje"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="btn-confirmar-accion" class="btn btn-danger">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="gestioninformes.js"></script>
+</body>
+</html>
