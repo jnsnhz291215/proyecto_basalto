@@ -2,11 +2,46 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion.js');
 
-// Constantes de la lógica de turnos (igual que en app.js frontend)
-const INICIO_CD = new Date(2026, 1, 21); // 21 de febrero 2026 (Pista 1: C-D)
-const INICIO_EFGH = new Date(2026, 1, 14); // 14 de febrero 2026 (Pista 2: G-H)
-const CICLO_COMPLETO = 56; // Días del ciclo completo
+// Constantes de la lógica de turnos
+const CICLO_COMPLETO = 56; // Días del ciclo completo (14 días × 4 fases)
+const DIAS_POR_FASE = 14; // Días trabajados / descansados por fase
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DESFASE_PISTA2 = 7; // Pista 2 (EFGH) tiene +7 días de desfase respecto a Pista 1
+
+// Cache para la fecha semilla
+let fechaSemillaCache = null;
+let ultimaActualizacionCache = 0;
+const CACHE_DURACION = 5 * 60 * 1000; // 5 minutos
+
+/**
+ * Obtener fecha semilla desde la base de datos (con caché)
+ */
+async function obtenerFechaSemilla() {
+  const ahora = Date.now();
+  
+  // Usar caché si está vigente
+  if (fechaSemillaCache && (ahora - ultimaActualizacionCache < CACHE_DURACION)) {
+    return fechaSemillaCache;
+  }
+  
+  // Obtener desde BD
+  const [rows] = await pool.execute(
+    'SELECT fecha_semilla FROM configuracion_ciclos WHERE activo = 1 LIMIT 1'
+  );
+  
+  if (!rows || rows.length === 0) {
+    // Fallback a fecha por defecto si no hay configuración
+    console.warn('[TURNOS] No se encontró configuración en BD, usando fecha por defecto');
+    fechaSemillaCache = new Date(2026, 1, 7); // 07/02/2026
+  } else {
+    fechaSemillaCache = new Date(rows[0].fecha_semilla);
+  }
+  
+  fechaSemillaCache.setHours(0, 0, 0, 0);
+  ultimaActualizacionCache = ahora;
+  
+  return fechaSemillaCache;
+}
 
 /**
  * Obtener el estado del turno de un trabajador
@@ -17,10 +52,13 @@ router.get('/estado-turno/:rut', async (req, res) => {
   try {
     const { rut } = req.params;
     
+    // Obtener fecha semilla
+    const fechaSemilla = await obtenerFechaSemilla();
+    
     // Obtener datos del trabajador
     connection = await pool.getConnection();
     const [trabajadores] = await connection.execute(
-      'SELECT RUT, nombres, apellidos, grupo FROM trabajadores WHERE RUT = ? AND activo = 1 LIMIT 1',
+      'SELECT RUT, nombres, apellidos, id_grupo FROM trabajadores WHERE RUT = ? AND activo = 1 LIMIT 1',
       [rut]
     );
     
@@ -29,7 +67,7 @@ router.get('/estado-turno/:rut', async (req, res) => {
     }
     
     const trabajador = trabajadores[0];
-    const grupo = trabajador.grupo;
+    const grupo = trabajador.id_grupo;
     
     if (!grupo) {
       return res.json({
@@ -44,7 +82,7 @@ router.get('/estado-turno/:rut', async (req, res) => {
     hoy.setHours(0, 0, 0, 0);
     
     // Determinar el estado basado en el grupo
-    const estadoTurno = calcularEstadoTurno(grupo, hoy);
+    const estadoTurno = calcularEstadoTurno(grupo, hoy, fechaSemilla);
     
     res.json(estadoTurno);
     
@@ -59,7 +97,7 @@ router.get('/estado-turno/:rut', async (req, res) => {
 /**
  * Calcular el estado del turno basado en el grupo y la fecha
  */
-function calcularEstadoTurno(grupo, fecha) {
+function calcularEstadoTurno(grupo, fecha, fechaSemilla) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
   
@@ -73,9 +111,12 @@ function calcularEstadoTurno(grupo, fecha) {
   const pista2Grupos = ['E', 'F', 'G', 'H', 'EF', 'GH'];
   
   if (pista1Grupos.includes(grupo)) {
-    return calcularEstadoPista1(grupo, fechaCopy);
+    return calcularEstadoPista(grupo, fechaCopy, fechaSemilla, 'pista1');
   } else if (pista2Grupos.includes(grupo)) {
-    return calcularEstadoPista2(grupo, fechaCopy);
+    // Pista 2 tiene +7 días de desfase
+    const fechaSemillaPista2 = new Date(fechaSemilla);
+    fechaSemillaPista2.setDate(fechaSemillaPista2.getDate() + DESFASE_PISTA2);
+    return calcularEstadoPista(grupo, fechaCopy, fechaSemillaPista2, 'pista2');
   }
   
   return {
@@ -104,7 +145,7 @@ function calcularEstadoSemanal(grupo, fecha) {
       mensaje: 'En turno semanal',
       grupo: grupo,
       turno_tipo: 'semanal',
-      horario: 'Lunes a Viernes',
+      horario: grupo === 'J' ? 'Lunes a Jueves' : 'Martes a Viernes',
       dias_restantes: null,
       proxima_jornada: null
     };
@@ -121,56 +162,73 @@ function calcularEstadoSemanal(grupo, fecha) {
 }
 
 /**
- * Calcular estado para Pista 1 (A, B, C, D, AB, CD)
+ * Calcular estado para Pista 1 o Pista 2 (lógica unificada)
+ * Rotación: A/B → C/D → AB/CD (donde AB/CD siempre son DÍA)
  */
-function calcularEstadoPista1(grupo, fecha) {
-  const diasCD = Math.floor((fecha - INICIO_CD) / MS_PER_DAY);
-  const cicloCD = ((diasCD % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+function calcularEstadoPista(grupo, fecha, fechaSemilla, tipoPista) {
+  // Calcular días desde fecha semilla
+  const diasDesdeInicio = Math.floor((fecha - fechaSemilla) / MS_PER_DAY);
+  const ciclo = ((diasDesdeInicio % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+  
+  // Determinar grupos base según la pista
+  const gruposBase = tipoPista === 'pista1' 
+    ? { g1: 'A', g2: 'B', g3: 'C', g4: 'D', ref1: 'AB', ref2: 'CD' }
+    : { g1: 'E', g2: 'F', g3: 'G', g4: 'H', ref1: 'EF', ref2: 'GH' };
   
   let gruposTrabajando = [];
   let horario = '';
   let fase = '';
+  let esFaseRefuerzo = false;
   
-  if (cicloCD >= 0 && cicloCD < 14) {
-    fase = 'CD_normal';
-    gruposTrabajando = ['C', 'D', 'CD'];
-    horario = 'C: 8:00-20:00 | D: 20:00-8:00';
-  } else if (cicloCD >= 14 && cicloCD < 28) {
-    fase = 'AB_normal';
-    gruposTrabajando = ['A', 'B', 'AB'];
-    horario = 'A: 8:00-20:00 | B: 20:00-8:00';
-  } else if (cicloCD >= 28 && cicloCD < 42) {
-    fase = 'CD_invertido';
-    gruposTrabajando = ['C', 'D', 'CD'];
-    horario = 'D: 8:00-20:00 | C: 20:00-8:00';
-  } else if (cicloCD >= 42 && cicloCD < 56) {
-    fase = 'AB_invertido';
-    gruposTrabajando = ['A', 'B', 'AB'];
-    horario = 'B: 8:00-20:00 | A: 20:00-8:00';
+  // NUEVA LÓGICA DE ROTACIÓN:
+  // Día 0-13: A/B (o E/F) - A día, B noche
+  // Día 14-27: C/D (o G/H) - C día, D noche  
+  // Día 28-41: AB (o EF) - SOLO DÍA (12 horas)
+  // Día 42-55: CD (o GH) - SOLO DÍA (12 horas)
+  
+  if (ciclo >= 0 && ciclo < 14) {
+    fase = `${gruposBase.g1}${gruposBase.g2}_normal`;
+    gruposTrabajando = [gruposBase.g1, gruposBase.g2];
+    horario = `${gruposBase.g1}: 8:00-20:00 | ${gruposBase.g2}: 20:00-8:00`;
+  } else if (ciclo >= 14 && ciclo < 28) {
+    fase = `${gruposBase.g3}${gruposBase.g4}_normal`;
+    gruposTrabajando = [gruposBase.g3, gruposBase.g4];
+    horario = `${gruposBase.g3}: 8:00-20:00 | ${gruposBase.g4}: 20:00-8:00`;
+  } else if (ciclo >= 28 && ciclo < 42) {
+    fase = `${gruposBase.ref1}_dia`;
+    gruposTrabajando = [gruposBase.ref1];
+    horario = `${gruposBase.ref1}: 8:00-20:00 (SOLO DÍA)`;
+    esFaseRefuerzo = true;
+  } else if (ciclo >= 42 && ciclo < 56) {
+    fase = `${gruposBase.ref2}_dia`;
+    gruposTrabajando = [gruposBase.ref2];
+    horario = `${gruposBase.ref2}: 8:00-20:00 (SOLO DÍA)`;
+    esFaseRefuerzo = true;
   }
   
   const estaTrabajando = gruposTrabajando.includes(grupo);
   
   if (estaTrabajando) {
     // Calcular días restantes del turno actual
-    const diasRestantesTurno = calcularDiasRestantesFase(cicloCD);
+    const diasRestantesFase = calcularDiasRestantesFase(ciclo);
     
     // Calcular próxima jornada (después del descanso)
-    const proximaJornada = calcularProximaJornadaPista1(grupo, fecha, cicloCD);
+    const proximaJornada = calcularProximaJornada(grupo, fecha, ciclo, fechaSemilla, gruposBase);
     
     return {
       estado: 'en_turno',
       mensaje: `En turno activo (${fase})`,
       grupo: grupo,
-      turno_tipo: 'pista1',
+      turno_tipo: tipoPista,
       horario: horario,
-      dias_restantes: diasRestantesTurno,
+      dias_restantes: diasRestantesFase,
       proxima_jornada: proximaJornada,
-      fase_actual: fase
+      fase_actual: fase,
+      es_refuerzo: esFaseRefuerzo
     };
   } else {
     // En descanso - calcular próximo turno
-    const proximaJornada = calcularProximaJornadaPista1(grupo, fecha, cicloCD);
+    const proximaJornada = calcularProximaJornada(grupo, fecha, ciclo, fechaSemilla, gruposBase);
     const diasHastaProximo = calcularDiasHastaProximoTurno(fecha, proximaJornada.inicio);
     
     if (diasHastaProximo <= 7) {
@@ -178,7 +236,7 @@ function calcularEstadoPista1(grupo, fecha) {
         estado: 'proximo_turno',
         mensaje: `Próximo a turno en ${diasHastaProximo} día${diasHastaProximo !== 1 ? 's' : ''}`,
         grupo: grupo,
-        turno_tipo: 'pista1',
+        turno_tipo: tipoPista,
         dias_restantes: diasHastaProximo,
         proxima_jornada: proximaJornada
       };
@@ -187,212 +245,8 @@ function calcularEstadoPista1(grupo, fecha) {
         estado: 'en_descanso',
         mensaje: 'En descanso',
         grupo: grupo,
-        turno_tipo: 'pista1',
+        turno_tipo: tipoPista,
         dias_restantes: diasHastaProximo,
-        proxima_jornada: proximaJornada
-      };
-    }
-  }
-}
-
-/**
- * Calcular estado para Pista 2 (E, F, G, H, EF, GH)
- */
-function calcularEstadoPista2(grupo, fecha) {
-  const diasEFGH = Math.floor((fecha - INICIO_EFGH) / MS_PER_DAY);
-  const cicloEFGH = ((diasEFGH % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
-  
-  let gruposTrabajando = [];
-  let horario = '';
-  let fase = '';
-  
-  if (cicloEFGH >= 0 && cicloEFGH < 14) {
-    fase = 'GH_normal';
-    gruposTrabajando = ['G', 'H', 'GH'];
-    horario = 'G: 8:00-20:00 | H: 20:00-8:00';
-  } else if (cicloEFGH >= 14 && cicloEFGH < 28) {
-    fase = 'EF_normal';
-    gruposTrabajando = ['E', 'F', 'EF'];
-    horario = 'E: 8:00-20:00 | F: 20:00-8:00';
-  } else if (cicloEFGH >= 28 && cicloEFGH < 42) {
-    fase = 'GH_invertido';
-    gruposTrabajando = ['G', 'H', 'GH'];
-    horario = 'H: 8:00-20:00 | G: 20:00-8:00';
-  } else if (cicloEFGH >= 42 && cicloEFGH < 56) {
-    fase = 'EF_invertido';
-    gruposTrabajando = ['E', 'F', 'EF'];
-    horario = 'F: 8:00-20:00 | E: 20:00-8:00';
-  }
-  
-  const estaTrabajando = gruposTrabajando.includes(grupo);
-  
-  if (estaTrabajando) {
-    const diasRestantesTurno = calcularDiasRestantesFase(cicloEFGH);
-    const proximaJornada = calcularProximaJornadaPista2(grupo, fecha, cicloEFGH);
-    
-    return {
-      estado: 'en_turno',
-      mensaje: `En turno activo (${fase})`,
-      grupo: grupo,
-      turno_tipo: 'pista2',
-      horario: horario,
-      dias_restantes: diasRestantesTurno,
-      proxima_jornada: proximaJornada,
-      fase_actual: fase
-    };
-  } else {
-    const proximaJornada = calcularProximaJornadaPista2(grupo, fecha, cicloEFGH);
-    const diasHastaProximo = calcularDiasHastaProximoTurno(fecha, proximaJornada.inicio);
-    
-    if (diasHastaProximo <= 7) {
-      return {
-        estado: 'proximo_turno',
-        mensaje: `Próximo a turno en ${diasHastaProximo} día${diasHastaProximo !== 1 ? 's' : ''}`,
-        grupo: grupo,
-        turno_tipo: 'pista2',
-        dias_restantes: diasHastaProximo,
-        proxima_jornada: proximaJornada
-      };
-    } else {
-      return {
-        estado: 'en_descanso',
-        mensaje: 'En descanso',
-        grupo: grupo,
-        turno_tipo: 'pista2',
-        dias_restantes: diasHastaProximo,
-        proxima_jornada: proximaJornada
-      };
-    }
-  }
-}
-
-/**
- * Calcular días restantes de la fase actual (14 días)
- */
-function calcularDiasRestantesFase(posicionCiclo) {
-  const posicionEnFase = posicionCiclo % 14;
-  return 14 - posicionEnFase;
-}
-
-/**
- * Calcular próxima jornada para Pista 1
- */
-function calcularProximaJornadaPista1(grupo, fechaActual, cicloActual) {
-  // Determinar a qué par pertenece el grupo
-  const esAB = ['A', 'B', 'AB'].includes(grupo);
-  const esCD = ['C', 'D', 'CD'].includes(grupo);
-  
-  let diasHastaProximoTurno = 0;
-  
-  if (cicloActual >= 0 && cicloActual < 14) {
-    // Estamos en CD_normal (días 0-13)
-    if (esCD) {
-      // CD está trabajando ahora, próximo turno es CD_invertido (día 28)
-      diasHastaProximoTurno = 28 - cicloActual;
-    } else {
-      // AB está en descanso, próximo turno es AB_normal (día 14)
-      diasHastaProximoTurno = 14 - cicloActual;
-    }
-  } else if (cicloActual >= 14 && cicloActual < 28) {
-    // Estamos en AB_normal (días 14-27)
-    if (esAB) {
-      // AB está trabajando ahora, próximo turno es AB_invertido (día 42)
-      diasHastaProximoTurno = 42 - cicloActual;
-    } else {
-      // CD está en descanso, próximo turno es CD_invertido (día 28)
-      diasHastaProximoTurno = 28 - cicloActual;
-    }
-  } else if (cicloActual >= 28 && cicloActual < 42) {
-    // Estamos en CD_invertido (días 28-41)
-    if (esCD) {
-      // CD está trabajando ahora, próximo turno es CD_normal (día 0 del siguiente ciclo)
-      diasHastaProximoTurno = 56 - cicloActual;
-    } else {
-      // AB está en descanso, próximo turno es AB_invertido (día 42)
-      diasHastaProximoTurno = 42 - cicloActual;
-    }
-  } else if (cicloActual >= 42 && cicloActual < 56) {
-    // Estamos en AB_invertido (días 42-55)
-    if (esAB) {
-      // AB está trabajando ahora, próximo turno es AB_normal (día 14 del siguiente ciclo)
-      diasHastaProximoTurno = (56 - cicloActual) + 14;
-    } else {
-      // CD está en descanso, próximo turno es CD_normal (día 0 del siguiente ciclo)
-      diasHastaProximoTurno = 56 - cicloActual;
-    }
-  }
-  
-  const inicioProximo = new Date(fechaActual);
-  inicioProximo.setDate(inicioProximo.getDate() + diasHastaProximoTurno);
-  
-  const finProximo = new Date(inicioProximo);
-  finProximo.setDate(finProximo.getDate() + 13); // 14 días de turno
-  
-  return {
-    inicio: formatearFecha(inicioProximo),
-    fin: formatearFecha(finProximo)
-  };
-}
-
-/**
- * Calcular próxima jornada para Pista 2
- */
-function calcularProximaJornadaPista2(grupo, fechaActual, cicloActual) {
-  const esEF = ['E', 'F', 'EF'].includes(grupo);
-  const esGH = ['G', 'H', 'GH'].includes(grupo);
-  
-  let diasHastaProximoTurno = 0;
-  
-  if (cicloActual >= 0 && cicloActual < 14) {
-    // Estamos en GH_normal (días 0-13)
-    if (esGH) {
-      // GH está trabajando ahora, próximo turno es GH_invertido (día 28)
-      diasHastaProximoTurno = 28 - cicloActual;
-    } else {
-      // EF está en descanso, próximo turno es EF_normal (día 14)
-      diasHastaProximoTurno = 14 - cicloActual;
-    }
-  } else if (cicloActual >= 14 && cicloActual < 28) {
-    // Estamos en EF_normal (días 14-27)
-    if (esEF) {
-      // EF está trabajando ahora, próximo turno es EF_invertido (día 42)
-      diasHastaProximoTurno = 42 - cicloActual;
-    } else {
-      // GH está en descanso, próximo turno es GH_invertido (día 28)
-      diasHastaProximoTurno = 28 - cicloActual;
-    }
-  } else if (cicloActual >= 28 && cicloActual < 42) {
-    // Estamos en GH_invertido (días 28-41)
-    if (esGH) {
-      // GH está trabajando ahora, próximo turno es GH_normal (día 0 del siguiente ciclo)
-      diasHastaProximoTurno = 56 - cicloActual;
-    } else {
-      // EF está en descanso, próximo turno es EF_invertido (día 42)
-      diasHastaProximoTurno = 42 - cicloActual;
-    }
-  } else if (cicloActual >= 42 && cicloActual < 56) {
-    // Estamos en EF_invertido (días 42-55)
-    if (esEF) {
-      // EF está trabajando ahora, próximo turno es EF_normal (día 14 del siguiente ciclo)
-      diasHastaProximoTurno = (56 - cicloActual) + 14;
-    } else {
-      // GH está en descanso, próximo turno es GH_normal (día 0 del siguiente ciclo)
-      diasHastaProximoTurno = 56 - cicloActual;
-    }
-  }
-  
-  const inicioProximo = new Date(fechaActual);
-  inicioProximo.setDate(inicioProximo.getDate() + diasHastaProximoTurno);
-  
-  const finProximo = new Date(inicioProximo);
-  finProximo.setDate(finProximo.getDate() + 13);
-  
-  return {
-    inicio: formatearFecha(inicioProximo),
-    fin: formatearFecha(finProximo)
-  };
-}
-
 /**
  * Calcular días hasta el próximo turno
  */

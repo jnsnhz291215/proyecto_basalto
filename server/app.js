@@ -1248,27 +1248,25 @@ app.get("/api/calcular-turno", async (req, res) => {
 app.get("/api/config-turnos", async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT pista, fecha_semilla FROM configuracion_ciclos WHERE pista IN ("PISTA_1", "PISTA_2") ORDER BY pista'
+      'SELECT id_conf, pista_nombre, fecha_semilla, activo FROM configuracion_ciclos WHERE activo = 1 ORDER BY pista_nombre'
     );
 
-    if (rows.length < 2) {
+    if (rows.length === 0) {
       return res.status(500).json({ 
-        error: "No se encontraron ambas pistas en la configuración" 
+        error: "No se encontró configuración de ciclos" 
       });
     }
 
-    const config = {};
-    rows.forEach(row => {
-      if (row.pista === 'PISTA_1') {
-        config.pista1 = row.fecha_semilla.toISOString().split('T')[0];
-      } else if (row.pista === 'PISTA_2') {
-        config.pista2 = row.fecha_semilla.toISOString().split('T')[0];
-      }
-    });
-
+    // Retornar solo la pista activa (Pista 1)
+    const pistaPrincipal = rows.find(r => r.pista_nombre === 'Pista 1') || rows[0];
+    
     res.json({ 
       success: true, 
-      config: config 
+      config: {
+        id: pistaPrincipal.id_conf,
+        pista_nombre: pistaPrincipal.pista_nombre,
+        fecha_semilla: pistaPrincipal.fecha_semilla.toISOString().split('T')[0]
+      }
     });
   } catch (error) {
     console.error("Error al obtener configuración de ciclos:", error);
@@ -1276,48 +1274,45 @@ app.get("/api/config-turnos", async (req, res) => {
   }
 });
 
-// PUT /api/config-turnos - Actualizar fechas semilla
+// PUT /api/config-turnos - Actualizar configuración de ciclos
 app.put("/api/config-turnos", async (req, res) => {
   try {
-    const { pista1, pista2 } = req.body;
+    const { id_conf, pista_nombre, fecha_semilla } = req.body;
 
-    // Validación de fechas
-    if (!pista1 || !pista2) {
+    // Validación
+    if (!fecha_semilla || !pista_nombre) {
       return res.status(400).json({ 
-        error: "Se requieren ambas fechas (pista1 y pista2) en formato YYYY-MM-DD" 
+        error: "Se requieren pista_nombre y fecha_semilla" 
       });
     }
 
-    // Validar formato de fechas
-    const fechaPista1 = new Date(pista1);
-    const fechaPista2 = new Date(pista2);
-
-    if (isNaN(fechaPista1.getTime()) || isNaN(fechaPista2.getTime())) {
+    // Validar formato de fecha
+    const fecha = new Date(fecha_semilla);
+    if (isNaN(fecha.getTime())) {
       return res.status(400).json({ 
         error: "Formato de fecha inválido. Use YYYY-MM-DD" 
       });
     }
 
-    // Actualizar PISTA_1
-    await pool.execute(
-      'UPDATE configuracion_ciclos SET fecha_semilla = ? WHERE pista = "PISTA_1"',
-      [pista1]
-    );
+    // Actualizar configuración
+    const query = id_conf 
+      ? 'UPDATE configuracion_ciclos SET pista_nombre = ?, fecha_semilla = ? WHERE id_conf = ?'
+      : 'UPDATE configuracion_ciclos SET pista_nombre = ?, fecha_semilla = ? WHERE activo = 1';
+    
+    const params = id_conf 
+      ? [pista_nombre, fecha_semilla, id_conf]
+      : [pista_nombre, fecha_semilla];
 
-    // Actualizar PISTA_2
-    await pool.execute(
-      'UPDATE configuracion_ciclos SET fecha_semilla = ? WHERE pista = "PISTA_2"',
-      [pista2]
-    );
+    await pool.execute(query, params);
 
-    console.log(`[ACTUALIZACIÓN] Ciclos re-calibrados: PISTA_1=${pista1}, PISTA_2=${pista2}`);
+    console.log(`[ACTUALIZACIÓN] Ciclo re-calibrado: ${pista_nombre} = ${fecha_semilla}`);
 
     res.json({ 
       success: true, 
-      message: "Ciclos re-calibrados correctamente",
+      message: "Configuración actualizada correctamente",
       config: {
-        pista1: pista1,
-        pista2: pista2
+        pista_nombre: pista_nombre,
+        fecha_semilla: fecha_semilla
       }
     });
   } catch (error) {

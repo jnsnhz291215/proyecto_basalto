@@ -1421,22 +1421,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // GESTIÓN DE CONFIGURACIÓN DE CICLOS DE TURNOS
   // ============================================
 
-  const configCiclosSection = document.getElementById('config-ciclos-section');
+  const modalConfigCiclos = document.getElementById('modal-config-ciclos');
   const btnConfigCiclos = document.getElementById('btn-config-ciclos');
-  const pista1FechaInput = document.getElementById('config-pista1-fecha');
-  const pista2FechaInput = document.getElementById('config-pista2-fecha');
-  const btnGuardarConfig = document.getElementById('btn-guardar-config');
-  const btnCancelarConfig = document.getElementById('btn-cancelar-config');
+  const closeConfigModal = document.getElementById('close-config-modal');
+  const btnCancelarConfigModal = document.getElementById('btn-cancelar-config-modal');
+  const formConfigCiclos = document.getElementById('form-config-ciclos');
+  const modalPistaNombre = document.getElementById('modal-pista-nombre');
+  const modalFechaSemilla = document.getElementById('modal-fecha-semilla');
 
-  // Cargar configuración actual
+  // Cargar configuración actual en el modal
   async function cargarConfigCiclos() {
     try {
       const response = await fetch('/api/config-turnos');
       const data = await response.json();
 
       if (response.ok && data.success && data.config) {
-        if (pista1FechaInput) pista1FechaInput.value = data.config.pista1 || '';
-        if (pista2FechaInput) pista2FechaInput.value = data.config.pista2 || '';
+        // Cargar datos en el modal
+        if (modalPistaNombre) modalPistaNombre.value = data.config.pista_nombre || 'Pista 1';
+        if (modalFechaSemilla) modalFechaSemilla.value = data.config.fecha_semilla || '07/02/2026';
       } else {
         console.error('Error al cargar configuración:', data.error);
       }
@@ -1445,54 +1447,83 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Mostrar/ocultar sección de configuración
+  // Abrir modal de configuración
   if (btnConfigCiclos) {
     btnConfigCiclos.addEventListener('click', () => {
-      if (configCiclosSection) {
-        const isVisible = configCiclosSection.style.display !== 'none';
-        configCiclosSection.style.display = isVisible ? 'none' : 'block';
-        
-        // Cargar configuración si se muestra
-        if (!isVisible) {
-          cargarConfigCiclos();
-        }
-
-        // Cambiar estilo del botón
-        btnConfigCiclos.style.backgroundColor = isVisible ? '#8b5cf6' : '#7c3aed';
+      cargarConfigCiclos();
+      if (modalConfigCiclos) {
+        modalConfigCiclos.style.display = 'flex';
       }
     });
   }
 
-  // Cancelar configuración
-  if (btnCancelarConfig) {
-    btnCancelarConfig.addEventListener('click', () => {
-      if (configCiclosSection) {
-        configCiclosSection.style.display = 'none';
-        if (btnConfigCiclos) {
-          btnConfigCiclos.style.backgroundColor = '#8b5cf6';
-        }
+  // Cerrar modal
+  function cerrarModalConfig() {
+    if (modalConfigCiclos) {
+      modalConfigCiclos.style.display = 'none';
+    }
+  }
+
+  if (closeConfigModal) {
+    closeConfigModal.addEventListener('click', cerrarModalConfig);
+  }
+
+  if (btnCancelarConfigModal) {
+    btnCancelarConfigModal.addEventListener('click', cerrarModalConfig);
+  }
+
+  // Cerrar modal al hacer clic fuera de él
+  if (modalConfigCiclos) {
+    modalConfigCiclos.addEventListener('click', (e) => {
+      if (e.target === modalConfigCiclos) {
+        cerrarModalConfig();
       }
+    });
+  }
+
+  // Validar formato DD/MM/YYYY mientras el usuario escribe
+  if (modalFechaSemilla) {
+    modalFechaSemilla.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, ''); // Solo números
+      
+      if (value.length >= 2) {
+        value = value.slice(0, 2) + '/' + value.slice(2);
+      }
+      if (value.length >= 5) {
+        value = value.slice(0, 5) + '/' + value.slice(5, 9);
+      }
+      
+      e.target.value = value;
     });
   }
 
   // Guardar configuración
-  if (btnGuardarConfig) {
-    btnGuardarConfig.addEventListener('click', async () => {
-      const pista1 = pista1FechaInput ? pista1FechaInput.value : null;
-      const pista2 = pista2FechaInput ? pista2FechaInput.value : null;
+  if (formConfigCiclos) {
+    formConfigCiclos.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const pistaNombre = modalPistaNombre ? modalPistaNombre.value.trim() : '';
+      const fechaSemilla = modalFechaSemilla ? modalFechaSemilla.value.trim() : '';
 
       // Validación
-      if (!pista1 || !pista2) {
-        alert('Por favor complete ambas fechas');
+      if (!pistaNombre || !fechaSemilla) {
+        alert('Por favor complete todos los campos');
         return;
       }
 
-      // Validar que sean fechas válidas
-      const fecha1 = new Date(pista1);
-      const fecha2 = new Date(pista2);
+      // Validar formato DD/MM/YYYY
+      const fechaRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      if (!fechaRegex.test(fechaSemilla)) {
+        alert('Formato de fecha inválido. Use DD/MM/YYYY (Ej: 07/02/2026)');
+        return;
+      }
 
-      if (isNaN(fecha1.getTime()) || isNaN(fecha2.getTime())) {
-        alert('Fechas inválidas. Verifique el formato YYYY-MM-DD');
+      // Validar que sea una fecha válida
+      const [dia, mes, anio] = fechaSemilla.split('/').map(Number);
+      const fecha = new Date(anio, mes - 1, dia);
+      
+      if (fecha.getDate() !== dia || fecha.getMonth() !== mes - 1 || fecha.getFullYear() !== anio) {
+        alert('Fecha inválida. Verifique día, mes y año');
         return;
       }
 
@@ -1501,22 +1532,20 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            pista1: pista1,
-            pista2: pista2
+            pista_nombre: pistaNombre,
+            fecha_semilla: fechaSemilla
           })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-          alert('Ciclos re-calibrados correctamente');
-
-          // Ocultar sección
-          if (configCiclosSection) {
-            configCiclosSection.style.display = 'none';
-            if (btnConfigCiclos) {
-              btnConfigCiclos.style.backgroundColor = '#8b5cf6';
-            }
+          alert('✅ Configuración de ciclos actualizada correctamente');
+          cerrarModalConfig();
+          
+          // Refrescar el calendario si existe la función
+          if (typeof cargarGrupos === 'function') {
+            cargarGrupos();
           }
         } else {
           alert(data.error || 'Error al guardar la configuración');
