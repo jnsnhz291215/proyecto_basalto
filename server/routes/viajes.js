@@ -26,7 +26,8 @@ router.get('/viajes/calendario', async (req, res) => {
         vt.hora_salida,
         c_origen.nombre_ciudad AS ciudad_origen,
         c_destino.nombre_ciudad AS ciudad_destino,
-        vt.codigo_pasaje
+        vt.codigo_pasaje,
+        vt.empresa_transporte
       FROM viajes v
       INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
       INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
@@ -74,7 +75,8 @@ router.get('/viajes/mis-viajes', async (req, res) => {
         vt.fecha_salida,
         vt.hora_salida,
         c_origen.nombre_ciudad AS ciudad_origen,
-        c_destino.nombre_ciudad AS ciudad_destino
+        c_destino.nombre_ciudad AS ciudad_destino,
+        vt.empresa_transporte
       FROM viajes v
       INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
       LEFT JOIN ciudades c_origen ON vt.id_ciudad_origen = c_origen.id_ciudad
@@ -128,9 +130,9 @@ router.post('/viajes', async (req, res) => {
     // Validar cada tramo
     for (let i = 0; i < tramos.length; i++) {
       const tramo = tramos[i];
-      if (!tramo.tipo_transporte || !tramo.fecha || !tramo.hora || !tramo.id_ciudad_origen || !tramo.id_ciudad_destino) {
+      if (!tramo.tipo_transporte || !tramo.fecha || !tramo.hora || !tramo.id_ciudad_origen || !tramo.id_ciudad_destino || !tramo.empresa_transporte) {
         return res.status(400).json({ 
-          error: `Tramo ${i + 1}: Todos los campos son requeridos (tipo_transporte, fecha, hora, origen, destino)` 
+          error: `Tramo ${i + 1}: Todos los campos son requeridos (tipo_transporte, fecha, hora, origen, destino, empresa_transporte)` 
         });
       }
     }
@@ -157,8 +159,8 @@ router.post('/viajes', async (req, res) => {
     for (const tramo of tramos) {
       await connection.execute(
         `INSERT INTO viajes_tramos 
-        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id_viaje,
           tramo.tipo_transporte,
@@ -166,7 +168,8 @@ router.post('/viajes', async (req, res) => {
           tramo.fecha,
           tramo.hora,
           tramo.id_ciudad_origen,
-          tramo.id_ciudad_destino
+          tramo.id_ciudad_destino,
+          tramo.empresa_transporte
         ]
       );
     }
@@ -255,7 +258,8 @@ router.get('/viajes', async (req, res) => {
           tr.id_ciudad_origen,
           tr.id_ciudad_destino,
           c_origen.nombre_ciudad AS origen,
-          c_destino.nombre_ciudad AS destino
+          c_destino.nombre_ciudad AS destino,
+          tr.empresa_transporte
         FROM viajes_tramos tr
         LEFT JOIN ciudades c_origen ON tr.id_ciudad_origen = c_origen.id_ciudad
         LEFT JOIN ciudades c_destino ON tr.id_ciudad_destino = c_destino.id_ciudad
@@ -335,9 +339,9 @@ router.put('/viajes/:id', async (req, res) => {
     // Validar cada tramo
     for (let i = 0; i < tramos.length; i++) {
       const tramo = tramos[i];
-      if (!tramo.tipo_transporte || !tramo.fecha || !tramo.hora || !tramo.id_ciudad_origen || !tramo.id_ciudad_destino) {
+      if (!tramo.tipo_transporte || !tramo.fecha || !tramo.hora || !tramo.id_ciudad_origen || !tramo.id_ciudad_destino || !tramo.empresa_transporte) {
         return res.status(400).json({ 
-          error: `Tramo ${i + 1}: Todos los campos son requeridos` 
+          error: `Tramo ${i + 1}: Todos los campos son requeridos (tipo_transporte, fecha, hora, origen, destino, empresa_transporte)` 
         });
       }
     }
@@ -366,8 +370,8 @@ router.put('/viajes/:id', async (req, res) => {
     for (const tramo of tramos) {
       await connection.execute(
         `INSERT INTO viajes_tramos 
-        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           tramo.tipo_transporte,
@@ -375,7 +379,8 @@ router.put('/viajes/:id', async (req, res) => {
           tramo.fecha,
           tramo.hora,
           tramo.id_ciudad_origen,
-          tramo.id_ciudad_destino
+          tramo.id_ciudad_destino,
+          tramo.empresa_transporte
         ]
       );
     }

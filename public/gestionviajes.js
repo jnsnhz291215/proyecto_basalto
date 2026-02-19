@@ -281,6 +281,11 @@ function agregarTramo() {
           ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
         </select>
       </div>
+      
+      <div class="form-group">
+        <label>Empresa de Transporte</label>
+        <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" required>
+      </div>
     </div>
   `;
   
@@ -358,8 +363,9 @@ async function guardarViaje() {
       const hora = inputs[3].value;
       const idOrigen = inputs[4].value;
       const idDestino = inputs[5].value;
+      const empresaTransporte = inputs[6].value;
       
-      if (!tipoTransporte || !fecha || !hora || !idOrigen || !idDestino) {
+      if (!tipoTransporte || !fecha || !hora || !idOrigen || !idDestino || !empresaTransporte) {
         mostrarError(`Tramo ${index + 1}: Complete todos los campos obligatorios`);
         error = true;
         return;
@@ -371,7 +377,8 @@ async function guardarViaje() {
         fecha: fecha,
         hora: hora,
         id_ciudad_origen: parseInt(idOrigen),
-        id_ciudad_destino: parseInt(idDestino)
+        id_ciudad_destino: parseInt(idDestino),
+        empresa_transporte: empresaTransporte
       });
     });
     
@@ -480,11 +487,12 @@ function crearCardViaje(viaje) {
     
     const codigo = tramo.codigo_transporte ? ` (${tramo.codigo_transporte})` : '';
     const fechaTramo = new Date(tramo.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' });
+    const empresa = tramo.empresa_transporte ? `<span style="color: #4f46e5; font-weight: 600;">🏢 ${tramo.empresa_transporte}</span> | ` : '';
     
     return `
       <div class="tramo-line">
         <i class="fa-solid ${icon} tramo-icon"></i>
-        <span><strong>${tramo.tipo_transporte}${codigo}:</strong> ${tramo.origen} → ${tramo.destino} | ${fechaTramo} ${tramo.hora}</span>
+        <span><strong>${tramo.tipo_transporte}${codigo}:</strong> ${tramo.origen} → ${tramo.destino} | ${empresa}${fechaTramo} ${tramo.hora}</span>
       </div>
     `;
   }).join('');
@@ -623,6 +631,11 @@ window.editarViaje = async function(idViaje) {
             <option value="">Seleccionar ciudad...</option>
             ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
           </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Empresa de Transporte</label>
+          <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
         </div>
       </div>
     `;

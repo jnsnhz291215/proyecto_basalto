@@ -249,6 +249,9 @@
             <strong>Salida:</strong> ${viaje.hora_salida.substring(0, 5)}
           </p>
           <p style="margin: 4px 0;">
+            <strong>Empresa:</strong> <span style="color: #4f46e5; font-weight: 600;">🏢 ${viaje.empresa_transporte || 'N/A'}</span>
+          </p>
+          <p style="margin: 4px 0;">
             <strong>Estado:</strong> <span style="color: #059669;">${viaje.estado}</span>
           </p>
         </div>
@@ -296,6 +299,7 @@
             <p style="margin: 2px 0;"><strong>Ruta:</strong> ${viaje.ciudad_origen || 'N/A'} → ${viaje.ciudad_destino || 'N/A'}</p>
             <p style="margin: 2px 0;"><strong>Hora de salida:</strong> ${hora}</p>
             <p style="margin: 2px 0;"><strong>Código:</strong> ${viaje.codigo_pasaje || 'N/A'}</p>
+            <p style="margin: 2px 0;"><strong>Empresa:</strong> <span style="color: #4f46e5; font-weight: 600;">🏢 ${viaje.empresa_transporte || 'N/A'}</span></p>
             <p style="margin: 2px 0; color: #059669;"><strong>Estado:</strong> ${viaje.estado}</p>
           </div>
         `;

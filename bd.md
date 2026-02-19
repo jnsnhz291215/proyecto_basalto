@@ -7,7 +7,7 @@ trabajadores: RUT, nombres, apellido_paterno, apellido_materno, email, fecha_nac
 
 viajes: id_viaje, rut_trabajador, fecha_registro, estado.
 
-viajes_tramos: id_tramo, id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino.
+viajes_tramos: id_tramo, id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte.
 
 informes_turno: id_informe, numero_informe, fecha, turno, horas_trabajadas, faena, lugar, equipo, operador_rut, ayudante_1, ayudante_2, pozo_numero, sector, diametro, inclinacion, profundidad_inicial, profundidad_final, mts_perforados, pull_down, rpm, horometro_inicial, horometro_final, horometro_hrs, insumo_petroleo, insumo_lubricantes, observaciones, estado, creado_el.
 

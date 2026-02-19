@@ -360,7 +360,7 @@
       if (itinerarioTbody) {
         itinerarioTbody.innerHTML = `
           <tr>
-            <td colspan="5" style="padding:12px;text-align:center;color:#dc2626;">
+            <td colspan="6" style="padding:12px;text-align:center;color:#dc2626;">
               Error al cargar los viajes
             </td>
           </tr>
@@ -378,7 +378,7 @@
     if (viajes.length === 0) {
       itinerarioTbody.innerHTML = `
         <tr>
-          <td colspan="5" style="padding:12px;text-align:center;color:#6b7280;">
+          <td colspan="6" style="padding:12px;text-align:center;color:#6b7280;">
             No hay viajes disponibles
           </td>
         </tr>
@@ -405,6 +405,7 @@
         const codigoPasaje = tramo.codigo_pasaje || 'N/A';
         const origen = tramo.ciudad_origen || 'N/A';
         const destino = tramo.ciudad_destino || 'N/A';
+        const empresaTransporte = tramo.empresa_transporte || 'N/A';
         
         // Formatear fecha y hora
         let fechaHora = 'N/A';
@@ -432,6 +433,7 @@
             <td style="padding:8px;color:#4b5563;">${origen}</td>
             <td style="padding:8px;color:#4b5563;">${destino}</td>
             <td style="padding:8px;color:#4b5563;">${fechaHora}</td>
+            <td style="padding:8px;"><span style="color:#4f46e5;font-weight:600;">🏢 ${empresaTransporte}</span></td>
             <td style="padding:8px;">
               <span style="display:inline-block;padding:4px 8px;border-radius:4px;background-color:${estadoColor};color:#fff;font-size:12px;font-weight:600;">
                 ${estado}
