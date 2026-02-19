@@ -246,10 +246,9 @@ app.get('/api/logs', async (req, res) => {
 app.get('/api/cargos', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT nombre_cargo FROM cargos ORDER BY nombre_cargo ASC'
+      'SELECT id_cargo, nombre_cargo FROM cargos ORDER BY nombre_cargo ASC'
     );
-    const cargos = rows.map(row => row.nombre_cargo);
-    res.json(cargos);
+    res.json(rows);
   } catch (error) {
     console.error('Error al obtener cargos:', error);
     res.status(500).json({ error: 'Error al obtener cargos' });
@@ -268,13 +267,13 @@ app.post('/api/cargos', async (req, res) => {
     const cargoNormalizado = nombre_cargo.trim();
 
     // Insertar el nuevo cargo
-    await pool.execute(
+    const [result] = await pool.execute(
       'INSERT INTO cargos (nombre_cargo) VALUES (?)',
       [cargoNormalizado]
     );
 
     console.log(`[CARGO CREADO] ${cargoNormalizado}`);
-    res.json({ success: true, nombre_cargo: cargoNormalizado });
+    res.json({ success: true, id_cargo: result.insertId, nombre_cargo: cargoNormalizado });
     
   } catch (error) {
     // Error de duplicado (código 1062 en MySQL/MariaDB)

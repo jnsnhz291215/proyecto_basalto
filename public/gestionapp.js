@@ -404,7 +404,14 @@ function abrirEditar(rut) {
   document.getElementById('edit-apellido').value = trabajador.apellidos || '';
   document.getElementById('edit-telefono').value = trabajador.telefono || '';
   document.getElementById('edit-email').value = trabajador.email || '';
-  document.getElementById('edit-cargo').value = trabajador.cargo || '';
+  const selectEditCargo = document.getElementById('edit-cargo');
+  if (selectEditCargo) {
+    const cargoNombre = (trabajador.cargo || '').trim();
+    const cargoId = trabajador.id_cargo ? String(trabajador.id_cargo) : '';
+    const optionMatch = Array.from(selectEditCargo.options)
+      .find(opt => (cargoId && opt.value === cargoId) || opt.textContent.trim() === cargoNombre);
+    selectEditCargo.value = optionMatch ? optionMatch.value : '';
+  }
   document.getElementById('edit-grupo').value = trabajador.grupo || '';
   const selectEditCiudad = document.getElementById('edit-ciudad');
   if (selectEditCiudad) {
@@ -413,7 +420,23 @@ function abrirEditar(rut) {
       .find(opt => opt.textContent.trim() === ciudadNombre);
     selectEditCiudad.value = optionMatch ? optionMatch.value : '';
   }
-  document.getElementById('edit-fecha-nacimiento').value = trabajador.fecha_nacimiento || '';
+  const fechaNacimiento = trabajador.fecha_nacimiento
+    ? String(trabajador.fecha_nacimiento).split('T')[0]
+    : '';
+  document.getElementById('edit-fecha-nacimiento').value = fechaNacimiento;
+
+  if (el.formEditar) {
+    el.formEditar.dataset.originalRut = trabajador.RUT || '';
+    el.formEditar.dataset.originalNombre = trabajador.nombres || '';
+    el.formEditar.dataset.originalApellido = trabajador.apellidos || '';
+    el.formEditar.dataset.originalTelefono = trabajador.telefono || '';
+    el.formEditar.dataset.originalEmail = trabajador.email || '';
+    el.formEditar.dataset.originalCargo = trabajador.cargo || '';
+    el.formEditar.dataset.originalCargoId = trabajador.id_cargo ? String(trabajador.id_cargo) : '';
+    el.formEditar.dataset.originalGrupo = trabajador.grupo || '';
+    el.formEditar.dataset.originalCiudad = trabajador.ciudad || '';
+    el.formEditar.dataset.originalFechaNacimiento = fechaNacimiento || '';
+  }
   
   el.modalEditar.classList.add('show');
 }
@@ -428,7 +451,8 @@ async function enviarAgregar(e) {
   const nombre = (fd.get('nombre') || '').trim();
   const apellido = (fd.get('apellido') || '').trim();
   const rutRaw = (fd.get('rut') || '').trim();
-  const cargo = (fd.get('cargo') || '').trim();
+  const cargoId = (fd.get('cargo') || '').trim();
+  const cargoNombre = obtenerNombreCargoSeleccionado('cargo', cargoId);
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const grupo = fd.get('grupo') || '';
@@ -467,7 +491,7 @@ async function enviarAgregar(e) {
     telefono,
     grupo
   };
-  if (cargo) obj.cargo = cargo.trim();
+  if (cargoNombre) obj.cargo = cargoNombre.trim();
   if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
@@ -505,16 +529,18 @@ async function enviarAgregar(e) {
 async function enviarEdicion(e) {
   e.preventDefault();
   const fd = new FormData(el.formEditar);
-  const nombre = (fd.get('nombre') || '').trim();
-  const apellido = (fd.get('apellido') || '').trim();
-  const rut = (fd.get('rut') || '').trim();
-  const cargo = (fd.get('cargo') || '').trim();
-  const email = (fd.get('email') || '').trim();
-  const telefonoRaw = (fd.get('telefono') || '').trim();
-  const grupo = fd.get('grupo') || '';
+  const original = el.formEditar ? el.formEditar.dataset : {};
+  const nombre = (fd.get('nombre') || '').trim() || (original.originalNombre || '');
+  const apellido = (fd.get('apellido') || '').trim() || (original.originalApellido || '');
+  const rut = (fd.get('rut') || '').trim() || (original.originalRut || '');
+  const cargoId = (fd.get('cargo') || '').trim();
+  const cargoNombre = obtenerNombreCargoSeleccionado('edit-cargo', cargoId) || (original.originalCargo || '');
+  const email = (fd.get('email') || '').trim() || (original.originalEmail || '');
+  const telefonoRaw = (fd.get('telefono') || '').trim() || (original.originalTelefono || '');
+  const grupo = (fd.get('grupo') || '').trim() || (original.originalGrupo || '');
   const ciudadId = (fd.get('ciudad') || '').trim();
-  const ciudadNombre = obtenerNombreCiudadSeleccionada('edit-ciudad', ciudadId);
-  const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
+  const ciudadNombre = obtenerNombreCiudadSeleccionada('edit-ciudad', ciudadId) || (original.originalCiudad || '');
+  const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim() || (original.originalFechaNacimiento || '');
 
   if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
     alert('Complete todos los campos requeridos.');
@@ -545,7 +571,7 @@ async function enviarEdicion(e) {
     telefono,
     grupo
   };
-  if (cargo) obj.cargo = cargo.trim();
+  if (cargoNombre) obj.cargo = cargoNombre.trim();
   if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
@@ -776,10 +802,17 @@ async function cargarCargos() {
       select.innerHTML = '<option value="" disabled selected>Seleccione un cargo...</option>';
       
       // Agregar cargos dinámicos
-      cargos.forEach(cargo => {
+      const cargosNormalizados = cargos.map(cargo => {
+        if (typeof cargo === 'string') {
+          return { id_cargo: '', nombre_cargo: cargo };
+        }
+        return cargo;
+      });
+
+      cargosNormalizados.forEach(cargo => {
         const option = document.createElement('option');
-        option.value = cargo;
-        option.textContent = cargo;
+        option.value = cargo.id_cargo ? String(cargo.id_cargo) : cargo.nombre_cargo;
+        option.textContent = cargo.nombre_cargo;
         select.appendChild(option);
       });
       
@@ -795,6 +828,16 @@ async function cargarCargos() {
     // Renderizar en ambos selects
     renderizarSelect(selectCargo);
     renderizarSelect(selectEditCargo);
+
+    if (selectEditCargo && el.formEditar) {
+      const originalCargoId = el.formEditar.dataset.originalCargoId || '';
+      const originalCargo = el.formEditar.dataset.originalCargo || '';
+      const optionMatch = Array.from(selectEditCargo.options)
+        .find(opt => (originalCargoId && opt.value === originalCargoId) || opt.textContent.trim() === originalCargo.trim());
+      if (optionMatch) {
+        selectEditCargo.value = optionMatch.value;
+      }
+    }
     
   } catch (error) {
     console.error('Error al cargar cargos:', error);
@@ -851,6 +894,16 @@ function obtenerNombreCiudadSeleccionada(selectId, valorFallback = '') {
 
   const option = select.options[select.selectedIndex];
   if (!option || !option.value) return '';
+
+  return option.textContent.trim();
+}
+
+function obtenerNombreCargoSeleccionado(selectId, valorFallback = '') {
+  const select = document.getElementById(selectId);
+  if (!select) return valorFallback;
+
+  const option = select.options[select.selectedIndex];
+  if (!option || !option.value || option.value === 'nuevo_cargo') return '';
 
   return option.textContent.trim();
 }
@@ -950,7 +1003,7 @@ async function guardarNuevoCargo() {
     // Seleccionar automáticamente el cargo recién creado
     const selectCargo = document.getElementById('cargo');
     if (selectCargo) {
-      selectCargo.value = data.nombre_cargo;
+      selectCargo.value = data.id_cargo ? String(data.id_cargo) : data.nombre_cargo;
     }
     
     mostrarResultadoCargo('Éxito', 'Cargo creado exitosamente');

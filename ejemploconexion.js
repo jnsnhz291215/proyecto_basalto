@@ -38,7 +38,7 @@ async function obtenerTrabajadores(incluirInactivos = false) {
       query += ' WHERE activo = 1';
     }
     const [rows] = await connection.execute(query);
-    const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
+    const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "AB", "CD", "EF", "GH", "J", "K"];
     return rows.map(r => ({
       RUT: r.RUT,
       nombres: r.nombres,
