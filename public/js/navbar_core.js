@@ -66,6 +66,45 @@
   }
 
   // ============================================
+  // NAVBAR ACTIVE STATE
+  // ============================================
+  function normalizeHref(href) {
+    if (!href) return '';
+    return href.replace(/^\//, '');
+  }
+
+  function syncNavbarActive() {
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const navAnchors = document.querySelectorAll('.nav-item a, .dropdown-menu a, .nav-link.dropdown-toggle');
+
+    if (!navAnchors.length) return;
+
+    navAnchors.forEach(anchor => anchor.classList.remove('active'));
+
+    if (currentPage === 'gestionar.html') {
+      const gestionarToggle = document.getElementById('navbarDropdownGestionar');
+      if (gestionarToggle) gestionarToggle.classList.add('active');
+      return;
+    }
+
+    if (currentPage === 'gestionviajes.html') {
+      const gestionViajesLink = document.querySelector('.dropdown-menu a[href="gestionviajes.html"], .dropdown-menu a[href="/gestionviajes.html"]');
+      if (gestionViajesLink) gestionViajesLink.classList.add('active');
+
+      const viajesLink = document.querySelector('#nav-viajes > a');
+      if (viajesLink) viajesLink.classList.remove('active');
+      return;
+    }
+
+    const matchLink = Array.from(document.querySelectorAll('.nav-item a, .dropdown-menu a'))
+      .find(anchor => normalizeHref(anchor.getAttribute('href')) === currentPage);
+
+    if (matchLink) matchLink.classList.add('active');
+  }
+
+  window.syncNavbarActive = syncNavbarActive;
+
+  // ============================================
   // TOGGLE DE UI (LOGIN vs USUARIO)
   // ============================================
   function toggleAuthUI() {
@@ -90,12 +129,14 @@
   // Ejecutar inmediatamente
   updateUserName();
   toggleAuthUI();
+  syncNavbarActive();
 
   // Ejecutar cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       updateUserName();
       toggleAuthUI();
+      syncNavbarActive();
     });
   }
 
@@ -103,6 +144,7 @@
   setInterval(() => {
     updateUserName();
     toggleAuthUI();
+    syncNavbarActive();
   }, 1000);
 
   console.log('[NAVBAR_CORE] Listo');

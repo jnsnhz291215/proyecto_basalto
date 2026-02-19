@@ -28,7 +28,7 @@
       const btn = wrapper.querySelector('#nav-toggle');
       const items = wrapper.querySelector('#nav-items');
       if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
-      try{ const links = wrapper.querySelectorAll('.nav-item a'); links.forEach(a=>{ if (location.pathname.endsWith(a.getAttribute('href'))) a.classList.add('active'); }); }catch(e){}
+      try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
       // Menu hamburguesa en móvil: toggle nav-items y nav-right
       if (btn && items) {
         btn.addEventListener('click', () => {

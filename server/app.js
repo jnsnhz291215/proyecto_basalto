@@ -533,6 +533,22 @@ async function resolverIdGrupo(grupoInput) {
   return rows && rows[0] ? rows[0].id_grupo : null;
 }
 
+async function resolverNombreCargo(cargoInput) {
+  const valor = String(cargoInput || '').trim();
+  if (!valor) return null;
+
+  const posibleId = parseInt(valor, 10);
+  if (Number.isInteger(posibleId)) {
+    const [rows] = await pool.execute(
+      'SELECT nombre_cargo FROM cargos WHERE id_cargo = ? LIMIT 1',
+      [posibleId]
+    );
+    return rows && rows[0] ? rows[0].nombre_cargo : null;
+  }
+
+  return valor;
+}
+
 // Endpoint para agregar trabajador
 app.post("/agregar-trabajador", async (req, res) => {
   let connection;
@@ -600,7 +616,8 @@ app.post("/agregar-trabajador", async (req, res) => {
     const nombresNorm = titleCase(nuevoTrabajador.nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
-    const cargoNorm = nuevoTrabajador.cargo ? titleCase(nuevoTrabajador.cargo) : null;
+    const cargoNombre = await resolverNombreCargo(nuevoTrabajador.id_cargo || nuevoTrabajador.cargo);
+    const cargoNorm = cargoNombre ? titleCase(cargoNombre) : null;
     const ciudadNorm = nuevoTrabajador.ciudad ? titleCase(nuevoTrabajador.ciudad) : null;
     const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
 
@@ -723,6 +740,8 @@ app.post("/editar-trabajador", async (req, res) => {
 
     // Editar el trabajador en la BD
     try {
+      const cargoNombre = await resolverNombreCargo(trabajador.id_cargo || trabajador.cargo);
+
       await editarTrabajador(
         trabajador.rut,
         trabajador.nombres,
@@ -731,7 +750,7 @@ app.post("/editar-trabajador", async (req, res) => {
         trabajador.email,
         trabajador.telefono,
         id_grupo,
-        trabajador.cargo || null,
+        cargoNombre || null,
         trabajador.ciudad || null,
         trabajador.fecha_nacimiento || null
       );

@@ -90,7 +90,8 @@
     display:block;
   }
   .nav-item a:hover{background:#f3f4f6}
-  .nav-item a.active{background:linear-gradient(90deg,#ec4899,#8b5cf6);color:#fff}
+  .nav-item a.active{background:#4f46e5;color:#fff}
+  .nav-item a.active:hover{background:#4338ca}
   .nav-toggle{display:none;background:transparent;border:0;font-size:22px;cursor:pointer}
   .nav-right{display:flex;align-items:center;gap:12px}
   .dropdown{position:relative}
@@ -142,6 +143,13 @@
     background-color: #f3e8ff !important;
     color: #9333ea !important;
     padding-left: 1.5rem;
+  }
+  .nav-item.dropdown .dropdown-item.active {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+  }
+  .nav-item.dropdown .dropdown-item.active i {
+    color: #ffffff !important;
   }
   .dropdown-item i{font-size:16px;width:20px;text-align:center}
   /* Efecto Hover en Desktop */

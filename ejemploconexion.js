@@ -36,9 +36,10 @@ async function obtenerTrabajadores(incluirInactivos = false) {
     let query = `
       SELECT 
         t.RUT, t.nombres, t.apellido_paterno, t.apellido_materno, t.email, t.telefono,
-        t.id_grupo, g.nombre_grupo, t.cargo, t.activo, t.fecha_nacimiento, t.ciudad
+        t.id_grupo, g.nombre_grupo, t.cargo, c.id_cargo, t.activo, t.fecha_nacimiento, t.ciudad
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      LEFT JOIN cargos c ON t.cargo = c.nombre_cargo
     `;
     if (!incluirInactivos) {
       query += ' WHERE t.activo = 1';
@@ -58,6 +59,7 @@ async function obtenerTrabajadores(incluirInactivos = false) {
       id_grupo: r.id_grupo || null,
       grupo: grupoNormalizado,
       cargo: r.cargo,
+      id_cargo: r.id_cargo || null,
       activo: r.activo === 1 || r.activo === true,
       fecha_nacimiento: r.fecha_nacimiento || null,
       ciudad: r.ciudad || null

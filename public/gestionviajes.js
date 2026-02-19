@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ]);
   
   // Event listeners
-  el.btnNuevoViaje.addEventListener('click', abrirModalNuevoViaje);
+  el.btnNuevoViaje.addEventListener('click', abrirModalCrear);
   el.btnCancelViaje.addEventListener('click', cerrarModalNuevoViaje);
   el.btnGuardarViaje.addEventListener('click', guardarViaje);
   el.btnAgregarTramo.addEventListener('click', agregarTramo);
@@ -311,7 +311,7 @@ window.eliminarTramo = function(tramoId) {
 // ============================================
 // MODAL NUEVO VIAJE
 // ============================================
-function abrirModalNuevoViaje() {
+function abrirModalCrear() {
   viajeEditando = null; // Modo creación
   el.modalNuevoViaje.classList.add('show');
   el.formNuevoViaje.reset();
@@ -321,7 +321,7 @@ function abrirModalNuevoViaje() {
   tramoCounter = 0;
   
   // Actualizar título del modal
-  document.querySelector('#modal-nuevo-viaje h2').textContent = 'Nuevo Viaje';
+  document.querySelector('#modal-nuevo-viaje h2').textContent = 'Crear Nuevo Viaje';
   el.btnGuardarViaje.innerHTML = '<i class="fa-solid fa-save"></i> Guardar Viaje';
   
   // Agregar un tramo inicial
@@ -522,7 +522,7 @@ function crearCardViaje(viaje) {
       ${tramosHTML}
     </div>
     <div class="viaje-acciones">
-      <button class="btn-accion btn-editar" onclick="editarViaje(${viaje.id_viaje})">
+      <button class="btn-accion btn-editar" onclick="abrirModalEditar(${viaje.id_viaje})">
         <i class="fa-solid fa-pen"></i> Editar
       </button>
       ${viaje.estado === 'Programado' || viaje.estado === 'En curso' ? `
@@ -542,7 +542,7 @@ function crearCardViaje(viaje) {
 // ============================================
 // EDITAR VIAJE
 // ============================================
-window.editarViaje = async function(idViaje) {
+window.abrirModalEditar = async function(idViaje) {
   const viaje = viajes.find(v => v.id_viaje === idViaje);
   if (!viaje) return;
   
@@ -643,6 +643,8 @@ window.editarViaje = async function(idViaje) {
     el.tramosContainer.appendChild(tramoDiv);
   });
 };
+
+window.editarViaje = window.abrirModalEditar;
 
 // ============================================
 // OCULTAR VIAJE

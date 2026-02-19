@@ -397,7 +397,7 @@ function cerrarAgregar() {
   el.modalAgregar.classList.remove('show');
 }
 
-function abrirEditar(rut) {
+async function abrirEditar(rut) {
   const trabajador = trabajadores.find(t => t.RUT === rut);
   if (!trabajador) {
     alert('No se encontró el trabajador');
@@ -410,13 +410,24 @@ function abrirEditar(rut) {
   document.getElementById('edit-apellido').value = trabajador.apellidos || '';
   document.getElementById('edit-telefono').value = trabajador.telefono || '';
   document.getElementById('edit-email').value = trabajador.email || '';
+  await cargarCargos();
   const selectEditCargo = document.getElementById('edit-cargo');
   if (selectEditCargo) {
-    const cargoNombre = (trabajador.cargo || '').trim();
     const cargoId = trabajador.id_cargo ? String(trabajador.id_cargo) : '';
-    const optionMatch = Array.from(selectEditCargo.options)
-      .find(opt => (cargoId && opt.value === cargoId) || opt.textContent.trim() === cargoNombre);
-    selectEditCargo.value = optionMatch ? optionMatch.value : '';
+    if (cargoId) {
+      selectEditCargo.value = cargoId;
+      if (selectEditCargo.value !== cargoId) {
+        console.warn('[GESTION] id_cargo no encontrado en select:', cargoId);
+      }
+    } else {
+      const cargoNombre = (trabajador.cargo || '').trim();
+      const optionMatch = Array.from(selectEditCargo.options)
+        .find(opt => opt.textContent.trim() === cargoNombre);
+      selectEditCargo.value = optionMatch ? optionMatch.value : '';
+      if (!optionMatch && cargoNombre) {
+        console.warn('[GESTION] cargo no encontrado en select:', cargoNombre);
+      }
+    }
   }
   const selectEditGrupo = document.getElementById('edit-grupo');
   if (selectEditGrupo) {
@@ -543,7 +554,7 @@ async function enviarEdicion(e) {
   const nombre = (fd.get('nombre') || '').trim() || (original.originalNombre || '');
   const apellido = (fd.get('apellido') || '').trim() || (original.originalApellido || '');
   const rut = (fd.get('rut') || '').trim() || (original.originalRut || '');
-  const cargoId = (fd.get('cargo') || '').trim();
+  const cargoId = (fd.get('cargo') || '').trim() || (original.originalCargoId || '');
   const cargoNombre = obtenerNombreCargoSeleccionado('edit-cargo', cargoId) || (original.originalCargo || '');
   const email = (fd.get('email') || '').trim() || (original.originalEmail || '');
   const telefonoRaw = (fd.get('telefono') || '').trim() || (original.originalTelefono || '');
@@ -581,6 +592,7 @@ async function enviarEdicion(e) {
     telefono,
     id_grupo: idGrupo
   };
+  if (cargoId) obj.id_cargo = cargoId;
   if (cargoNombre) obj.cargo = cargoNombre.trim();
   if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
