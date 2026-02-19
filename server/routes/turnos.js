@@ -247,6 +247,12 @@ function calcularEstadoPista(grupo, fecha, fechaSemilla, tipoPista) {
         grupo: grupo,
         turno_tipo: tipoPista,
         dias_restantes: diasHastaProximo,
+        proxima_jornada: proximaJornada
+      };
+    }
+  }
+}
+
 /**
  * Calcular días hasta el próximo turno
  */
