@@ -17,34 +17,35 @@
     // Limpiar todos los activos
     navAnchors.forEach(anchor => anchor.classList.remove('active'));
 
-    // REGLA 1: Si estamos en gestionar.html, marcar dropdown Gestionar
-    if (currentPath.endsWith('gestionar.html')) {
+    // REGLA 1: Páginas de Gestión (gestionar.html, gestionviajes.html, gestioninformes.html)
+    // El botón padre 'Gestionar' debe mantener activo en TODAS las subsecciones
+    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html'];
+    const esPaginaGestion = paginasGestion.some(pagina => currentPath.endsWith(pagina));
+
+    if (esPaginaGestion) {
+      // Marcar el botón padre 'Gestionar' como activo (púrpura corporativo)
       const gestionarToggle = document.getElementById('navbarDropdownGestionar');
       if (gestionarToggle) gestionarToggle.classList.add('active');
-      return;
-    }
 
-    // REGLA 2: Si estamos en gestionviajes.html (PRIORIDAD sobre 'viajes')
-    // Marcar el item de "Gestión Viajes" en el dropdown y NO marcar "Viajes" del calendario
-    if (currentPath.endsWith('gestionviajes.html')) {
-      const gestionViajesLink = document.querySelector('.dropdown-menu a[href="gestionviajes.html"], .dropdown-menu a[href="/gestionviajes.html"]');
-      if (gestionViajesLink) gestionViajesLink.classList.add('active');
+      // Marcar el ítem interno específico según la página actual
+      if (currentPath.endsWith('gestionviajes.html')) {
+        const gestionViajesLink = document.querySelector('.dropdown-menu a[href="gestionviajes.html"], .dropdown-menu a[href="/gestionviajes.html"]');
+        if (gestionViajesLink) gestionViajesLink.classList.add('active');
+      } else if (currentPath.endsWith('gestioninformes.html')) {
+        const gestionInformesLink = document.querySelector('.dropdown-menu a[href="gestioninformes.html"], .dropdown-menu a[href="/gestioninformes.html"]');
+        if (gestionInformesLink) gestionInformesLink.classList.add('active');
+      } else if (currentPath.endsWith('gestionar.html')) {
+        const gestionarLink = document.querySelector('.dropdown-menu a[href="gestionar.html"], .dropdown-menu a[href="/gestionar.html"]');
+        if (gestionarLink) gestionarLink.classList.add('active');
+      }
 
-      // Asegurar que el link de "Viajes" (calendario) NO esté activo
+      // IMPORTANTE: Asegurar que el link de 'Viajes' (calendario) NO esté activo
       const viajesLink = document.querySelector('#nav-viajes > a, nav-viajes a, [href="viajes.html"], [href="/viajes.html"]');
       if (viajesLink) viajesLink.classList.remove('active');
       return;
     }
 
-    // REGLA 2B: Si estamos en gestioninformes.html
-    // Marcar el item de "Gestión Informes" en el dropdown
-    if (currentPath.endsWith('gestioninformes.html')) {
-      const gestionInformesLink = document.querySelector('.dropdown-menu a[href="gestioninformes.html"], .dropdown-menu a[href="/gestioninformes.html"]');
-      if (gestionInformesLink) gestionInformesLink.classList.add('active');
-      return;
-    }
-
-    // REGLA 3: Para otros links, buscar coincidencia simple
+    // REGLA 2: Para otros links, buscar coincidencia simple
     const normalizeHref = (href) => href ? href.replace(/^\//, '') : '';
     const currentPage = currentPath.split('/').pop() || 'index.html';
 
