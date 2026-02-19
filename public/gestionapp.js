@@ -441,6 +441,12 @@ async function enviarAgregar(e) {
     return;
   }
 
+  const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
+  if (!gruposValidos.includes(grupo)) {
+    alert('El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K');
+    return;
+  }
+
   const rut = formatearRUT(rutRaw);
   const telefono = formatearTelefono(telefonoRaw);
   if (!rut) { alert('RUT inválido (8-9 dígitos).'); return; }
@@ -512,6 +518,12 @@ async function enviarEdicion(e) {
 
   if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
     alert('Complete todos los campos requeridos.');
+    return;
+  }
+
+  const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
+  if (!gruposValidos.includes(grupo)) {
+    alert('El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K');
     return;
   }
 

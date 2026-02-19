@@ -544,9 +544,9 @@ app.post("/agregar-trabajador", async (req, res) => {
     }
     
     // Validar que el grupo sea válido
-    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
+    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
     if (!gruposValidos.includes(nuevoTrabajador.grupo)) {
-      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, J o K" });
+      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K" });
     }
     
     // Verificar que el RUT no exista en la BD
@@ -681,9 +681,9 @@ app.post("/editar-trabajador", async (req, res) => {
     }
     
     // Validar que el grupo sea válido
-    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
+    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
     if (!gruposValidos.includes(trabajador.grupo)) {
-      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, J o K" });
+      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K" });
     }
 
     // Preparar apellidos (paterno / materno) y mapear grupo letra -> id_grupo
