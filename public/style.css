@@ -129,18 +129,37 @@ body {
 }
 
 /* ============================================
-   ESTILOS NAVBAR DROPDOWN - Blindaje del Caret
+   NAVBAR DROPDOWN - Triángulo manual agresivo
    ============================================ */
-/* Fuerza la visibilidad del caret en todos los dropdown-toggle */
-.dropdown-toggle::after {
+/* Desactivar cualquier flechita de Bootstrap */
+#navbarDropdownGestionar.dropdown-toggle::after {
+  background-image: none !important;
+  background-color: transparent !important;
   display: inline-block !important;
-  margin-left: 0.25em !important;
+  content: "" !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 4px solid transparent !important;
+  border-right: 4px solid transparent !important;
+  border-top: 4px solid currentColor !important;
+  margin-left: 0.5em !important;
+  vertical-align: 0.125em !important;
+  flex-shrink: 0 !important;
 }
 
-/* Asegura que el caret sea visible con fondo púrpura activo */
-.nav-link.dropdown-toggle.active::after {
-  color: #ffffff !important;
-  display: inline-block !important;
+/* Estado normal (gris oscuro) */
+#navbarDropdownGestionar.dropdown-toggle::after {
+  border-top-color: #1f2937 !important;
+}
+
+/* Estado activo (blanco) */
+#navbarDropdownGestionar.dropdown-toggle.active::after {
+  border-top-color: #ffffff !important;
+}
+
+/* Garantizar que no sea oculto por overflow */
+#navbarDropdownGestionar.dropdown-toggle {
+  overflow: visible !important;
 }
 
 /* Calendario */
