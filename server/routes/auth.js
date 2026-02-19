@@ -139,19 +139,21 @@ router.get('/perfil/:rut', async (req, res) => {
     // Consultar en la tabla MAESTRA 'trabajadores' para obtener todos los detalles
     const sql = `
       SELECT 
-        RUT, 
-        nombres, 
-        apellido_paterno, 
-        apellido_materno, 
-        email, 
-        telefono, 
-        id_grupo, 
-        cargo, 
-        activo,
-        fecha_nacimiento,
-        ciudad
-      FROM trabajadores 
-      WHERE REPLACE(REPLACE(REPLACE(RUT, ".", ""), "-", ""), " ", "") = ?
+        t.RUT, 
+        t.nombres, 
+        t.apellido_paterno, 
+        t.apellido_materno, 
+        t.email, 
+        t.telefono, 
+        t.id_grupo, 
+        g.nombre_grupo,
+        t.cargo, 
+        t.activo,
+        t.fecha_nacimiento,
+        t.ciudad
+      FROM trabajadores t
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      WHERE REPLACE(REPLACE(REPLACE(t.RUT, ".", ""), "-", ""), " ", "") = ?
       LIMIT 1
     `;
     
@@ -160,10 +162,8 @@ router.get('/perfil/:rut', async (req, res) => {
     if (rows && rows.length > 0) {
       const trabajador = rows[0];
       
-      // Mapear id_grupo a letra
-      const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"];
-      const grupoLetra = (typeof trabajador.id_grupo === 'number' && trabajador.id_grupo >= 1 && trabajador.id_grupo <= GRUPOS.length) 
-        ? GRUPOS[trabajador.id_grupo - 1] 
+      const grupoLetra = trabajador.nombre_grupo
+        ? String(trabajador.nombre_grupo).trim()
         : (trabajador.id_grupo ? String(trabajador.id_grupo) : null);
 
       const perfil = {

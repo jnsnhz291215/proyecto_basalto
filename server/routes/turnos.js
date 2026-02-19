@@ -58,7 +58,16 @@ router.get('/estado-turno/:rut', async (req, res) => {
     // Obtener datos del trabajador
     connection = await pool.getConnection();
     const [trabajadores] = await connection.execute(
-      'SELECT RUT, nombres, apellidos, id_grupo FROM trabajadores WHERE RUT = ? AND activo = 1 LIMIT 1',
+      `SELECT 
+        t.RUT, 
+        t.nombres, 
+        t.apellidos, 
+        t.id_grupo,
+        g.nombre_grupo
+      FROM trabajadores t
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      WHERE t.RUT = ? AND t.activo = 1
+      LIMIT 1`,
       [rut]
     );
     
@@ -67,7 +76,9 @@ router.get('/estado-turno/:rut', async (req, res) => {
     }
     
     const trabajador = trabajadores[0];
-    const grupo = trabajador.id_grupo;
+    const grupo = trabajador.nombre_grupo
+      ? String(trabajador.nombre_grupo).trim()
+      : (trabajador.id_grupo ? String(trabajador.id_grupo) : null);
     
     if (!grupo) {
       return res.json({

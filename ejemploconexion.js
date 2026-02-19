@@ -33,13 +33,21 @@ console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=$
 async function obtenerTrabajadores(incluirInactivos = false) {
   const connection = await pool.getConnection();
   try {
-    let query = 'SELECT RUT, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo, activo, fecha_nacimiento, ciudad FROM trabajadores';
+    let query = `
+      SELECT 
+        t.RUT, t.nombres, t.apellido_paterno, t.apellido_materno, t.email, t.telefono,
+        t.id_grupo, g.nombre_grupo, t.cargo, t.activo, t.fecha_nacimiento, t.ciudad
+      FROM trabajadores t
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+    `;
     if (!incluirInactivos) {
-      query += ' WHERE activo = 1';
+      query += ' WHERE t.activo = 1';
     }
     const [rows] = await connection.execute(query);
-    const GRUPOS = ["A", "B", "C", "D", "E", "F", "G", "H", "AB", "CD", "EF", "GH", "J", "K"];
-    return rows.map(r => ({
+    return rows.map(r => {
+      const grupoNormalizado = r.nombre_grupo ? String(r.nombre_grupo).trim() : (r.id_grupo ? String(r.id_grupo).trim() : '');
+
+      return {
       RUT: r.RUT,
       nombres: r.nombres,
       apellido_paterno: r.apellido_paterno,
@@ -47,12 +55,14 @@ async function obtenerTrabajadores(incluirInactivos = false) {
       apellidos: ((r.apellido_paterno || '') + ' ' + (r.apellido_materno || '')).trim(),
       email: r.email,
       telefono: r.telefono,
-      grupo: (typeof r.id_grupo === 'number' && r.id_grupo >= 1 && r.id_grupo <= GRUPOS.length) ? GRUPOS[r.id_grupo - 1] : (r.id_grupo ? String(r.id_grupo) : ''),
+      id_grupo: r.id_grupo || null,
+      grupo: grupoNormalizado,
       cargo: r.cargo,
       activo: r.activo === 1 || r.activo === true,
       fecha_nacimiento: r.fecha_nacimiento || null,
       ciudad: r.ciudad || null
-    }));
+    };
+    });
   } finally {
     connection.release();
   }

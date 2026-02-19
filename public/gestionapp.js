@@ -3,6 +3,7 @@ import { GRUPOS, COLORES } from './config.js';
 // const CLAVE_GESTIONAR = 'clave1super2secreta3';
 
 let trabajadores = [];
+let gruposDisponibles = Array.isArray(GRUPOS) ? [...GRUPOS] : [];
 let rutParaBorrar = null;
 let rutParaOcultar = null;
 let esReactivar = false;
@@ -74,7 +75,8 @@ function getFiltrados() {
     list = list.filter(t => {
       const n = ((t.nombres || '') + ' ' + (t.apellidos || '')).toLowerCase();
       const a = ((t.apellidos || '') + ' ' + (t.nombres || '')).toLowerCase();
-      return n.includes(buscar) || a.includes(buscar);
+      const r = String(t.RUT || '').toLowerCase();
+      return n.includes(buscar) || a.includes(buscar) || r.includes(buscar);
     });
   }
   
@@ -93,8 +95,9 @@ function getFiltrados() {
 
 function render() {
   const list = getFiltrados();
+  const baseGrupos = gruposDisponibles.length ? gruposDisponibles : GRUPOS;
   const porGrupo = {};
-  GRUPOS.forEach(g => { porGrupo[g] = []; });
+  baseGrupos.forEach(g => { porGrupo[g] = []; });
   porGrupo['sin_grupo'] = []; // Crear entrada para trabajadores sin grupo
   
   list.forEach(t => {
@@ -102,6 +105,9 @@ function render() {
       porGrupo[t.grupo].push(t);
     } else if (!t.grupo || t.grupo === '') {
       // Si no tiene grupo o es vacío, agregarlo a sin_grupo
+      porGrupo['sin_grupo'].push(t);
+    } else {
+      // Grupo no reconocido: no ocultar el trabajador
       porGrupo['sin_grupo'].push(t);
     }
   });
@@ -113,7 +119,7 @@ function render() {
     gruposAmostrar = ['sin_grupo'];
   } else if (filterGrupo === '') {
     // Mostrar todos los grupos (incluyendo sin_grupo si hay trabajadores)
-    gruposAmostrar = [...GRUPOS, 'sin_grupo'];
+    gruposAmostrar = [...baseGrupos, 'sin_grupo'];
   } else {
     // Mostrar solo el grupo seleccionado
     gruposAmostrar = [filterGrupo];
@@ -412,7 +418,11 @@ function abrirEditar(rut) {
       .find(opt => (cargoId && opt.value === cargoId) || opt.textContent.trim() === cargoNombre);
     selectEditCargo.value = optionMatch ? optionMatch.value : '';
   }
-  document.getElementById('edit-grupo').value = trabajador.grupo || '';
+  const selectEditGrupo = document.getElementById('edit-grupo');
+  if (selectEditGrupo) {
+    const grupoId = trabajador.id_grupo ? String(trabajador.id_grupo) : '';
+    selectEditGrupo.value = grupoId;
+  }
   const selectEditCiudad = document.getElementById('edit-ciudad');
   if (selectEditCiudad) {
     const ciudadNombre = (trabajador.ciudad || '').trim();
@@ -433,7 +443,7 @@ function abrirEditar(rut) {
     el.formEditar.dataset.originalEmail = trabajador.email || '';
     el.formEditar.dataset.originalCargo = trabajador.cargo || '';
     el.formEditar.dataset.originalCargoId = trabajador.id_cargo ? String(trabajador.id_cargo) : '';
-    el.formEditar.dataset.originalGrupo = trabajador.grupo || '';
+    el.formEditar.dataset.originalGrupoId = trabajador.id_grupo ? String(trabajador.id_grupo) : '';
     el.formEditar.dataset.originalCiudad = trabajador.ciudad || '';
     el.formEditar.dataset.originalFechaNacimiento = fechaNacimiento || '';
   }
@@ -455,19 +465,19 @@ async function enviarAgregar(e) {
   const cargoNombre = obtenerNombreCargoSeleccionado('cargo', cargoId);
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
-  const grupo = fd.get('grupo') || '';
+  const idGrupoRaw = (fd.get('grupo') || '').trim();
   const ciudadId = (fd.get('ciudad') || '').trim();
   const ciudadNombre = obtenerNombreCiudadSeleccionada('ciudad', ciudadId);
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
-  if (!nombre || !apellido || !rutRaw || !email || !telefonoRaw || !grupo) {
+  if (!nombre || !apellido || !rutRaw || !email || !telefonoRaw || !idGrupoRaw) {
     alert('Complete todos los campos requeridos.');
     return;
   }
 
-  const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
-  if (!gruposValidos.includes(grupo)) {
-    alert('El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K');
+  const idGrupo = parseInt(idGrupoRaw, 10);
+  if (!Number.isInteger(idGrupo)) {
+    alert('Seleccione un grupo válido');
     return;
   }
 
@@ -489,7 +499,7 @@ async function enviarAgregar(e) {
     RUT: rut,
     email: email.toLowerCase().trim(),
     telefono,
-    grupo
+    id_grupo: idGrupo
   };
   if (cargoNombre) obj.cargo = cargoNombre.trim();
   if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
@@ -537,19 +547,19 @@ async function enviarEdicion(e) {
   const cargoNombre = obtenerNombreCargoSeleccionado('edit-cargo', cargoId) || (original.originalCargo || '');
   const email = (fd.get('email') || '').trim() || (original.originalEmail || '');
   const telefonoRaw = (fd.get('telefono') || '').trim() || (original.originalTelefono || '');
-  const grupo = (fd.get('grupo') || '').trim() || (original.originalGrupo || '');
+  const idGrupoRaw = (fd.get('grupo') || '').trim() || (original.originalGrupoId || '');
   const ciudadId = (fd.get('ciudad') || '').trim();
   const ciudadNombre = obtenerNombreCiudadSeleccionada('edit-ciudad', ciudadId) || (original.originalCiudad || '');
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim() || (original.originalFechaNacimiento || '');
 
-  if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
+  if (!nombre || !apellido || !email || !telefonoRaw || !idGrupoRaw) {
     alert('Complete todos los campos requeridos.');
     return;
   }
 
-  const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
-  if (!gruposValidos.includes(grupo)) {
-    alert('El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K');
+  const idGrupo = parseInt(idGrupoRaw, 10);
+  if (!Number.isInteger(idGrupo)) {
+    alert('Seleccione un grupo válido');
     return;
   }
 
@@ -569,7 +579,7 @@ async function enviarEdicion(e) {
     apellidos: apellido.replace(/\s+/g, ' ').trim(),
     email: email.toLowerCase().trim(),
     telefono,
-    grupo
+    id_grupo: idGrupo
   };
   if (cargoNombre) obj.cargo = cargoNombre.trim();
   if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
@@ -845,6 +855,65 @@ async function cargarCargos() {
 }
 
 // ============================================
+// GESTIÓN DE GRUPOS
+// ============================================
+
+async function cargarGrupos(seleccionarValor = '') {
+  try {
+    const res = await fetch('/api/grupos');
+    if (!res.ok) throw new Error('Error al cargar grupos');
+
+    const grupos = await res.json();
+    gruposDisponibles = grupos.map(grupo => grupo.nombre_grupo);
+    const selectGrupo = document.getElementById('grupo');
+    const selectEditGrupo = document.getElementById('edit-grupo');
+    const selectFiltro = el.selectFiltro || document.getElementById('select-filtro');
+
+    const renderizarSelect = (select) => {
+      if (!select) return;
+      select.innerHTML = '<option value="" disabled selected>Seleccione...</option>';
+
+      grupos.forEach(grupo => {
+        const option = document.createElement('option');
+        option.value = String(grupo.id_grupo);
+        option.textContent = grupo.nombre_grupo;
+        select.appendChild(option);
+      });
+    };
+
+    renderizarSelect(selectGrupo);
+    renderizarSelect(selectEditGrupo);
+
+    if (selectFiltro) {
+      selectFiltro.innerHTML = '<option value="">Todos los grupos</option>';
+      grupos.forEach(grupo => {
+        const option = document.createElement('option');
+        option.value = String(grupo.nombre_grupo);
+        option.textContent = `Grupo ${grupo.nombre_grupo}`;
+        selectFiltro.appendChild(option);
+      });
+      const optionSinGrupo = document.createElement('option');
+      optionSinGrupo.value = 'sin_grupo';
+      optionSinGrupo.textContent = 'Sin Grupo / Por Asignar';
+      selectFiltro.appendChild(optionSinGrupo);
+    }
+
+    if (seleccionarValor) {
+      const valorNormalizado = String(seleccionarValor).trim();
+      if (selectGrupo) selectGrupo.value = valorNormalizado;
+      if (selectEditGrupo) selectEditGrupo.value = valorNormalizado;
+    } else if (selectEditGrupo && el.formEditar) {
+      const originalGrupoId = el.formEditar.dataset.originalGrupoId || '';
+      if (originalGrupoId) {
+        selectEditGrupo.value = originalGrupoId;
+      }
+    }
+  } catch (error) {
+    console.error('Error al cargar grupos:', error);
+  }
+}
+
+// ============================================
 // GESTIÓN DE CIUDADES
 // ============================================
 
@@ -1047,6 +1116,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cargar ciudades al iniciar
   cargarCiudades();
+
+  // Cargar grupos al iniciar
+  cargarGrupos();
 
   const btnNuevaCiudad = document.getElementById('btn-nueva-ciudad');
   if (btnNuevaCiudad) btnNuevaCiudad.addEventListener('click', pedirNuevaCiudad);

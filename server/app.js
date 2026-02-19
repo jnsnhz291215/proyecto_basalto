@@ -23,6 +23,11 @@ app.use('/api', turnosRoutes);
 // ============================================
 const viajesRoutes = require('./routes/viajes');
 app.use('/api', viajesRoutes);
+// ============================================
+// RUTAS DE TRABAJADORES
+// ============================================
+const trabajadoresRoutes = require('./routes/trabajadores');
+app.use('/api', trabajadoresRoutes);
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -508,6 +513,26 @@ function limpiarRUTServidor(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+async function resolverIdGrupo(grupoInput) {
+  const valor = String(grupoInput || '').trim();
+  if (!valor) return null;
+
+  const posibleId = parseInt(valor, 10);
+  if (Number.isInteger(posibleId)) {
+    const [rows] = await pool.execute(
+      'SELECT id_grupo FROM grupos WHERE id_grupo = ? LIMIT 1',
+      [posibleId]
+    );
+    return rows && rows[0] ? rows[0].id_grupo : null;
+  }
+
+  const [rows] = await pool.execute(
+    'SELECT id_grupo FROM grupos WHERE nombre_grupo = ? LIMIT 1',
+    [valor]
+  );
+  return rows && rows[0] ? rows[0].id_grupo : null;
+}
+
 // Endpoint para agregar trabajador
 app.post("/agregar-trabajador", async (req, res) => {
   let connection;
@@ -515,15 +540,17 @@ app.post("/agregar-trabajador", async (req, res) => {
     const nuevoTrabajador = req.body;
     
     // Validar que todos los campos estén presentes y no estén vacíos
+    const grupoInput = nuevoTrabajador.id_grupo || nuevoTrabajador.grupo;
+
     if (!nuevoTrabajador.nombres || !nuevoTrabajador.apellidos || !nuevoTrabajador.RUT ||
-        !nuevoTrabajador.email || !nuevoTrabajador.telefono || !nuevoTrabajador.grupo) {
+        !nuevoTrabajador.email || !nuevoTrabajador.telefono || !grupoInput) {
       return res.status(400).json({ error: "Todos los campos son requeridos y no pueden estar en blanco" });
     }
     
     // Validar que los campos no sean solo espacios en blanco
     if (nuevoTrabajador.nombres.trim() === '' || nuevoTrabajador.apellidos.trim() === '' ||
         nuevoTrabajador.RUT.trim() === '' || nuevoTrabajador.email.trim() === '' ||
-        nuevoTrabajador.telefono.trim() === '' || nuevoTrabajador.grupo.trim() === '') {
+        nuevoTrabajador.telefono.trim() === '' || String(grupoInput).trim() === '') {
       return res.status(400).json({ error: "Ningún campo puede estar en blanco" });
     }
     
@@ -542,10 +569,10 @@ app.post("/agregar-trabajador", async (req, res) => {
       return res.status(400).json({ error: "El formato del teléfono es inválido. Debe ser: +56 seguido de 9 dígitos" });
     }
     
-    // Validar que el grupo sea válido
-    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
-    if (!gruposValidos.includes(nuevoTrabajador.grupo)) {
-      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K" });
+    // Validar grupo
+    const id_grupo = await resolverIdGrupo(grupoInput);
+    if (!id_grupo) {
+      return res.status(400).json({ error: "El grupo seleccionado no es válido" });
     }
     
     // Verificar que el RUT no exista en la BD
@@ -554,7 +581,7 @@ app.post("/agregar-trabajador", async (req, res) => {
       return res.status(400).json({ error: "Ya existe un trabajador con este RUT" });
     }
 
-    // Preparar apellidos (paterno / materno) y mapear grupo letra -> id_grupo
+    // Preparar apellidos (paterno / materno)
     const apellidosRaw = (nuevoTrabajador.apellidos || '').trim();
     let apellido_paterno = '';
     let apellido_materno = '';
@@ -563,9 +590,6 @@ app.post("/agregar-trabajador", async (req, res) => {
       apellido_paterno = parts.shift() || '';
       apellido_materno = parts.join(' ') || '';
     }
-
-    const idx = gruposValidos.indexOf(nuevoTrabajador.grupo);
-    const id_grupo = idx >= 0 ? idx + 1 : null;
 
     // Normalizar capitalización: primera letra en mayúscula por palabra
     const titleCase = s => {
@@ -658,14 +682,16 @@ app.post("/editar-trabajador", async (req, res) => {
     const trabajador = req.body;
     
     // Validar que todos los campos estén presentes y no estén vacíos
+    const grupoInput = trabajador.id_grupo || trabajador.grupo;
+
     if (!trabajador.rut || !trabajador.nombres || !trabajador.apellidos || 
-        !trabajador.email || !trabajador.telefono || !trabajador.grupo) {
+        !trabajador.email || !trabajador.telefono || !grupoInput) {
       return res.status(400).json({ error: "Todos los campos son requeridos y no pueden estar en blanco" });
     }
     
     // Validar que los campos no sean solo espacios en blanco
     if (trabajador.rut.trim() === '' || trabajador.nombres.trim() === '' || trabajador.apellidos.trim() === '' ||
-        trabajador.email.trim() === '' || trabajador.telefono.trim() === '' || trabajador.grupo.trim() === '') {
+        trabajador.email.trim() === '' || trabajador.telefono.trim() === '' || String(grupoInput).trim() === '') {
       return res.status(400).json({ error: "Ningún campo puede estar en blanco" });
     }
     
@@ -679,13 +705,13 @@ app.post("/editar-trabajador", async (req, res) => {
       return res.status(400).json({ error: "El formato del teléfono es inválido. Debe ser: +56 seguido de 9 dígitos" });
     }
     
-    // Validar que el grupo sea válido
-    const gruposValidos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'AB', 'CD', 'EF', 'GH', 'J', 'K'];
-    if (!gruposValidos.includes(trabajador.grupo)) {
-      return res.status(400).json({ error: "El grupo debe ser A, B, C, D, E, F, G, H, AB, CD, EF, GH, J o K" });
+    // Validar grupo
+    const id_grupo = await resolverIdGrupo(grupoInput);
+    if (!id_grupo) {
+      return res.status(400).json({ error: "El grupo seleccionado no es válido" });
     }
 
-    // Preparar apellidos (paterno / materno) y mapear grupo letra -> id_grupo
+    // Preparar apellidos (paterno / materno)
     const apellidosRaw = (trabajador.apellidos || '').trim();
     let apellido_paterno = '';
     let apellido_materno = '';
@@ -694,9 +720,6 @@ app.post("/editar-trabajador", async (req, res) => {
       apellido_paterno = parts.shift() || '';
       apellido_materno = parts.join(' ') || '';
     }
-
-    const idx = gruposValidos.indexOf(trabajador.grupo);
-    const id_grupo = idx >= 0 ? idx + 1 : null;
 
     // Editar el trabajador en la BD
     try {
