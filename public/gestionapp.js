@@ -406,7 +406,13 @@ function abrirEditar(rut) {
   document.getElementById('edit-email').value = trabajador.email || '';
   document.getElementById('edit-cargo').value = trabajador.cargo || '';
   document.getElementById('edit-grupo').value = trabajador.grupo || '';
-  document.getElementById('edit-ciudad').value = trabajador.ciudad || '';
+  const selectEditCiudad = document.getElementById('edit-ciudad');
+  if (selectEditCiudad) {
+    const ciudadNombre = (trabajador.ciudad || '').trim();
+    const optionMatch = Array.from(selectEditCiudad.options)
+      .find(opt => opt.textContent.trim() === ciudadNombre);
+    selectEditCiudad.value = optionMatch ? optionMatch.value : '';
+  }
   document.getElementById('edit-fecha-nacimiento').value = trabajador.fecha_nacimiento || '';
   
   el.modalEditar.classList.add('show');
@@ -426,7 +432,8 @@ async function enviarAgregar(e) {
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const grupo = fd.get('grupo') || '';
-  const ciudad = (fd.get('ciudad') || '').trim();
+  const ciudadId = (fd.get('ciudad') || '').trim();
+  const ciudadNombre = obtenerNombreCiudadSeleccionada('ciudad', ciudadId);
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
   if (!nombre || !apellido || !rutRaw || !email || !telefonoRaw || !grupo) {
@@ -455,7 +462,7 @@ async function enviarAgregar(e) {
     grupo
   };
   if (cargo) obj.cargo = cargo.trim();
-  if (ciudad) obj.ciudad = ciudad.trim();
+  if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case en frontend para mostrar inmediatamente
@@ -499,7 +506,8 @@ async function enviarEdicion(e) {
   const email = (fd.get('email') || '').trim();
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const grupo = fd.get('grupo') || '';
-  const ciudad = (fd.get('ciudad') || '').trim();
+  const ciudadId = (fd.get('ciudad') || '').trim();
+  const ciudadNombre = obtenerNombreCiudadSeleccionada('edit-ciudad', ciudadId);
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
   if (!nombre || !apellido || !email || !telefonoRaw || !grupo) {
@@ -526,7 +534,7 @@ async function enviarEdicion(e) {
     grupo
   };
   if (cargo) obj.cargo = cargo.trim();
-  if (ciudad) obj.ciudad = ciudad.trim();
+  if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case
@@ -800,8 +808,8 @@ async function cargarCiudades(seleccionarValor = '') {
 
       ciudades.forEach(ciudad => {
         const option = document.createElement('option');
-        option.value = ciudad;
-        option.textContent = ciudad;
+        option.value = ciudad.id_ciudad;
+        option.textContent = ciudad.nombre_ciudad;
         select.appendChild(option);
       });
     };
@@ -810,12 +818,29 @@ async function cargarCiudades(seleccionarValor = '') {
     renderizarSelect(selectEditCiudad);
 
     if (seleccionarValor) {
-      if (selectCiudad) selectCiudad.value = seleccionarValor;
-      if (selectEditCiudad) selectEditCiudad.value = seleccionarValor;
+      const valorNormalizado = String(seleccionarValor).trim();
+      const ciudadEncontrada = ciudades.find(
+        ciudad => String(ciudad.id_ciudad) === valorNormalizado || ciudad.nombre_ciudad === valorNormalizado
+      );
+
+      if (ciudadEncontrada) {
+        if (selectCiudad) selectCiudad.value = ciudadEncontrada.id_ciudad;
+        if (selectEditCiudad) selectEditCiudad.value = ciudadEncontrada.id_ciudad;
+      }
     }
   } catch (error) {
     console.error('Error al cargar ciudades:', error);
   }
+}
+
+function obtenerNombreCiudadSeleccionada(selectId, valorFallback = '') {
+  const select = document.getElementById(selectId);
+  if (!select) return valorFallback;
+
+  const option = select.options[select.selectedIndex];
+  if (!option || !option.value) return '';
+
+  return option.textContent.trim();
 }
 
 async function guardarNuevaCiudad(nombreCiudad) {
