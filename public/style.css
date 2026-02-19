@@ -128,6 +128,21 @@ body {
   opacity: 0.9;
 }
 
+/* ============================================
+   ESTILOS NAVBAR DROPDOWN - Blindaje del Caret
+   ============================================ */
+/* Fuerza la visibilidad del caret en todos los dropdown-toggle */
+.dropdown-toggle::after {
+  display: inline-block !important;
+  margin-left: 0.25em !important;
+}
+
+/* Asegura que el caret sea visible con fondo púrpura activo */
+.nav-link.dropdown-toggle.active::after {
+  color: #ffffff !important;
+  display: inline-block !important;
+}
+
 /* Calendario */
 .calendar-wrapper {
   background-color: white;
