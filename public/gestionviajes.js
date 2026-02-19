@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ]);
   
   // Event listeners
-  el.btnNuevoViaje.addEventListener('click', abrirModalCrear);
+  el.btnNuevoViaje.addEventListener('click', prepararNuevoViaje);
   el.btnCancelViaje.addEventListener('click', cerrarModalNuevoViaje);
   el.btnGuardarViaje.addEventListener('click', guardarViaje);
   el.btnAgregarTramo.addEventListener('click', agregarTramo);
@@ -311,7 +311,7 @@ window.eliminarTramo = function(tramoId) {
 // ============================================
 // MODAL NUEVO VIAJE
 // ============================================
-function abrirModalCrear() {
+function prepararNuevoViaje() {
   viajeEditando = null; // Modo creación
   el.modalNuevoViaje.classList.add('show');
   el.formNuevoViaje.reset();
@@ -321,8 +321,9 @@ function abrirModalCrear() {
   tramoCounter = 0;
   
   // Actualizar título del modal
-  document.querySelector('#modal-nuevo-viaje h2').textContent = 'Crear Nuevo Viaje';
-  el.btnGuardarViaje.innerHTML = '<i class="fa-solid fa-save"></i> Guardar Viaje';
+  const modalTitle = document.getElementById('modalViajeLabel');
+  if (modalTitle) modalTitle.innerText = 'Crear Nuevo Viaje';
+  if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Viaje';
   
   // Agregar un tramo inicial
   agregarTramo();
@@ -522,7 +523,7 @@ function crearCardViaje(viaje) {
       ${tramosHTML}
     </div>
     <div class="viaje-acciones">
-      <button class="btn-accion btn-editar" onclick="abrirModalEditar(${viaje.id_viaje})">
+      <button class="btn-accion btn-editar" onclick="prepararEdicionViaje(${viaje.id_viaje})">
         <i class="fa-solid fa-pen"></i> Editar
       </button>
       ${viaje.estado === 'Programado' || viaje.estado === 'En curso' ? `
@@ -542,109 +543,120 @@ function crearCardViaje(viaje) {
 // ============================================
 // EDITAR VIAJE
 // ============================================
-window.abrirModalEditar = async function(idViaje) {
-  const viaje = viajes.find(v => v.id_viaje === idViaje);
-  if (!viaje) return;
-  
-  viajeEditando = viaje;
-  
-  // Buscar trabajador
-  trabajadorSeleccionado = trabajadores.find(t => t.RUT === viaje.rut_trabajador);
-  
-  if (!trabajadorSeleccionado) {
-    mostrarError('No se encontró el trabajador asociado');
-    return;
-  }
-  
-  // Abrir modal
-  el.modalNuevoViaje.classList.add('show');
-  
-  // Actualizar título del modal
-  document.querySelector('#modal-nuevo-viaje h2').textContent = 'Editar Viaje';
-  el.btnGuardarViaje.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Viaje';
-  
-  // Llenar campos del trabajador
-  el.inputTrabajador.value = `${trabajadorSeleccionado.RUT} - ${trabajadorSeleccionado.nombres} ${trabajadorSeleccionado.apellidos}`;
-  mostrarInfoTrabajador(trabajadorSeleccionado);
-  
-  // Limpiar tramos existentes
-  el.tramosContainer.innerHTML = '';
-  tramoCounter = 0;
-  
-  // Cargar tramos del viaje
-  viaje.tramos.forEach(tramo => {
-    tramoCounter++;
-    
-    const tramoDiv = document.createElement('div');
-    tramoDiv.className = 'tramo-item';
-    tramoDiv.dataset.tramoId = tramoCounter;
-    
-    tramoDiv.innerHTML = `
-      <div class="tramo-header">
-        <span class="tramo-numero"><i class="fa-solid fa-route"></i> Tramo ${tramoCounter}</span>
-        <button type="button" class="btn-eliminar-tramo" onclick="eliminarTramo(${tramoCounter})">
-          <i class="fa-solid fa-trash"></i> Eliminar
-        </button>
-      </div>
-      
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Tipo de Transporte</label>
-          <div class="select-wrapper">
-            <select class="modern-input plain" required>
-              <option value="" disabled>Seleccione...</option>
-              <option value="Bus" ${tramo.tipo_transporte === 'Bus' ? 'selected' : ''}>🚌 BUS</option>
-              <option value="Avión" ${tramo.tipo_transporte === 'Avión' ? 'selected' : ''}>✈️ AVIÓN</option>
-              <option value="Transfer" ${tramo.tipo_transporte === 'Transfer' ? 'selected' : ''}>🚐 TRANSFER</option>
-              <option value="Otro" ${tramo.tipo_transporte === 'Otro' ? 'selected' : ''}>🚗 OTRO</option>
-            </select>
-            <i class="fa-solid fa-chevron-down select-arrow"></i>
+window.prepararEdicionViaje = async function(idViaje) {
+  try {
+    if (!ciudades.length) {
+      await cargarCiudades();
+    }
+
+    const response = await fetch(`/api/viajes/${idViaje}`);
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Error al cargar el viaje');
+    }
+
+    const viaje = await response.json();
+    viajeEditando = { id_viaje: viaje.id_viaje || idViaje };
+
+    const modalTitle = document.getElementById('modalViajeLabel');
+    if (modalTitle) modalTitle.innerText = 'Editar Viaje';
+    if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Cambios';
+
+    el.modalNuevoViaje.classList.add('show');
+    el.formNuevoViaje.reset();
+    el.tramosContainer.innerHTML = '';
+    tramoCounter = 0;
+
+    trabajadorSeleccionado = trabajadores.find(t => t.RUT === viaje.rut_trabajador) || null;
+    if (trabajadorSeleccionado) {
+      el.inputTrabajador.value = `${trabajadorSeleccionado.RUT} - ${trabajadorSeleccionado.nombres} ${trabajadorSeleccionado.apellidos}`;
+      mostrarInfoTrabajador(trabajadorSeleccionado);
+    } else {
+      el.inputTrabajador.value = viaje.rut_trabajador || '';
+      el.trabajadorInfo.classList.remove('visible');
+    }
+
+    if (Array.isArray(viaje.tramos) && viaje.tramos.length) {
+      viaje.tramos.forEach(tramo => {
+        tramoCounter++;
+
+        const tramoDiv = document.createElement('div');
+        tramoDiv.className = 'tramo-item';
+        tramoDiv.dataset.tramoId = tramoCounter;
+
+        tramoDiv.innerHTML = `
+          <div class="tramo-header">
+            <span class="tramo-numero"><i class="fa-solid fa-route"></i> Tramo ${tramoCounter}</span>
+            <button type="button" class="btn-eliminar-tramo" onclick="eliminarTramo(${tramoCounter})">
+              <i class="fa-solid fa-trash"></i> Eliminar
+            </button>
           </div>
-        </div>
-        
-        <div class="form-group">
-          <label>Código/Número (Opcional)</label>
-          <input type="text" value="${tramo.codigo_transporte || ''}" placeholder="Ej: LA-1234" class="modern-input plain">
-        </div>
-        
-        <div class="form-group">
-          <label>Fecha</label>
-          <input type="date" value="${tramo.fecha}" class="modern-input plain" required>
-        </div>
-        
-        <div class="form-group">
-          <label>Hora</label>
-          <input type="time" value="${tramo.hora}" class="modern-input plain" required>
-        </div>
-        
-        <div class="form-group">
-          <label>Origen</label>
-          <select class="modern-input plain" required>
-            <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Destino</label>
-          <select class="modern-input plain" required>
-            <option value="">Seleccionar ciudad...</option>
-            ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Empresa de Transporte</label>
-          <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
-        </div>
-      </div>
-    `;
-    
-    el.tramosContainer.appendChild(tramoDiv);
-  });
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Tipo de Transporte</label>
+              <div class="select-wrapper">
+                <select class="modern-input plain" required>
+                  <option value="" disabled>Seleccione...</option>
+                  <option value="Bus" ${tramo.tipo_transporte === 'Bus' ? 'selected' : ''}>🚌 BUS</option>
+                  <option value="Avión" ${tramo.tipo_transporte === 'Avión' ? 'selected' : ''}>✈️ AVIÓN</option>
+                  <option value="Transfer" ${tramo.tipo_transporte === 'Transfer' ? 'selected' : ''}>🚐 TRANSFER</option>
+                  <option value="Otro" ${tramo.tipo_transporte === 'Otro' ? 'selected' : ''}>🚗 OTRO</option>
+                </select>
+                <i class="fa-solid fa-chevron-down select-arrow"></i>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Código/Número (Opcional)</label>
+              <input type="text" value="${tramo.codigo_transporte || ''}" placeholder="Ej: LA-1234" class="modern-input plain">
+            </div>
+            
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="date" value="${tramo.fecha}" class="modern-input plain" required>
+            </div>
+            
+            <div class="form-group">
+              <label>Hora</label>
+              <input type="time" value="${tramo.hora}" class="modern-input plain" required>
+            </div>
+            
+            <div class="form-group">
+              <label>Origen</label>
+              <select class="modern-input plain" required>
+                <option value="">Seleccionar ciudad...</option>
+                ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Destino</label>
+              <select class="modern-input plain" required>
+                <option value="">Seleccionar ciudad...</option>
+                ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Empresa de Transporte</label>
+              <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
+            </div>
+          </div>
+        `;
+
+        el.tramosContainer.appendChild(tramoDiv);
+      });
+    } else {
+      agregarTramo();
+    }
+  } catch (error) {
+    console.error('[VIAJES] Error preparando edición:', error);
+    mostrarError(error.message || 'Error al cargar el viaje');
+  }
 };
 
-window.editarViaje = window.abrirModalEditar;
+window.editarViaje = window.prepararEdicionViaje;
 
 // ============================================
 // OCULTAR VIAJE

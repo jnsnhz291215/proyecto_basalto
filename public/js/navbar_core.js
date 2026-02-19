@@ -74,20 +74,21 @@
   }
 
   function syncNavbarActive() {
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPath = window.location.pathname;
+    const currentPage = currentPath.split('/').pop() || 'index.html';
     const navAnchors = document.querySelectorAll('.nav-item a, .dropdown-menu a, .nav-link.dropdown-toggle');
 
     if (!navAnchors.length) return;
 
     navAnchors.forEach(anchor => anchor.classList.remove('active'));
 
-    if (currentPage === 'gestionar.html') {
+    if (currentPath.endsWith('gestionar.html')) {
       const gestionarToggle = document.getElementById('navbarDropdownGestionar');
       if (gestionarToggle) gestionarToggle.classList.add('active');
       return;
     }
 
-    if (currentPage === 'gestionviajes.html') {
+    if (currentPath.endsWith('gestionviajes.html')) {
       const gestionViajesLink = document.querySelector('.dropdown-menu a[href="gestionviajes.html"], .dropdown-menu a[href="/gestionviajes.html"]');
       if (gestionViajesLink) gestionViajesLink.classList.add('active');
 

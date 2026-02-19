@@ -282,6 +282,69 @@ router.get('/viajes', async (req, res) => {
 });
 
 /**
+ * GET /api/viajes/:id
+ * Obtener un viaje por id con sus tramos
+ */
+router.get('/viajes/:id', async (req, res) => {
+  let connection;
+  try {
+    const { id } = req.params;
+    connection = await pool.getConnection();
+
+    const [viajes] = await connection.execute(
+      `SELECT 
+        v.id_viaje,
+        v.rut_trabajador,
+        v.fecha_registro,
+        v.estado,
+        t.nombres,
+        CONCAT(t.apellido_paterno, ' ', IFNULL(t.apellido_materno, '')) as apellidos,
+        t.id_grupo,
+        t.cargo
+      FROM viajes v
+      INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
+      WHERE v.id_viaje = ?
+      LIMIT 1`,
+      [id]
+    );
+
+    if (!viajes.length) {
+      return res.status(404).json({ error: 'Viaje no encontrado' });
+    }
+
+    const viaje = viajes[0];
+
+    const [tramos] = await connection.execute(
+      `SELECT 
+        tr.id_tramo,
+        tr.tipo_transporte,
+        tr.codigo_pasaje as codigo_transporte,
+        tr.fecha_salida as fecha,
+        tr.hora_salida as hora,
+        tr.id_ciudad_origen,
+        tr.id_ciudad_destino,
+        c_origen.nombre_ciudad AS origen,
+        c_destino.nombre_ciudad AS destino,
+        tr.empresa_transporte
+      FROM viajes_tramos tr
+      LEFT JOIN ciudades c_origen ON tr.id_ciudad_origen = c_origen.id_ciudad
+      LEFT JOIN ciudades c_destino ON tr.id_ciudad_destino = c_destino.id_ciudad
+      WHERE tr.id_viaje = ?
+      ORDER BY tr.fecha_salida, tr.hora_salida`,
+      [id]
+    );
+
+    viaje.tramos = tramos;
+    res.json(viaje);
+  } catch (error) {
+    console.error('[ERROR] Error al obtener viaje:', error);
+    res.status(500).json({ error: 'Error al obtener el viaje' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
  * PUT /api/viajes/:id/estado
  * Cambiar estado de un viaje (Programado, En curso, Finalizado, Cancelado)
  */
