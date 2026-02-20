@@ -1101,7 +1101,7 @@ async function obtenerSemillaGrupo(grupo) {
   try {
     const pista = ['A', 'B', 'C', 'D'].includes(grupo.toUpperCase()) ? 'PISTA_1' : 'PISTA_2';
     const [rows] = await pool.execute(
-      'SELECT fecha_semilla FROM configuracion_ciclos WHERE pista = ?',
+      'SELECT fecha_semilla FROM configuracion_ciclos WHERE pista_nombre = ? AND tipo_ciclo = "ROTATIVO" AND activo = 1 LIMIT 1',
       [pista]
     );
     
@@ -1315,7 +1315,7 @@ app.get("/api/calcular-turno", async (req, res) => {
 app.get("/api/config-turnos", async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id_conf, pista_nombre, fecha_semilla, activo FROM configuracion_ciclos WHERE activo = 1 ORDER BY pista_nombre'
+      'SELECT id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana, activo FROM configuracion_ciclos WHERE activo = 1 ORDER BY pista_nombre'
     );
 
     if (rows.length === 0) {
@@ -1324,16 +1324,18 @@ app.get("/api/config-turnos", async (req, res) => {
       });
     }
 
-    // Retornar solo la pista activa (Pista 1)
-    const pistaPrincipal = rows.find(r => r.pista_nombre === 'Pista 1') || rows[0];
+    const configs = rows.map(row => ({
+      id_conf: row.id_conf,
+      pista_nombre: row.pista_nombre,
+      tipo_ciclo: row.tipo_ciclo,
+      fecha_semilla: row.fecha_semilla ? row.fecha_semilla.toISOString().split('T')[0] : null,
+      dias_semana: row.dias_semana || null,
+      activo: row.activo
+    }));
     
-    res.json({ 
-      success: true, 
-      config: {
-        id: pistaPrincipal.id_conf,
-        pista_nombre: pistaPrincipal.pista_nombre,
-        fecha_semilla: pistaPrincipal.fecha_semilla.toISOString().split('T')[0]
-      }
+    res.json({
+      success: true,
+      configs
     });
   } catch (error) {
     console.error("Error al obtener configuración de ciclos:", error);
@@ -1344,42 +1346,72 @@ app.get("/api/config-turnos", async (req, res) => {
 // PUT /api/config-turnos - Actualizar configuración de ciclos
 app.put("/api/config-turnos", async (req, res) => {
   try {
-    const { id_conf, pista_nombre, fecha_semilla } = req.body;
+    const { id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana } = req.body;
 
     // Validación
-    if (!fecha_semilla || !pista_nombre) {
+    if (!pista_nombre) {
       return res.status(400).json({ 
-        error: "Se requieren pista_nombre y fecha_semilla" 
+        error: "Se requiere pista_nombre" 
       });
     }
 
-    // Validar formato de fecha
-    const fecha = new Date(fecha_semilla);
-    if (isNaN(fecha.getTime())) {
-      return res.status(400).json({ 
-        error: "Formato de fecha inválido. Use YYYY-MM-DD" 
-      });
+    const tipoCiclo = String(tipo_ciclo || '').toUpperCase();
+    if (!tipoCiclo) {
+      return res.status(400).json({ error: "Se requiere tipo_ciclo" });
+    }
+
+    let fechaSemillaFinal = null;
+    let diasSemanaFinal = null;
+
+    if (tipoCiclo === 'ROTATIVO') {
+      if (!fecha_semilla) {
+        return res.status(400).json({ error: "Se requiere fecha_semilla" });
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fecha_semilla)) {
+        fechaSemillaFinal = fecha_semilla;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha_semilla)) {
+        const [dia, mes, anio] = fecha_semilla.split('/').map(Number);
+        const dd = String(dia).padStart(2, '0');
+        const mm = String(mes).padStart(2, '0');
+        fechaSemillaFinal = `${anio}-${mm}-${dd}`;
+      } else {
+        const fecha = new Date(fecha_semilla);
+        if (isNaN(fecha.getTime())) {
+          return res.status(400).json({ error: "Formato de fecha inválido" });
+        }
+        fechaSemillaFinal = fecha.toISOString().split('T')[0];
+      }
+    } else if (tipoCiclo === 'SEMANAL') {
+      if (!dias_semana) {
+        return res.status(400).json({ error: "Se requieren días para ciclo semanal" });
+      }
+      diasSemanaFinal = String(dias_semana).trim();
+    } else {
+      return res.status(400).json({ error: "tipo_ciclo inválido" });
     }
 
     // Actualizar configuración
     const query = id_conf 
-      ? 'UPDATE configuracion_ciclos SET pista_nombre = ?, fecha_semilla = ? WHERE id_conf = ?'
-      : 'UPDATE configuracion_ciclos SET pista_nombre = ?, fecha_semilla = ? WHERE activo = 1';
+      ? 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ? WHERE id_conf = ?'
+      : 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ? WHERE pista_nombre = ? AND activo = 1';
     
     const params = id_conf 
-      ? [pista_nombre, fecha_semilla, id_conf]
-      : [pista_nombre, fecha_semilla];
+      ? [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, id_conf]
+      : [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, pista_nombre];
 
     await pool.execute(query, params);
 
-    console.log(`[ACTUALIZACIÓN] Ciclo re-calibrado: ${pista_nombre} = ${fecha_semilla}`);
+    console.log(`[ACTUALIZACIÓN] Ciclo re-calibrado: ${pista_nombre} (${tipoCiclo})`);
 
     res.json({ 
       success: true, 
       message: "Configuración actualizada correctamente",
       config: {
         pista_nombre: pista_nombre,
-        fecha_semilla: fecha_semilla
+        tipo_ciclo: tipoCiclo,
+        fecha_semilla: fechaSemillaFinal,
+        dias_semana: diasSemanaFinal
       }
     });
   } catch (error) {

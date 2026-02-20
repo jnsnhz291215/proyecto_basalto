@@ -715,6 +715,28 @@
             Ajusta la fecha semilla y el nombre de la pista base. <strong>Pista 2</strong> se calculará automáticamente con +7 días de desfase.
           </p>
 
+          <!-- Campo: Configuración -->
+          <div class="form-group">
+            <label for="modal-config-select">Configuración</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-list input-icon"></i>
+              <select id="modal-config-select" class="modern-input" required></select>
+            </div>
+            <small style="color: #9ca3af; font-size: 12px;">Selecciona la pista o turno semanal a editar</small>
+          </div>
+
+          <!-- Campo: Tipo de Ciclo -->
+          <div class="form-group">
+            <label for="modal-tipo-ciclo">Tipo de Ciclo</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-rotate input-icon"></i>
+              <select id="modal-tipo-ciclo" class="modern-input" disabled>
+                <option value="ROTATIVO">ROTATIVO</option>
+                <option value="SEMANAL">SEMANAL</option>
+              </select>
+            </div>
+          </div>
+
           <!-- Campo: Nombre de la Pista -->
           <div class="form-group">
             <label for="modal-pista-nombre">Nombre de la Pista</label>
@@ -726,13 +748,42 @@
           </div>
 
           <!-- Campo: Fecha Semilla -->
-          <div class="form-group">
+          <div class="form-group" id="modal-fecha-semilla-group">
             <label for="modal-fecha-semilla">Fecha Semilla (DD/MM/YYYY)</label>
             <div class="input-wrapper">
               <i class="fa-solid fa-calendar-days input-icon"></i>
               <input type="text" id="modal-fecha-semilla" name="fecha_semilla" class="modern-input" placeholder="07/02/2026" maxlength="10" required>
             </div>
             <small style="color: #9ca3af; font-size: 12px;">Fecha donde inicia el ciclo. Escribe en formato DD/MM/YYYY</small>
+          </div>
+
+          <!-- Campo: Días de Semana (solo SEMANAL) -->
+          <div class="form-group" id="modal-dias-semana-group" style="display: none;">
+            <label>Días de la Semana</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="1"> Lun
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="2"> Mar
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="3"> Mié
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="4"> Jue
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="5"> Vie
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="6"> Sáb
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                <input type="checkbox" data-dia-semana="7"> Dom
+              </label>
+            </div>
+            <small style="color: #9ca3af; font-size: 12px;">Selecciona los días en que aplica el turno semanal</small>
           </div>
 
           <!-- Información adicional -->

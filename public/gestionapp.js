@@ -1671,8 +1671,78 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeConfigModal = document.getElementById('close-config-modal');
   const btnCancelarConfigModal = document.getElementById('btn-cancelar-config-modal');
   const formConfigCiclos = document.getElementById('form-config-ciclos');
+  const modalConfigSelect = document.getElementById('modal-config-select');
+  const modalTipoCiclo = document.getElementById('modal-tipo-ciclo');
   const modalPistaNombre = document.getElementById('modal-pista-nombre');
   const modalFechaSemilla = document.getElementById('modal-fecha-semilla');
+  const modalFechaSemillaGroup = document.getElementById('modal-fecha-semilla-group');
+  const modalDiasSemanaGroup = document.getElementById('modal-dias-semana-group');
+  const modalDiasSemanaChecks = Array.from(document.querySelectorAll('[data-dia-semana]'));
+  let configsCiclos = [];
+
+  function normalizarFechaParaUI(fechaStr) {
+    if (!fechaStr) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr)) return fechaStr;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+      const [anio, mes, dia] = fechaStr.split('-');
+      return `${dia}/${mes}/${anio}`;
+    }
+    return fechaStr;
+  }
+
+  function convertirFechaIso(fechaStr) {
+    if (!fechaStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) return fechaStr;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr)) {
+      const [dia, mes, anio] = fechaStr.split('/').map(Number);
+      const dd = String(dia).padStart(2, '0');
+      const mm = String(mes).padStart(2, '0');
+      return `${anio}-${mm}-${dd}`;
+    }
+    return null;
+  }
+
+  function normalizarNombrePista(nombre) {
+    return String(nombre || '').trim().toUpperCase().replace(/\s+/g, '_');
+  }
+
+  function aplicarConfigSeleccionada(config) {
+    if (!config) return;
+
+    if (modalPistaNombre) modalPistaNombre.value = config.pista_nombre || '';
+    if (modalTipoCiclo) modalTipoCiclo.value = config.tipo_ciclo || 'ROTATIVO';
+
+    const tipoCiclo = (config.tipo_ciclo || 'ROTATIVO').toUpperCase();
+    const esSemanal = tipoCiclo === 'SEMANAL';
+
+    if (modalFechaSemillaGroup) modalFechaSemillaGroup.style.display = esSemanal ? 'none' : 'block';
+    if (modalDiasSemanaGroup) modalDiasSemanaGroup.style.display = esSemanal ? 'block' : 'none';
+    if (modalFechaSemilla) modalFechaSemilla.required = !esSemanal;
+
+    if (modalFechaSemilla) {
+      modalFechaSemilla.value = normalizarFechaParaUI(config.fecha_semilla) || '';
+    }
+
+    if (modalDiasSemanaChecks.length) {
+      const diasSeleccionados = String(config.dias_semana || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+
+      modalDiasSemanaChecks.forEach(check => {
+        const dia = check.getAttribute('data-dia-semana');
+        check.checked = diasSeleccionados.includes(dia);
+      });
+    }
+  }
+
+  function obtenerDiasSemanaSeleccionados() {
+    return modalDiasSemanaChecks
+      .filter(check => check.checked)
+      .map(check => check.getAttribute('data-dia-semana'))
+      .filter(Boolean)
+      .join(',');
+  }
 
   // Cargar configuración actual en el modal
   async function cargarConfigCiclos() {
@@ -1680,16 +1750,37 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/config-turnos');
       const data = await response.json();
 
-      if (response.ok && data.success && data.config) {
-        // Cargar datos en el modal
-        if (modalPistaNombre) modalPistaNombre.value = data.config.pista_nombre || 'Pista 1';
-        if (modalFechaSemilla) modalFechaSemilla.value = data.config.fecha_semilla || '07/02/2026';
+      if (response.ok && data.success && Array.isArray(data.configs)) {
+        configsCiclos = data.configs;
+
+        if (modalConfigSelect) {
+          modalConfigSelect.innerHTML = '';
+          configsCiclos.forEach(config => {
+            const option = document.createElement('option');
+            option.value = config.id_conf;
+            option.textContent = config.pista_nombre || `Config ${config.id_conf}`;
+            modalConfigSelect.appendChild(option);
+          });
+        }
+
+        const seleccionInicial = modalConfigSelect
+          ? configsCiclos.find(c => String(c.id_conf) === String(modalConfigSelect.value)) || configsCiclos[0]
+          : configsCiclos[0];
+
+        aplicarConfigSeleccionada(seleccionInicial);
       } else {
         console.error('Error al cargar configuración:', data.error);
       }
     } catch (error) {
       console.error('Error al cargar configuración de ciclos:', error);
     }
+  }
+
+  if (modalConfigSelect) {
+    modalConfigSelect.addEventListener('change', () => {
+      const seleccion = configsCiclos.find(c => String(c.id_conf) === String(modalConfigSelect.value));
+      aplicarConfigSeleccionada(seleccion);
+    });
   }
 
   // Abrir modal de configuración
@@ -1749,27 +1840,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const pistaNombre = modalPistaNombre ? modalPistaNombre.value.trim() : '';
       const fechaSemilla = modalFechaSemilla ? modalFechaSemilla.value.trim() : '';
+      const configSeleccionada = modalConfigSelect
+        ? configsCiclos.find(c => String(c.id_conf) === String(modalConfigSelect.value))
+        : null;
+      const tipoCiclo = (modalTipoCiclo?.value || configSeleccionada?.tipo_ciclo || 'ROTATIVO').toUpperCase();
 
       // Validación
-      if (!pistaNombre || !fechaSemilla) {
+      if (!pistaNombre) {
         alert('Por favor complete todos los campos');
         return;
       }
 
-      // Validar formato DD/MM/YYYY
-      const fechaRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-      if (!fechaRegex.test(fechaSemilla)) {
-        alert('Formato de fecha inválido. Use DD/MM/YYYY (Ej: 07/02/2026)');
-        return;
-      }
+      let fechaIso = null;
+      let diasSemana = null;
 
-      // Validar que sea una fecha válida
-      const [dia, mes, anio] = fechaSemilla.split('/').map(Number);
-      const fecha = new Date(anio, mes - 1, dia);
-      
-      if (fecha.getDate() !== dia || fecha.getMonth() !== mes - 1 || fecha.getFullYear() !== anio) {
-        alert('Fecha inválida. Verifique día, mes y año');
-        return;
+      if (tipoCiclo === 'ROTATIVO') {
+        if (!fechaSemilla) {
+          alert('Por favor complete todos los campos');
+          return;
+        }
+
+        const fechaRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        if (!fechaRegex.test(fechaSemilla)) {
+          alert('Formato de fecha inválido. Use DD/MM/YYYY (Ej: 07/02/2026)');
+          return;
+        }
+
+        const [dia, mes, anio] = fechaSemilla.split('/').map(Number);
+        const fecha = new Date(anio, mes - 1, dia);
+
+        if (fecha.getDate() !== dia || fecha.getMonth() !== mes - 1 || fecha.getFullYear() !== anio) {
+          alert('Fecha inválida. Verifique día, mes y año');
+          return;
+        }
+
+        fechaIso = convertirFechaIso(fechaSemilla);
+      } else if (tipoCiclo === 'SEMANAL') {
+        diasSemana = obtenerDiasSemanaSeleccionados();
+        if (!diasSemana) {
+          alert('Selecciona al menos un día para el ciclo semanal');
+          return;
+        }
       }
 
       try {
@@ -1777,16 +1888,46 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            id_conf: configSeleccionada?.id_conf,
             pista_nombre: pistaNombre,
-            fecha_semilla: fechaSemilla
+            tipo_ciclo: tipoCiclo,
+            fecha_semilla: fechaIso,
+            dias_semana: diasSemana
           })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
+          if (tipoCiclo === 'ROTATIVO' && configSeleccionada) {
+            const nombreConfig = normalizarNombrePista(configSeleccionada.pista_nombre);
+            if (nombreConfig === 'PISTA_1') {
+              const pista2Config = configsCiclos.find(c => normalizarNombrePista(c.pista_nombre) === 'PISTA_2');
+              if (pista2Config && fechaIso) {
+                const fechaBase = new Date(fechaIso + 'T00:00:00');
+                const fechaPista2 = new Date(fechaBase);
+                fechaPista2.setDate(fechaPista2.getDate() + 7);
+                const fechaPista2Iso = fechaPista2.toISOString().split('T')[0];
+
+                await fetch('/api/config-turnos', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id_conf: pista2Config.id_conf,
+                    pista_nombre: pista2Config.pista_nombre,
+                    tipo_ciclo: pista2Config.tipo_ciclo || 'ROTATIVO',
+                    fecha_semilla: fechaPista2Iso,
+                    dias_semana: null
+                  })
+                });
+              }
+            }
+          }
+
           alert('✅ Configuración de ciclos actualizada correctamente');
           cerrarModalConfig();
+
+          await cargarConfigCiclos();
           
           // Refrescar el calendario si existe la función
           if (typeof cargarGrupos === 'function') {

@@ -8,39 +8,75 @@ const DIAS_POR_FASE = 14; // Días trabajados / descansados por fase
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DESFASE_PISTA2 = 7; // Pista 2 (EFGH) tiene +7 días de desfase respecto a Pista 1
 
-// Cache para la fecha semilla
-let fechaSemillaCache = null;
+// Cache para la configuración de ciclos
+let configCache = null;
 let ultimaActualizacionCache = 0;
 const CACHE_DURACION = 5 * 60 * 1000; // 5 minutos
 
+function normalizarNombreConfig(nombre) {
+  return String(nombre || '').trim().toUpperCase().replace(/\s+/g, '_');
+}
+
+function parsearDiasSemana(diasStr) {
+  return String(diasStr || '')
+    .split(',')
+    .map(v => Number(v.trim()))
+    .filter(v => !Number.isNaN(v));
+}
+
 /**
- * Obtener fecha semilla desde la base de datos (con caché)
+ * Obtener configuración de ciclos desde la base de datos (con caché)
  */
-async function obtenerFechaSemilla() {
+async function obtenerConfigCiclos() {
   const ahora = Date.now();
-  
-  // Usar caché si está vigente
-  if (fechaSemillaCache && (ahora - ultimaActualizacionCache < CACHE_DURACION)) {
-    return fechaSemillaCache;
+
+  if (configCache && (ahora - ultimaActualizacionCache < CACHE_DURACION)) {
+    return configCache;
   }
-  
-  // Obtener desde BD
+
   const [rows] = await pool.execute(
-    'SELECT fecha_semilla FROM configuracion_ciclos WHERE activo = 1 LIMIT 1'
+    'SELECT pista_nombre, tipo_ciclo, fecha_semilla, dias_semana FROM configuracion_ciclos WHERE activo = 1'
   );
-  
-  if (!rows || rows.length === 0) {
-    // Fallback a fecha por defecto si no hay configuración
-    console.warn('[TURNOS] No se encontró configuración en BD, usando fecha por defecto');
-    fechaSemillaCache = new Date(2026, 1, 7); // 07/02/2026
-  } else {
-    fechaSemillaCache = new Date(rows[0].fecha_semilla);
+
+  const config = {
+    rotativo: {
+      pista1: null,
+      pista2: null
+    },
+    semanal: {
+      J: null,
+      K: null
+    }
+  };
+
+  if (rows && rows.length) {
+    rows.forEach(row => {
+      const nombre = normalizarNombreConfig(row.pista_nombre);
+      const tipo = String(row.tipo_ciclo || '').toUpperCase();
+
+      if (tipo === 'ROTATIVO') {
+        if (nombre === 'PISTA_1' && row.fecha_semilla) {
+          config.rotativo.pista1 = new Date(row.fecha_semilla);
+        }
+        if (nombre === 'PISTA_2' && row.fecha_semilla) {
+          config.rotativo.pista2 = new Date(row.fecha_semilla);
+        }
+      }
+
+      if (tipo === 'SEMANAL') {
+        if (nombre === 'TURNO_J' || nombre === 'J') {
+          config.semanal.J = parsearDiasSemana(row.dias_semana);
+        }
+        if (nombre === 'TURNO_K' || nombre === 'K') {
+          config.semanal.K = parsearDiasSemana(row.dias_semana);
+        }
+      }
+    });
   }
-  
-  fechaSemillaCache.setHours(0, 0, 0, 0);
+
+  configCache = config;
   ultimaActualizacionCache = ahora;
-  
-  return fechaSemillaCache;
+  return configCache;
 }
 
 /**
@@ -52,8 +88,8 @@ router.get('/estado-turno/:rut', async (req, res) => {
   try {
     const { rut } = req.params;
     
-    // Obtener fecha semilla
-    const fechaSemilla = await obtenerFechaSemilla();
+    // Obtener configuración de ciclos
+    const configCiclos = await obtenerConfigCiclos();
     
     // Obtener datos del trabajador
     connection = await pool.getConnection();
@@ -93,7 +129,7 @@ router.get('/estado-turno/:rut', async (req, res) => {
     hoy.setHours(0, 0, 0, 0);
     
     // Determinar el estado basado en el grupo
-    const estadoTurno = calcularEstadoTurno(grupo, hoy, fechaSemilla);
+    const estadoTurno = calcularEstadoTurno(grupo, hoy, configCiclos);
     
     res.json(estadoTurno);
     
@@ -108,26 +144,37 @@ router.get('/estado-turno/:rut', async (req, res) => {
 /**
  * Calcular el estado del turno basado en el grupo y la fecha
  */
-function calcularEstadoTurno(grupo, fecha, fechaSemilla) {
+function calcularEstadoTurno(grupo, fecha, configCiclos) {
   const fechaCopy = new Date(fecha);
   fechaCopy.setHours(0, 0, 0, 0);
   
   // Grupos semanales J y K
   if (grupo === 'J' || grupo === 'K') {
-    return calcularEstadoSemanal(grupo, fechaCopy);
+    return calcularEstadoSemanal(grupo, fechaCopy, configCiclos);
   }
+
+  const semillaPista1 = configCiclos?.rotativo?.pista1
+    ? new Date(configCiclos.rotativo.pista1)
+    : new Date(2026, 1, 7);
+  semillaPista1.setHours(0, 0, 0, 0);
+
+  let semillaPista2 = null;
+  if (configCiclos?.rotativo?.pista2) {
+    semillaPista2 = new Date(configCiclos.rotativo.pista2);
+  } else {
+    semillaPista2 = new Date(semillaPista1);
+    semillaPista2.setDate(semillaPista2.getDate() + DESFASE_PISTA2);
+  }
+  semillaPista2.setHours(0, 0, 0, 0);
   
   // Determinar si es Pista 1 (A, B, C, D, AB, CD) o Pista 2 (E, F, G, H, EF, GH)
   const pista1Grupos = ['A', 'B', 'C', 'D', 'AB', 'CD'];
   const pista2Grupos = ['E', 'F', 'G', 'H', 'EF', 'GH'];
   
   if (pista1Grupos.includes(grupo)) {
-    return calcularEstadoPista(grupo, fechaCopy, fechaSemilla, 'pista1');
+    return calcularEstadoPista(grupo, fechaCopy, semillaPista1, 'pista1');
   } else if (pista2Grupos.includes(grupo)) {
-    // Pista 2 tiene +7 días de desfase
-    const fechaSemillaPista2 = new Date(fechaSemilla);
-    fechaSemillaPista2.setDate(fechaSemillaPista2.getDate() + DESFASE_PISTA2);
-    return calcularEstadoPista(grupo, fechaCopy, fechaSemillaPista2, 'pista2');
+    return calcularEstadoPista(grupo, fechaCopy, semillaPista2, 'pista2');
   }
   
   return {
@@ -140,36 +187,43 @@ function calcularEstadoTurno(grupo, fecha, fechaSemilla) {
 /**
  * Calcular estado para grupos semanales (J y K)
  */
-function calcularEstadoSemanal(grupo, fecha) {
-  const dia = fecha.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sab
-  let trabaja = false;
-  
+function calcularEstadoSemanal(grupo, fecha, configCiclos) {
+  const dia = ((fecha.getDay() + 6) % 7) + 1; // 1=Lun ... 7=Dom
+  let diasTrabajo = [];
+
   if (grupo === 'J') {
-    trabaja = [1, 2, 3, 4].includes(dia); // Lun-Jue
+    diasTrabajo = configCiclos?.semanal?.J?.length ? configCiclos.semanal.J : [1, 2, 3, 4];
   } else if (grupo === 'K') {
-    trabaja = [2, 3, 4, 5].includes(dia); // Mar-Vie
+    diasTrabajo = configCiclos?.semanal?.K?.length ? configCiclos.semanal.K : [2, 3, 4, 5];
   }
-  
+
+  const trabaja = diasTrabajo.includes(dia);
+  const diasTexto = formatearDiasSemana(diasTrabajo);
+  const horario = diasTexto ? `Días: ${diasTexto}` : null;
+
   if (trabaja) {
     return {
       estado: 'en_turno',
       mensaje: 'En turno semanal',
       grupo: grupo,
       turno_tipo: 'semanal',
-      horario: grupo === 'J' ? 'Lunes a Jueves' : 'Martes a Viernes',
+      horario: horario,
       dias_restantes: null,
-      proxima_jornada: null
-    };
-  } else {
-    return {
-      estado: 'en_descanso',
-      mensaje: 'Día de descanso',
-      grupo: grupo,
-      turno_tipo: 'semanal',
-      dias_restantes: null,
-      proxima_jornada: null
+      proxima_jornada: null,
+      dias_semana: diasTrabajo
     };
   }
+
+  return {
+    estado: 'en_descanso',
+    mensaje: 'Día de descanso',
+    grupo: grupo,
+    turno_tipo: 'semanal',
+    horario: horario,
+    dias_restantes: null,
+    proxima_jornada: null,
+    dias_semana: diasTrabajo
+  };
 }
 
 /**
@@ -262,6 +316,62 @@ function calcularEstadoPista(grupo, fecha, fechaSemilla, tipoPista) {
       };
     }
   }
+}
+
+function formatearDiasSemana(dias) {
+  const nombres = {
+    1: 'Lun',
+    2: 'Mar',
+    3: 'Mié',
+    4: 'Jue',
+    5: 'Vie',
+    6: 'Sáb',
+    7: 'Dom'
+  };
+
+  const lista = Array.from(new Set(dias || []))
+    .filter(dia => nombres[dia])
+    .sort((a, b) => a - b)
+    .map(dia => nombres[dia]);
+
+  return lista.join(', ');
+}
+
+function obtenerInicioFaseGrupo(grupo, gruposBase) {
+  if (grupo === gruposBase.g1 || grupo === gruposBase.g2) return 0;
+  if (grupo === gruposBase.g3 || grupo === gruposBase.g4) return 14;
+  if (grupo === gruposBase.ref1) return 28;
+  if (grupo === gruposBase.ref2) return 42;
+  return null;
+}
+
+function calcularDiasRestantesFase(ciclo) {
+  const posicion = ((ciclo % DIAS_POR_FASE) + DIAS_POR_FASE) % DIAS_POR_FASE;
+  return DIAS_POR_FASE - posicion;
+}
+
+function calcularProximaJornada(grupo, fecha, ciclo, fechaSemilla, gruposBase) {
+  if (!fechaSemilla) return null;
+
+  const inicioFase = obtenerInicioFaseGrupo(grupo, gruposBase);
+  if (inicioFase === null) return null;
+
+  const diasDesdeInicio = Math.floor((fecha - fechaSemilla) / MS_PER_DAY);
+  const inicioCicloDias = diasDesdeInicio - ciclo;
+  const inicioCiclo = new Date(fechaSemilla);
+  inicioCiclo.setDate(inicioCiclo.getDate() + inicioCicloDias);
+
+  const offset = ciclo < inicioFase ? inicioFase : inicioFase + CICLO_COMPLETO;
+  const inicio = new Date(inicioCiclo);
+  inicio.setDate(inicio.getDate() + offset);
+
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + DIAS_POR_FASE - 1);
+
+  return {
+    inicio: formatearFecha(inicio),
+    fin: formatearFecha(fin)
+  };
 }
 
 /**

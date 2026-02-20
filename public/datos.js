@@ -243,7 +243,9 @@
     if (estadoTurno.estado === 'en_turno') {
       badgeColor = '#10b981'; // Verde
       badgeIcon = 'fa-circle-check';
-      badgeText = '● En Turno';
+      badgeText = estadoTurno.dias_restantes === 1
+        ? '● En turno (Termina hoy)'
+        : '● En Turno';
     } else if (estadoTurno.estado === 'proximo_turno') {
       badgeColor = '#f59e0b'; // Amarillo
       badgeIcon = 'fa-clock';
@@ -291,10 +293,10 @@
       proximaJornadaSection.style.display = 'block';
     } else if (estadoTurno.turno_tipo === 'semanal') {
       // Grupos semanales - mostrar horario semanal
-      const diasTrabajo = estadoTurno.grupo === 'J' ? 'Lunes a Jueves' : 'Martes a Viernes';
+      const diasTrabajo = estadoTurno.horario || (estadoTurno.grupo === 'J' ? 'Lunes a Jueves' : 'Martes a Viernes');
       proximaJornadaContenido.innerHTML = `
         <p style="margin:0;"><strong>Horario Semanal:</strong> ${diasTrabajo}</p>
-        <p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;">Turno continuo de lunes a viernes</p>
+        <p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;">Turno semanal configurado</p>
       `;
       proximaJornadaSection.style.display = 'block';
     } else {
