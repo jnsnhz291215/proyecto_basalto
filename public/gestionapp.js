@@ -209,11 +209,23 @@ function render() {
     btnEditar.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
     btnEditar.addEventListener('click', () => abrirEditar(t.RUT));
 
-    const btnFueraServicio = document.createElement('button');
-    btnFueraServicio.className = 'btn-accion btn-accion-warning';
-    btnFueraServicio.type = 'button';
-    btnFueraServicio.innerHTML = '<i class="fa-solid fa-ban"></i> Fuera de Servicio';
-    btnFueraServicio.addEventListener('click', () => cambiarEstadoTrabajador(t.RUT, false));
+    // Botón dinámico: Reintegrar si está oculto, Fuera de Servicio si está activo
+    const btnEstado = document.createElement('button');
+    btnEstado.type = 'button';
+    
+    if (t.activo === 0 || t.activo === false) {
+      // Trabajador oculto: mostrar botón Reintegrar (púrpura)
+      btnEstado.className = 'btn-accion';
+      btnEstado.style.background = '#4f46e5';
+      btnEstado.style.color = '#ffffff';
+      btnEstado.innerHTML = '<i class="fa-solid fa-arrow-rotate-left"></i> Reintegrar';
+      btnEstado.addEventListener('click', () => cambiarEstadoTrabajador(t.RUT, true));
+    } else {
+      // Trabajador activo: mostrar botón Fuera de Servicio (naranja)
+      btnEstado.className = 'btn-accion btn-accion-warning';
+      btnEstado.innerHTML = '<i class="fa-solid fa-ban"></i> Fuera de Servicio';
+      btnEstado.addEventListener('click', () => cambiarEstadoTrabajador(t.RUT, false));
+    }
 
     const btnEliminar = document.createElement('button');
     btnEliminar.className = 'btn-accion btn-accion-outline';
@@ -222,7 +234,7 @@ function render() {
     btnEliminar.addEventListener('click', () => abrirModalEliminar(t.RUT, nombreCompleto));
 
     actions.appendChild(btnEditar);
-    actions.appendChild(btnFueraServicio);
+    actions.appendChild(btnEstado);
     actions.appendChild(btnEliminar);
 
     body.appendChild(details);
