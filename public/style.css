@@ -401,15 +401,10 @@ body {
   position: relative;
 }
 
-/* Modales xl para máximo espacio */
-.modal-content.modal-xl {
-  max-width: 90vw;
-  width: 95%;
-}
-
-/* Modales lg para espacio intermedio */
-.modal-content.modal-lg {
-  max-width: 80vw;
+/* Bloqueo de scroll del fondo cuando modal está abierto */
+body.modal-open {
+  overflow: hidden !important;
+  height: 100vh !important;
 }
 
 /* Modal header / close button positioning */
@@ -877,10 +872,6 @@ body {
 
 .modal-card.modal-lg {
   max-width: 900px;
-}
-
-.modal-card.modal-xl {
-  max-width: 90vw;
 }
 
 .highlight-icon {

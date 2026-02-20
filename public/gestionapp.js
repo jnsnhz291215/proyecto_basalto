@@ -213,7 +213,7 @@ function render() {
     const btnEstado = document.createElement('button');
     btnEstado.type = 'button';
     
-    if (t.activo === 0 || t.activo === false) {
+    if (t.activo == 0 || t.activo === false || t.activo === '0') {
       // Trabajador oculto: mostrar botón Reintegrar (púrpura)
       btnEstado.className = 'btn-accion';
       btnEstado.style.background = '#4f46e5';
@@ -351,6 +351,7 @@ function abrirModalOcultar(rut, nombreTrabajador, esReactivarFlag) {
     
     if (nombre) nombre.textContent = nombreTrabajador;
     modal.classList.add('show');
+    document.body.classList.add('modal-open');
   }
 }
 
@@ -370,6 +371,7 @@ function abrirModalEliminar(rut, nombreTrabajador) {
     }
     
     modal.classList.add('show');
+    document.body.classList.add('modal-open');
   }
 }
 
@@ -423,10 +425,12 @@ async function ejecutarBorrar() {
 function abrirAgregar() {
   el.formAgregar.reset();
   el.modalAgregar.classList.add('show');
+  document.body.classList.add('modal-open');
 }
 
 function cerrarAgregar() {
   el.modalAgregar.classList.remove('show');
+  document.body.classList.remove('modal-open');
 }
 
 async function abrirEditar(rut) {
@@ -492,10 +496,12 @@ async function abrirEditar(rut) {
   }
   
   el.modalEditar.classList.add('show');
+  document.body.classList.add('modal-open');
 }
 
 function cerrarEditar() {
   el.modalEditar.classList.remove('show');
+  document.body.classList.remove('modal-open');
 }
 
 async function enviarAgregar(e) {
@@ -698,6 +704,7 @@ function showResult(title, msg, isError=false){
   t.textContent = title || 'Resultado';
   p.textContent = msg || '';
   if (m) m.classList.add('show');
+  document.body.classList.add('modal-open');
   // optional styling for error
   if (isError) t.style.color = '#b91c1c'; else t.style.color = '';
 }
@@ -1215,6 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el.confirmCancel.addEventListener('click', () => {
     rutParaBorrar = null;
     el.modalConfirm.classList.remove('show');
+    document.body.classList.remove('modal-open');
   });
   el.confirmOk.addEventListener('click', ejecutarBorrar);
 
@@ -1224,6 +1232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelOcultar.addEventListener('click', () => {
       rutParaOcultar = null;
       if (el.modalOcultar) el.modalOcultar.classList.remove('show');
+      document.body.classList.remove('modal-open');
     });
   }
 
@@ -1233,6 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (rutParaOcultar) {
         cambiarEstadoTrabajador(rutParaOcultar, esReactivar);
         if (el.modalOcultar) el.modalOcultar.classList.remove('show');
+        document.body.classList.remove('modal-open');
         rutParaOcultar = null;
       }
     });
@@ -1244,6 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ev.target === el.modalOcultar) {
         rutParaOcultar = null;
         el.modalOcultar.classList.remove('show');
+        document.body.classList.remove('modal-open');
       }
     });
   }
@@ -1256,6 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const passwordInput = document.getElementById('eliminar-password');
       if (passwordInput) passwordInput.value = '';
       if (el.modalEliminar) el.modalEliminar.classList.remove('show');
+      document.body.classList.remove('modal-open');
     });
   }
 
@@ -1268,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (rutParaBorrar && password) {
         ejecutarBorrarDefinitivo(rutParaBorrar, password);
         if (el.modalEliminar) el.modalEliminar.classList.remove('show');
+        document.body.classList.remove('modal-open');
       } else if (!password) {
         // Mostrar error
         if (passwordInput) {
@@ -1288,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const passwordInput = document.getElementById('eliminar-password');
         if (passwordInput) passwordInput.value = '';
         el.modalEliminar.classList.remove('show');
+        document.body.classList.remove('modal-open');
       }
     });
   }
@@ -1295,6 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {
       if (el.modalResult) el.modalResult.classList.remove('show');
+      document.body.classList.remove('modal-open');
     });
   }
 
@@ -1303,6 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el.modalResult.addEventListener('click', (ev) => {
       if (ev.target === el.modalResult) {
         el.modalResult.classList.remove('show');
+        document.body.classList.remove('modal-open');
       }
     });
   }
@@ -1328,6 +1344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ev.target === el.modalConfirm) {
       rutParaBorrar = null;
       el.modalConfirm.classList.remove('show');
+      document.body.classList.remove('modal-open');
     }
   });
 
