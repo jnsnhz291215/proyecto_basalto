@@ -152,8 +152,13 @@
       background-color: #f9fafb;
       color: #1f2937;
       font-weight: 600;
-      font-size: 15px;
+      font-size: 1.125rem !important; /* Equivalente a 18px - aumentado 2-3px */
       padding: 1.1rem 1.4rem;
+    }
+
+    /* Asegurar que el texto dentro también sea más grande */
+    .accordion-button .fw-bold {
+      font-size: 1.125rem !important;
     }
 
     .accordion-button:not(.collapsed) {
@@ -200,6 +205,7 @@
       gap: 8px;
       flex-wrap: wrap;
       align-items: center;
+      margin-left: 0.5rem !important; /* Reducido para acercar badges al RUT/Tel */
     }
 
     .badge {
@@ -209,6 +215,7 @@
       font-weight: 600;
       display: inline-flex;
       align-items: center;
+      margin-left: 0.35rem !important; /* Reducir separación entre badges */
     }
 
     .badge-cargo,
@@ -248,6 +255,11 @@
     .detail-value {
       font-size: 15px;
       color: #1f2937;
+
+    /* Estado 1px menor que la base (aprox 17px) */
+    .texto-estado-trabajador {
+      font-size: 1.0625rem !important; /* Equivalente a 17px */
+    }
       font-weight: 500;
     }
 

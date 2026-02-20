@@ -137,7 +137,7 @@ async function calcularEstadoTurno(grupo) {
       }
       
       const jornadaText = jornada ? ` | ${jornada}` : '';
-      return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${texto}${jornadaText}</span></span></div>`;
+      return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;"><span class="texto-estado-trabajador">${texto}${jornadaText}</span></span></span></div>`;
     } else {
       // Calcular días restantes hasta el próximo turno
       let diasRestantes;
