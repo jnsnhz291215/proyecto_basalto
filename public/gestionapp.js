@@ -47,86 +47,111 @@ function titleCase(s) {
   return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
-// Cache para configuración de ciclos de turnos
-let cacheCiclos = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+// Configuración de pistas y grupos para Basalto Drilling
+const PISTAS_CONFIG = {
+  'PISTA_1': {
+    fecha_semilla: new Date(2026, 1, 7), // 7 de febrero de 2026
+    grupos: ['A', 'B', 'AB', 'C', 'D', 'CD']
+  },
+  'PISTA_2': {
+    fecha_semilla: new Date(2026, 1, 14), // 14 de febrero de 2026
+    grupos: ['E', 'F', 'EF', 'G', 'H', 'GH']
+  }
+};
 
-// Función universal para calcular estado de turno basándose en configuracion_ciclos
+// Configuración de subgrupos
+const SUBGRUPO_1 = ['A', 'B', 'AB', 'E', 'F', 'EF']; // Día 0
+const SUBGRUPO_2 = ['C', 'D', 'CD', 'G', 'H', 'GH']; // Día 14
+
+// Configuración de jornadas
+const NOCHE_BASE = ['A', 'D', 'F', 'H']; // Si ciclo impar → Día
+const DIA_BASE = ['B', 'C', 'E', 'G'];    // Si ciclo impar → Noche
+const FIJOS_DIA = ['AB', 'CD', 'EF', 'GH']; // Siempre Día
+
+// Función para calcular estado de turno para Basalto Drilling
 async function calcularEstadoTurno(grupo) {
   if (!grupo || grupo === 'Sin grupo') {
     return '';
   }
 
   try {
-    // Verificar cache
-    const ahora = Date.now();
-    if (!cacheCiclos || (ahora - cacheTimestamp) > CACHE_DURATION) {
-      const response = await fetch('/api/config-turnos');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && Array.isArray(data.configs)) {
-          cacheCiclos = data.configs;
-          cacheTimestamp = ahora;
-        }
-      }
-    }
-
-    if (!cacheCiclos) return '';
-
-    // Buscar configuración del grupo (pista_nombre)
-    const config = cacheCiclos.find(c => c.pista_nombre === grupo);
-    if (!config) return '';
-
-    const tipoCiclo = (config.tipo_ciclo || 'ROTATIVO').toUpperCase();
     const hoy = new Date(2026, 1, 20); // 20 de febrero de 2026
 
-    if (tipoCiclo === 'ROTATIVO') {
-      // Ciclo 14x14 (28 días totales)
-      if (!config.fecha_semilla) return '';
-
-      const fechaSemilla = new Date(config.fecha_semilla);
-      const diffTime = hoy - fechaSemilla;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      const diaCiclo = diffDays % 28;
-
-      if (diaCiclo >= 0 && diaCiclo <= 13) {
-        // En turno
-        const badgeClass = 'badge badge-turno-activo';
-        const texto = diaCiclo === 13 ? 'En turno (Termina hoy)' : 'En turno';
-        return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${texto}</span></span></div>`;
-      } else {
-        // Fuera de turno (días 14-27)
-        const diasRestantes = 28 - diaCiclo;
-        return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
-      }
-    } else if (tipoCiclo === 'SEMANAL') {
-      // Ciclo semanal (verificar día de la semana)
-      if (!config.dias_semana) return '';
-
-      const diaActual = hoy.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-      // Convertir a formato 1-7 (Lunes=1, Domingo=7)
-      const diaNumero = diaActual === 0 ? 7 : diaActual;
-      
-      const diasConfig = config.dias_semana.split(',').map(d => d.trim());
-      const estaEnTurno = diasConfig.includes(String(diaNumero));
-
-      if (estaEnTurno) {
-        return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="badge badge-turno-activo" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">En turno</span></span></div>`;
-      } else {
-        // Calcular próximo día de turno
-        const diasOrdenados = diasConfig.map(Number).sort((a, b) => a - b);
-        let proximoDia = diasOrdenados.find(d => d > diaNumero);
-        if (!proximoDia) proximoDia = diasOrdenados[0]; // Siguiente semana
-
-        let diasRestantes = proximoDia - diaNumero;
-        if (diasRestantes <= 0) diasRestantes += 7;
-
-        return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+    // Determinar a qué pista pertenece el grupo
+    let pistaKey = null;
+    let pistaConfig = null;
+    
+    for (const [key, config] of Object.entries(PISTAS_CONFIG)) {
+      if (config.grupos.includes(grupo)) {
+        pistaKey = key;
+        pistaConfig = config;
+        break;
       }
     }
 
-    return '';
+    if (!pistaConfig) {
+      return ''; // Grupo no reconocido
+    }
+
+    const fechaSemilla = pistaConfig.fecha_semilla;
+    
+    // Calcular días transcurridos desde la semilla
+    const diffTime = hoy - fechaSemilla;
+    const diasDesde = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Calcular número de ciclo (cada ciclo es de 28 días)
+    const n_ciclo = Math.floor(diasDesde / 28);
+    
+    // Determinar desplazamiento según subgrupo
+    let desplazamiento = 0;
+    if (SUBGRUPO_2.includes(grupo)) {
+      desplazamiento = 14;
+    }
+    
+    // Calcular día del ciclo ajustado para este subgrupo
+    const diasAjustados = diasDesde - desplazamiento;
+    const diaCiclo = diasAjustados % 28;
+    
+    // Determinar si está en turno (días 0-13)
+    const estaEnTurno = diasAjustados >= 0 && diaCiclo >= 0 && diaCiclo <= 13;
+    
+    // Calcular jornada (Día/Noche)
+    let jornada = '';
+    if (!FIJOS_DIA.includes(grupo)) {
+      if (NOCHE_BASE.includes(grupo)) {
+        // Ciclo par → Noche, Ciclo impar → Día
+        jornada = (n_ciclo % 2 === 0) ? 'Noche' : 'Día';
+      } else if (DIA_BASE.includes(grupo)) {
+        // Ciclo par → Día, Ciclo impar → Noche
+        jornada = (n_ciclo % 2 === 0) ? 'Día' : 'Noche';
+      }
+    } else {
+      jornada = 'Día'; // Grupos fijos
+    }
+    
+    if (estaEnTurno) {
+      const badgeClass = 'badge badge-turno-activo';
+      let texto = 'En turno';
+      if (diaCiclo === 13) {
+        texto = 'En turno (Termina hoy)';
+      }
+      
+      const jornadaText = jornada ? ` | ${jornada}` : '';
+      return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${texto}${jornadaText}</span></span></div>`;
+    } else {
+      // Calcular días restantes hasta el próximo turno
+      let diasRestantes;
+      if (diasAjustados < 0) {
+        // Aún no ha comenzado su primer turno
+        diasRestantes = -diasAjustados;
+      } else {
+        // Está en el período de descanso (días 14-27)
+        diasRestantes = 28 - diaCiclo;
+      }
+      
+      return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+    }
+
   } catch (error) {
     console.error('Error calculando estado de turno:', error);
     return '';
@@ -385,19 +410,16 @@ async function cargarViajesPendientes(rut, container) {
           const origen = tramo.origen || 'Desconocido';
           const destino = tramo.destino || 'Desconocido';
           
-          // Formatear fecha y hora
-          let fechaHora = '';
-          if (tramo.fecha) {
-            const fecha = new Date(tramo.fecha);
-            fechaHora = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          }
+          // Formatear solo la hora
+          let hora = '';
           if (tramo.hora) {
-            fechaHora += ` ${tramo.hora.substring(0, 5)}`;
+            hora = tramo.hora.substring(0, 5);
+          } else {
+            hora = 'Sin hora';
           }
-          if (!fechaHora) fechaHora = 'Fecha no especificada';
           
           html += `<div class="viaje-tramo" style="font-size: 13px; color: #333;">`;
-          html += `${icono} <strong>${origen}</strong> → <strong>${destino}</strong> | ${fechaHora}`;
+          html += `${icono} <strong>${origen}</strong> → <strong>${destino}</strong> | ${hora}`;
           html += '</div>';
         });
         html += '</div>';
