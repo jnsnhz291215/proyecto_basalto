@@ -1,9 +1,7 @@
-import { GRUPOS, COLORES } from './config.js';
-
 // const CLAVE_GESTIONAR = 'clave1super2secreta3';
 
 let trabajadores = [];
-let gruposDisponibles = Array.isArray(GRUPOS) ? [...GRUPOS] : [];
+let gruposDisponibles = [];
 let rutParaBorrar = null;
 let rutParaOcultar = null;
 let esReactivar = false;
@@ -11,9 +9,11 @@ let esReactivar = false;
 const el = {
   modalLogin: null,
   formLogin: null,
-  gruposColumnas: null,
+  accordionTrabajadores: null,
+  sinTrabajadores: null,
   inputBuscar: null,
-  selectFiltro: null,
+  selectGrupo: null,
+  selectCargo: null,
   modalAgregar: null,
   modalConfirm: null,
   modalResult: null,
@@ -48,7 +48,7 @@ function titleCase(s) {
 }
 async function cargar(incluirInactivos = false) {
   try {
-    const url = `/datos${incluirInactivos ? '?incluirInactivos=true' : ''}`;
+    const url = `/api/trabajadores${incluirInactivos ? '?incluirInactivos=true' : ''}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error('Error al cargar');
     trabajadores = await r.json();
@@ -69,7 +69,8 @@ async function cargar(incluirInactivos = false) {
 
 function getFiltrados() {
   const buscar = (el.inputBuscar && el.inputBuscar.value || '').trim().toLowerCase();
-  const grupo = (el.selectFiltro && el.selectFiltro.value || '');
+  const grupo = (el.selectGrupo && el.selectGrupo.value || '');
+  const cargo = (el.selectCargo && el.selectCargo.value || '').trim().toLowerCase();
   let list = trabajadores;
   if (buscar) {
     list = list.filter(t => {
@@ -89,172 +90,132 @@ function getFiltrados() {
     list = list.filter(t => t.grupo === grupo);
   }
   // Si grupo es '', no filtrar (mostrar todos)
+
+  if (cargo) {
+    list = list.filter(t => String(t.cargo || '').toLowerCase() === cargo);
+  }
   
   return list;
 }
 
 function render() {
   const list = getFiltrados();
-  const baseGrupos = gruposDisponibles.length ? gruposDisponibles : GRUPOS;
-  const porGrupo = {};
-  baseGrupos.forEach(g => { porGrupo[g] = []; });
-  porGrupo['sin_grupo'] = []; // Crear entrada para trabajadores sin grupo
-  
-  list.forEach(t => {
-    if (t.grupo && porGrupo[t.grupo]) {
-      porGrupo[t.grupo].push(t);
-    } else if (!t.grupo || t.grupo === '') {
-      // Si no tiene grupo o es vacío, agregarlo a sin_grupo
-      porGrupo['sin_grupo'].push(t);
-    } else {
-      // Grupo no reconocido: no ocultar el trabajador
-      porGrupo['sin_grupo'].push(t);
-    }
-  });
+  if (!el.accordionTrabajadores) return;
 
-  const filterGrupo = (el.selectFiltro && el.selectFiltro.value) || '';
-  let gruposAmostrar;
-  
-  if (filterGrupo === 'sin_grupo') {
-    gruposAmostrar = ['sin_grupo'];
-  } else if (filterGrupo === '') {
-    // Mostrar todos los grupos (incluyendo sin_grupo si hay trabajadores)
-    gruposAmostrar = [...baseGrupos, 'sin_grupo'];
-  } else {
-    // Mostrar solo el grupo seleccionado
-    gruposAmostrar = [filterGrupo];
+  el.accordionTrabajadores.innerHTML = '';
+
+  if (el.sinTrabajadores) {
+    el.sinTrabajadores.style.display = list.length === 0 ? 'block' : 'none';
   }
 
-  el.gruposColumnas.innerHTML = '';
-  
-  // Determinar si estamos en vista filtrada (grupo específico)
-  const esVistaFiltrada = filterGrupo && filterGrupo !== '';
-  
-  gruposAmostrar.forEach((g, idx) => {
-    const workers = porGrupo[g] || [];
-    const col = document.createElement('div');
-    
-    // Estilos especiales para columna "Sin Grupo"
-    if (g === 'sin_grupo') {
-      col.className = 'grupo-col grupo-sin-grupo';
-      col.style.setProperty('--accent', '#9ca3af'); // Gris
-    } else {
-      col.className = 'grupo-col grupo-' + String(g).toLowerCase();
-      col.style.setProperty('--accent', COLORES[g] || '#22c55e');
-    }
-    
-    // Aplicar clase modo-grid-expandido solo cuando hay filtro específico
-    if (esVistaFiltrada) {
-      col.classList.add('modo-grid-expandido');
-    }
+  if (list.length === 0) return;
 
-    const tit = document.createElement('div');
-    tit.className = 'grupo-col-titulo';
-    tit.textContent = g === 'sin_grupo' ? 'Sin Grupo / Por Asignar' : 'Grupo ' + g;
-    col.appendChild(tit);
+  list.forEach((t, index) => {
+    const nombreCompleto = `${t.nombres || ''} ${t.apellidos || ''}`.trim() || t.RUT || '-';
+    const rut = t.RUT || '-';
+    const telefono = t.telefono || '-';
+    const cargo = t.cargo || 'Sin cargo';
+    const grupo = t.grupo || 'Sin grupo';
+    const email = t.email || '-';
+    const direccion = t.direccion || '-';
+    const ciudad = t.ciudad || '-';
 
-    // Contenedor interno para tarjetas (scrolleable verticalmente en modo Kanban)
-    const cardsContainer = document.createElement('div');
-    cardsContainer.className = 'grupo-cards-container';
+    const item = document.createElement('div');
+    item.className = 'accordion-item';
 
-    workers.forEach(t => {
-      const card = document.createElement('div');
-      card.className = 'trabajador-card';
-      
-      // Si el trabajador está inactivo, aplicar estilo gris
-      if (t.activo === false) {
-        card.style.opacity = '0.6';
-        card.style.backgroundColor = '#f3f4f6';
-        card.style.borderColor = '#d1d5db';
-      }
+    const headingId = `heading-trabajador-${index}`;
+    const collapseId = `collapse-trabajador-${index}`;
 
-      const body = document.createElement('div');
-      body.className = 'trabajador-card-body';
+    const header = document.createElement('h2');
+    header.className = 'accordion-header';
+    header.id = headingId;
 
-      const nom = document.createElement('div');
-      nom.className = 'trabajador-card-nombre';
-      nom.textContent = `${t.apellidos || ''}, ${t.nombres || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || '-';
-      
-      // Si está inactivo, agregar etiqueta
-      if (t.activo === false) {
-        const inactivoLabel = document.createElement('span');
-        inactivoLabel.style.cssText = 'color: #9ca3af; font-size: 12px; font-weight: 500; margin-left: 8px; padding: 2px 6px; background-color: #e5e7eb; border-radius: 4px;';
-        inactivoLabel.textContent = '(Oculto)';
-        nom.appendChild(inactivoLabel);
-      }
+    const button = document.createElement('button');
+    button.className = 'accordion-button collapsed';
+    button.type = 'button';
+    button.setAttribute('data-bs-toggle', 'collapse');
+    button.setAttribute('data-bs-target', `#${collapseId}`);
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('aria-controls', collapseId);
 
-      const rutCargo = document.createElement('div');
-      rutCargo.className = 'trabajador-card-linea';
-      // Si no tiene grupo, mostrar etiqueta visual
-      const grupoText = t.grupo ? `Grupo: ${t.grupo}` : '<span style="color: #ef4444; font-weight: 600;">Sin Grupo</span>';
-      rutCargo.innerHTML = `RUT: ${t.RUT || '-'} | ${grupoText} | Cargo: ${t.cargo || '-'}`;
+    const summary = document.createElement('div');
+    summary.className = 'worker-summary';
 
-      const tel = document.createElement('div');
-      tel.className = 'trabajador-card-linea';
-      tel.textContent = `Tel: ${t.telefono || '-'}`;
+    const summaryLeft = document.createElement('div');
+    summaryLeft.className = 'worker-summary-left';
+    summaryLeft.innerHTML = `
+      <div class="worker-name">${nombreCompleto}</div>
+      <div class="worker-meta">RUT: ${rut} | Tel: ${telefono}</div>
+    `;
 
-      const resto = document.createElement('div');
-      resto.className = 'trabajador-card-resto';
-      resto.textContent = t.email || '';
+    const summaryBadges = document.createElement('div');
+    summaryBadges.className = 'worker-summary-badges';
 
-      body.appendChild(nom);
-      body.appendChild(rutCargo);
-      body.appendChild(tel);
-      body.appendChild(resto);
+    const badgeCargo = document.createElement('span');
+    badgeCargo.className = 'badge badge-cargo';
+    badgeCargo.textContent = cargo;
 
-      const btnActions = document.createElement('div');
-      btnActions.className = 'trabajador-card-actions';
+    const badgeGrupo = document.createElement('span');
+    badgeGrupo.className = 'badge badge-grupo';
+    badgeGrupo.textContent = grupo;
 
-      const btnExcepciones = document.createElement('button');
-      btnExcepciones.className = 'btn btn-excepciones';
-      btnExcepciones.title = 'Gestionar Desfase de Turno';
-      btnExcepciones.innerHTML = '<i class="fa-solid fa-calendar-days"></i>';
-      btnExcepciones.addEventListener('click', () => abrirExcepciones(t.RUT, `${t.nombres} ${t.apellidos}`));
+    summaryBadges.appendChild(badgeCargo);
+    summaryBadges.appendChild(badgeGrupo);
 
-      const btnEdit = document.createElement('button');
-      btnEdit.className = 'btn btn-editar';
-      btnEdit.title = 'Editar';
-      btnEdit.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
-      btnEdit.addEventListener('click', () => abrirEditar(t.RUT));
-
-      // Botón Archivar/Ocultar (Soft Delete)
-      const btnOcultar = document.createElement('button');
-      btnOcultar.className = 'btn btn-ocultar';
-      btnOcultar.title = t.activo === false ? 'Reactivar trabajador' : 'Ocultar trabajador';
-      btnOcultar.style.backgroundColor = t.activo === false ? '#f59e0b' : '#f97316';
-      btnOcultar.innerHTML = t.activo === false ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
-      btnOcultar.addEventListener('click', () => {
-        abrirModalOcultar(t.RUT, `${t.nombres} ${t.apellidos}`, t.activo === false);
-      });
-
-      // Botón Eliminar Definitivamente (Hard Delete)
-      const btnBorrar = document.createElement('button');
-      btnBorrar.className = 'btn btn-borrar';
-      btnBorrar.title = 'Eliminar definitivamente';
-      btnBorrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
-      btnBorrar.addEventListener('click', () => abrirModalEliminar(t.RUT, `${t.nombres} ${t.apellidos}`));
-
-      btnActions.appendChild(btnExcepciones);
-      btnActions.appendChild(btnEdit);
-      btnActions.appendChild(btnOcultar);
-      btnActions.appendChild(btnBorrar);
-
-      card.appendChild(body);
-      card.appendChild(btnActions);
-      cardsContainer.appendChild(card);
-    });
-
-    col.appendChild(cardsContainer);
-
-    // si el grupo está vacío, mostrar placeholder informativo
-    if (!workers || workers.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'grupo-empty';
-      empty.textContent = g === 'sin_grupo' ? 'Todos tienen grupo asignado' : 'Sin trabajadores activos';
-      cardsContainer.appendChild(empty);
+    if (t.activo === false) {
+      const badgeEstado = document.createElement('span');
+      badgeEstado.className = 'badge badge-inactivo';
+      badgeEstado.textContent = 'Oculto';
+      summaryBadges.appendChild(badgeEstado);
     }
 
-    el.gruposColumnas.appendChild(col);
+    summary.appendChild(summaryLeft);
+    summary.appendChild(summaryBadges);
+    button.appendChild(summary);
+    header.appendChild(button);
+
+    const collapse = document.createElement('div');
+    collapse.id = collapseId;
+    collapse.className = 'accordion-collapse collapse';
+    collapse.setAttribute('aria-labelledby', headingId);
+    collapse.setAttribute('data-bs-parent', '#accordion-trabajadores');
+
+    const body = document.createElement('div');
+    body.className = 'accordion-body';
+
+    const details = document.createElement('div');
+    details.className = 'worker-details';
+    details.innerHTML = `
+      <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${email}</span></div>
+      <div class="detail-item"><span class="detail-label">Dirección</span><span class="detail-value">${direccion}</span></div>
+      <div class="detail-item"><span class="detail-label">Ciudad</span><span class="detail-value">${ciudad}</span></div>
+    `;
+
+    const actions = document.createElement('div');
+    actions.className = 'worker-actions';
+
+    const btnEditar = document.createElement('button');
+    btnEditar.className = 'btn-accion btn-accion-primary';
+    btnEditar.type = 'button';
+    btnEditar.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
+    btnEditar.addEventListener('click', () => abrirEditar(t.RUT));
+
+    const btnEliminar = document.createElement('button');
+    btnEliminar.className = 'btn-accion btn-accion-outline';
+    btnEliminar.type = 'button';
+    btnEliminar.innerHTML = '<i class="fa-solid fa-trash"></i> Eliminar';
+    btnEliminar.addEventListener('click', () => abrirModalEliminar(t.RUT, nombreCompleto));
+
+    actions.appendChild(btnEditar);
+    actions.appendChild(btnEliminar);
+
+    body.appendChild(details);
+    body.appendChild(actions);
+    collapse.appendChild(body);
+
+    item.appendChild(header);
+    item.appendChild(collapse);
+    el.accordionTrabajadores.appendChild(item);
   });
 }
 
@@ -345,8 +306,8 @@ async function ejecutarBorrarDefinitivo(rut, password) {
   try {
     const adminRut = localStorage.getItem('userRUT');
     
-    const r = await fetch('/eliminar-trabajador', {
-      method: 'POST',
+    const r = await fetch(`/api/trabajadores/${encodeURIComponent(rut)}`, {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         rut: rut,
@@ -522,7 +483,7 @@ async function enviarAgregar(e) {
   if (obj.cargo) obj.cargo = titleCase(obj.cargo);
 
   try {
-    const r = await fetch('/agregar-trabajador', {
+    const r = await fetch('/api/trabajadores', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(obj)
@@ -603,8 +564,8 @@ async function enviarEdicion(e) {
   if (obj.cargo) obj.cargo = titleCase(obj.cargo);
 
   try {
-    const r = await fetch('/editar-trabajador', {
-      method: 'POST',
+    const r = await fetch(`/api/trabajadores/${encodeURIComponent(rut)}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(obj)
     });
@@ -816,6 +777,7 @@ async function cargarCargos() {
     const cargos = await res.json();
     const selectCargo = document.getElementById('cargo');
     const selectEditCargo = document.getElementById('edit-cargo');
+    const selectFiltroCargo = el.selectCargo || document.getElementById('filtro-cargo');
     
     const renderizarSelect = (select) => {
       if (!select) return;
@@ -851,6 +813,24 @@ async function cargarCargos() {
     renderizarSelect(selectCargo);
     renderizarSelect(selectEditCargo);
 
+    if (selectFiltroCargo) {
+      selectFiltroCargo.innerHTML = '<option value="">Todos los cargos</option>';
+      const cargosNormalizados = cargos.map(cargo => {
+        if (typeof cargo === 'string') {
+          return { nombre_cargo: cargo };
+        }
+        return cargo;
+      });
+
+      cargosNormalizados.forEach(cargo => {
+        if (!cargo.nombre_cargo) return;
+        const option = document.createElement('option');
+        option.value = String(cargo.nombre_cargo).toLowerCase();
+        option.textContent = cargo.nombre_cargo;
+        selectFiltroCargo.appendChild(option);
+      });
+    }
+
     if (selectEditCargo && el.formEditar) {
       const originalCargoId = el.formEditar.dataset.originalCargoId || '';
       const originalCargo = el.formEditar.dataset.originalCargo || '';
@@ -879,7 +859,7 @@ async function cargarGrupos(seleccionarValor = '') {
     gruposDisponibles = grupos.map(grupo => grupo.nombre_grupo);
     const selectGrupo = document.getElementById('grupo');
     const selectEditGrupo = document.getElementById('edit-grupo');
-    const selectFiltro = el.selectFiltro || document.getElementById('select-filtro');
+    const selectFiltro = el.selectGrupo || document.getElementById('filtro-grupo');
 
     const renderizarSelect = (select) => {
       if (!select) return;
@@ -1100,9 +1080,11 @@ async function guardarNuevoCargo() {
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
   // Referencias a elementos del DOM
-  el.gruposColumnas = document.getElementById('grupos-columnas');
+  el.accordionTrabajadores = document.getElementById('accordion-trabajadores');
+  el.sinTrabajadores = document.getElementById('sin-trabajadores');
   el.inputBuscar = document.getElementById('input-buscar');
-  el.selectFiltro = document.getElementById('select-filtro');
+  el.selectGrupo = document.getElementById('filtro-grupo');
+  el.selectCargo = document.getElementById('filtro-cargo');
   el.modalAgregar = document.getElementById('modal-agregar');
   el.modalEditar = document.getElementById('modal-editar');
   el.modalConfirm = document.getElementById('modal-confirm');
@@ -1144,7 +1126,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnDescargar) btnDescargar.addEventListener('click', descargarTrabajadoresExcel);
   
   if (el.inputBuscar) el.inputBuscar.addEventListener('input', render);
-  if (el.selectFiltro) el.selectFiltro.addEventListener('change', render);
+  if (el.selectGrupo) el.selectGrupo.addEventListener('change', render);
+  if (el.selectCargo) el.selectCargo.addEventListener('change', render);
   
   // Checkbox para mostrar trabajadores ocultos (inactivos)
   const checkMostrarInactivos = document.getElementById('mostrar-inactivos');

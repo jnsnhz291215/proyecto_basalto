@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool } = require('../../ejemploconexion.js');
+const { pool, obtenerTrabajadores } = require('../../ejemploconexion.js');
 
 const router = express.Router();
 
@@ -13,6 +13,18 @@ router.get('/grupos', async (req, res) => {
   } catch (error) {
     console.error('Error al obtener grupos:', error);
     res.status(500).json({ error: 'Error al obtener grupos' });
+  }
+});
+
+// GET /api/trabajadores - Lista de trabajadores (con grupos)
+router.get('/trabajadores', async (req, res) => {
+  try {
+    const incluirInactivos = req.query.incluirInactivos === 'true';
+    const trabajadores = await obtenerTrabajadores(incluirInactivos);
+    res.json(trabajadores);
+  } catch (error) {
+    console.error('Error al obtener trabajadores:', error);
+    res.status(500).json({ error: 'Error al obtener trabajadores' });
   }
 });
 

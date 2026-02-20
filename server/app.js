@@ -555,7 +555,7 @@ async function resolverNombreCargo(cargoInput) {
 }
 
 // Endpoint para agregar trabajador
-app.post("/agregar-trabajador", async (req, res) => {
+const handleAgregarTrabajador = async (req, res) => {
   let connection;
   try {
     const nuevoTrabajador = req.body;
@@ -696,10 +696,13 @@ app.post("/agregar-trabajador", async (req, res) => {
   } finally {
     if (connection) connection.release();
   }
-});
+};
+
+app.post("/agregar-trabajador", handleAgregarTrabajador);
+app.post("/api/trabajadores", handleAgregarTrabajador);
 
 // Endpoint para editar trabajador
-app.post("/editar-trabajador", async (req, res) => {
+const handleEditarTrabajador = async (req, res) => {
   try {
     const trabajador = req.body;
     
@@ -791,6 +794,15 @@ app.post("/editar-trabajador", async (req, res) => {
     }
     res.status(500).json(resp);
   }
+};
+
+app.post("/editar-trabajador", handleEditarTrabajador);
+app.put("/api/trabajadores/:rut", async (req, res) => {
+  if (!req.body || !req.body.rut) {
+    req.body = req.body || {};
+    req.body.rut = req.params.rut;
+  }
+  return handleEditarTrabajador(req, res);
 });
 
 // ============================================
@@ -868,7 +880,7 @@ app.put("/api/trabajadores/:rut/estado", async (req, res) => {
 });
 
 // Endpoint para eliminar trabajador por RUT
-app.post("/eliminar-trabajador", async (req, res) => {
+const handleEliminarTrabajador = async (req, res) => {
   try {
     const { rut, admin_rut, admin_password } = req.body;
     
@@ -925,6 +937,15 @@ app.post("/eliminar-trabajador", async (req, res) => {
     console.error("Error al eliminar trabajador:", error);
     res.status(500).json({ error: "Error al eliminar trabajador" });
   }
+};
+
+app.post("/eliminar-trabajador", handleEliminarTrabajador);
+app.delete("/api/trabajadores/:rut", async (req, res) => {
+  if (!req.body || !req.body.rut) {
+    req.body = req.body || {};
+    req.body.rut = req.params.rut;
+  }
+  return handleEliminarTrabajador(req, res);
 });
 
 // ============================================
