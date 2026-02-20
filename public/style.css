@@ -367,7 +367,7 @@ body {
 .modal {
   display: none;
   position: fixed;
-  z-index: 99999;
+  z-index: 1060;
   left: 0;
   top: 0;
   width: 100%;
@@ -380,6 +380,10 @@ body {
 
 .modal.show {
   display: flex;
+}
+
+.modal-backdrop {
+  z-index: 1050;
 }
 
 .modal-content {
@@ -854,6 +858,10 @@ body {
 .modal-card {
   max-width: 650px;
   width: 95%;
+}
+
+.modal-card.modal-lg {
+  max-width: 900px;
 }
 
 .highlight-icon {

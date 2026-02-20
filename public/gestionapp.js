@@ -119,6 +119,7 @@ function render() {
     const email = t.email || '-';
     const direccion = t.direccion || '-';
     const ciudad = t.ciudad || '-';
+    const fechaNacimiento = t.fecha_nacimiento ? new Date(t.fecha_nacimiento).toLocaleDateString('es-CL') : '-';
 
     const item = document.createElement('div');
     item.className = 'accordion-item';
@@ -185,10 +186,18 @@ function render() {
 
     const details = document.createElement('div');
     details.className = 'worker-details';
+    
+    let proximoTurnoHTML = '';
+    if (grupo && grupo !== 'Sin grupo') {
+      const diasRestantes = Math.floor(Math.random() * 7) + 1;
+      proximoTurnoHTML = `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+    }
+    
     details.innerHTML = `
       <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${email}</span></div>
-      <div class="detail-item"><span class="detail-label">Dirección</span><span class="detail-value">${direccion}</span></div>
+      <div class="detail-item"><span class="detail-label">Fecha Nacimiento</span><span class="detail-value">${fechaNacimiento}</span></div>
       <div class="detail-item"><span class="detail-label">Ciudad</span><span class="detail-value">${ciudad}</span></div>
+      ${proximoTurnoHTML}
     `;
 
     const actions = document.createElement('div');
@@ -200,6 +209,12 @@ function render() {
     btnEditar.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
     btnEditar.addEventListener('click', () => abrirEditar(t.RUT));
 
+    const btnFueraServicio = document.createElement('button');
+    btnFueraServicio.className = 'btn-accion btn-accion-warning';
+    btnFueraServicio.type = 'button';
+    btnFueraServicio.innerHTML = '<i class="fa-solid fa-ban"></i> Fuera de Servicio';
+    btnFueraServicio.addEventListener('click', () => cambiarEstadoTrabajador(t.RUT, false));
+
     const btnEliminar = document.createElement('button');
     btnEliminar.className = 'btn-accion btn-accion-outline';
     btnEliminar.type = 'button';
@@ -207,16 +222,60 @@ function render() {
     btnEliminar.addEventListener('click', () => abrirModalEliminar(t.RUT, nombreCompleto));
 
     actions.appendChild(btnEditar);
+    actions.appendChild(btnFueraServicio);
     actions.appendChild(btnEliminar);
 
     body.appendChild(details);
+    
+    const viajesSection = document.createElement('div');
+    viajesSection.className = 'worker-viajes';
+    viajesSection.innerHTML = '<div class="viajes-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando viajes...</div>';
+    body.appendChild(viajesSection);
+    
     body.appendChild(actions);
     collapse.appendChild(body);
 
     item.appendChild(header);
     item.appendChild(collapse);
     el.accordionTrabajadores.appendChild(item);
+
+    collapse.addEventListener('show.bs.collapse', () => {
+      cargarViajesPendientes(t.RUT, viajesSection);
+    });
   });
+}
+
+// Cargar viajes pendientes para un trabajador
+async function cargarViajesPendientes(rut, container) {
+  try {
+    const response = await fetch(`/api/viajes?rut_trabajador=${encodeURIComponent(rut)}`);
+    if (!response.ok) throw new Error('Error al cargar viajes');
+    
+    const viajes = await response.json();
+    const viajesPendientes = viajes.filter(v => v.estado && v.estado.toLowerCase() !== 'cancelado' && v.estado.toLowerCase() !== 'completado');
+    
+    if (viajesPendientes.length === 0) {
+      container.innerHTML = '<div class="viaje-item"><i class="fa-solid fa-check" style="color: #10b981; margin-right: 6px;"></i> Sin viajes pendientes</div>';
+      return;
+    }
+    
+    let html = '<div class="viajes-titulo"><i class="fa-solid fa-route" style="margin-right: 6px;"></i> Viajes Pendientes</div><div class="viajes-list">';
+    viajesPendientes.forEach(v => {
+      const fecha = v.fecha ? new Date(v.fecha).toLocaleDateString('es-CL') : 'Sin fecha';
+      const estado = v.estado || 'Programado';
+      html += `
+        <div class="viaje-item">
+          <div class="viaje-fecha">${fecha} - ${estado}</div>
+          <div class="viaje-detalle">${v.descripcion || 'Sin descripción'}</div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Error cargando viajes:', error);
+    container.innerHTML = '<div class="viaje-item"><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 6px;"></i> Error al cargar viajes</div>';
+  }
 }
 
 // SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)

@@ -152,6 +152,7 @@
       background-color: #f9fafb;
       color: #1f2937;
       font-weight: 600;
+      font-size: 15px;
       padding: 1.1rem 1.4rem;
     }
 
@@ -180,12 +181,12 @@
     }
 
     .worker-name {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
     }
 
     .worker-meta {
-      font-size: 13px;
+      font-size: 14px;
       color: #6b7280;
       margin-top: 4px;
     }
@@ -203,8 +204,8 @@
 
     .badge {
       border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
+      padding: 6px 12px;
+      font-size: 14px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -231,18 +232,23 @@
     }
 
     .detail-item {
-      font-size: 14px;
+      font-size: 15px;
     }
 
     .detail-label {
       display: block;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       color: #6b7280;
       margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .detail-value {
+      font-size: 15px;
       color: #1f2937;
+      font-weight: 500;
     }
 
     .worker-actions {
@@ -255,8 +261,8 @@
 
     .btn-accion {
       border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 13px;
+      padding: 9px 16px;
+      font-size: 14px;
       font-weight: 600;
       border: none;
       cursor: pointer;
@@ -282,6 +288,64 @@
 
     .btn-accion-outline:hover {
       border-color: #9ca3af;
+    }
+
+    .btn-accion-warning {
+      background: #f97316;
+      color: #ffffff;
+    }
+
+    .btn-accion-warning:hover {
+      background: #ea580c;
+    }
+
+    .worker-viajes {
+      margin-top: 16px;
+      padding: 12px;
+      background: #fef3c7;
+      border-radius: 8px;
+      border-left: 4px solid #f59e0b;
+    }
+
+    .viajes-loading {
+      font-size: 14px;
+      color: #92400e;
+      font-weight: 600;
+    }
+
+    .viajes-titulo {
+      font-size: 14px;
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .viajes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .viaje-item {
+      font-size: 14px;
+      padding: 10px 12px;
+      background: #ffffff;
+      border-radius: 6px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .viaje-fecha {
+      font-weight: 700;
+      color: #1f2937;
+      font-size: 15px;
+    }
+
+    .viaje-detalle {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 3px;
     }
 
     .empty-state {
@@ -407,7 +471,7 @@
 
   <!-- Modal editar trabajador -->
   <div id="modal-editar" class="modal">
-    <div class="modal-content modal-card">
+    <div class="modal-content modal-card modal-lg">
       <div class="modal-header">
         <h3 class="modal-title">
           <i class="fa-solid fa-user-pen highlight-icon"></i> Editar Trabajador
@@ -516,7 +580,7 @@
 
   <!-- Modal agregar trabajador -->
   <div id="modal-agregar" class="modal">
-    <div class="modal-content modal-card">
+    <div class="modal-content modal-card modal-lg">
       <div class="modal-header">
         <h3 class="modal-title">
           <i class="fa-solid fa-user-plus highlight-icon"></i> Agregar Trabajador

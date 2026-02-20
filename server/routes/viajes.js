@@ -193,21 +193,28 @@ router.post('/viajes', async (req, res) => {
 
 /**
  * GET /api/viajes
- * Obtener viajes con filtros por tipo y mes (JOIN con trabajadores y ciudades)
+ * Obtener viajes con filtros por tipo, mes y trabajador
  * Query params:
  *   - tipo: 'proximos' (default) | 'historial'
  *   - mes: '01' a '12' (opcional)
+ *   - rut_trabajador: RUT del trabajador (opcional)
  */
 router.get('/viajes', async (req, res) => {
   let connection;
   try {
-    const { tipo = 'proximos', mes } = req.query;
+    const { tipo = 'proximos', mes, rut_trabajador } = req.query;
     
     connection = await pool.getConnection();
 
     // Construir WHERE clause según filtros
     let whereConditions = [];
     let params = [];
+    
+    // Filtro por RUT de trabajador (si se proporciona)
+    if (rut_trabajador) {
+      whereConditions.push('v.rut_trabajador = ?');
+      params.push(rut_trabajador);
+    }
     
     if (tipo === 'proximos') {
       // Viajes programados o en curso
