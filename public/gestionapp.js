@@ -46,6 +46,93 @@ function formatearTelefono(val) {
 function titleCase(s) {
   return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
+
+// Cache para configuración de ciclos de turnos
+let cacheCiclos = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// Función universal para calcular estado de turno basándose en configuracion_ciclos
+async function calcularEstadoTurno(grupo) {
+  if (!grupo || grupo === 'Sin grupo') {
+    return '';
+  }
+
+  try {
+    // Verificar cache
+    const ahora = Date.now();
+    if (!cacheCiclos || (ahora - cacheTimestamp) > CACHE_DURATION) {
+      const response = await fetch('/api/config-turnos');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.configs)) {
+          cacheCiclos = data.configs;
+          cacheTimestamp = ahora;
+        }
+      }
+    }
+
+    if (!cacheCiclos) return '';
+
+    // Buscar configuración del grupo (pista_nombre)
+    const config = cacheCiclos.find(c => c.pista_nombre === grupo);
+    if (!config) return '';
+
+    const tipoCiclo = (config.tipo_ciclo || 'ROTATIVO').toUpperCase();
+    const hoy = new Date(2026, 1, 20); // 20 de febrero de 2026
+
+    if (tipoCiclo === 'ROTATIVO') {
+      // Ciclo 14x14 (28 días totales)
+      if (!config.fecha_semilla) return '';
+
+      const fechaSemilla = new Date(config.fecha_semilla);
+      const diffTime = hoy - fechaSemilla;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diaCiclo = diffDays % 28;
+
+      if (diaCiclo >= 0 && diaCiclo <= 13) {
+        // En turno
+        const badgeClass = 'badge badge-turno-activo';
+        const texto = diaCiclo === 13 ? 'En turno (Termina hoy)' : 'En turno';
+        return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${texto}</span></span></div>`;
+      } else {
+        // Fuera de turno (días 14-27)
+        const diasRestantes = 28 - diaCiclo;
+        return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+      }
+    } else if (tipoCiclo === 'SEMANAL') {
+      // Ciclo semanal (verificar día de la semana)
+      if (!config.dias_semana) return '';
+
+      const diaActual = hoy.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+      // Convertir a formato 1-7 (Lunes=1, Domingo=7)
+      const diaNumero = diaActual === 0 ? 7 : diaActual;
+      
+      const diasConfig = config.dias_semana.split(',').map(d => d.trim());
+      const estaEnTurno = diasConfig.includes(String(diaNumero));
+
+      if (estaEnTurno) {
+        return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="badge badge-turno-activo" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">En turno</span></span></div>`;
+      } else {
+        // Calcular próximo día de turno
+        const diasOrdenados = diasConfig.map(Number).sort((a, b) => a - b);
+        let proximoDia = diasOrdenados.find(d => d > diaNumero);
+        if (!proximoDia) proximoDia = diasOrdenados[0]; // Siguiente semana
+
+        let diasRestantes = proximoDia - diaNumero;
+        if (diasRestantes <= 0) diasRestantes += 7;
+
+        return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+      }
+    }
+
+    return '';
+  } catch (error) {
+    console.error('Error calculando estado de turno:', error);
+    return '';
+  }
+}
+
 async function cargar(incluirInactivos = false) {
   try {
     const url = `/api/trabajadores${incluirInactivos ? '?incluirInactivos=true' : ''}`;
@@ -187,18 +274,31 @@ function render() {
     const details = document.createElement('div');
     details.className = 'worker-details';
     
-    let proximoTurnoHTML = '';
-    if (grupo && grupo !== 'Sin grupo') {
-      const diasRestantes = Math.floor(Math.random() * 7) + 1;
-      proximoTurnoHTML = `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
-    }
-    
     details.innerHTML = `
       <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">${email}</span></div>
       <div class="detail-item"><span class="detail-label">Fecha Nacimiento</span><span class="detail-value">${fechaNacimiento}</span></div>
       <div class="detail-item"><span class="detail-label">Ciudad</span><span class="detail-value">${ciudad}</span></div>
-      ${proximoTurnoHTML}
+      <div class="turno-placeholder"></div>
     `;
+
+    // Calcular estado del turno de forma asíncrona
+    if (grupo && grupo !== 'Sin grupo') {
+      calcularEstadoTurno(grupo).then(turnoHTML => {
+        const placeholder = details.querySelector('.turno-placeholder');
+        if (placeholder && turnoHTML) {
+          placeholder.outerHTML = turnoHTML;
+        } else if (placeholder) {
+          placeholder.remove();
+        }
+      }).catch(err => {
+        console.error('Error al calcular estado de turno:', err);
+        const placeholder = details.querySelector('.turno-placeholder');
+        if (placeholder) placeholder.remove();
+      });
+    } else {
+      const placeholder = details.querySelector('.turno-placeholder');
+      if (placeholder) placeholder.remove();
+    }
 
     const actions = document.createElement('div');
     actions.className = 'worker-actions';
@@ -273,14 +373,39 @@ async function cargarViajesPendientes(rut, container) {
     
     let html = '<div class="viajes-titulo"><i class="fa-solid fa-route" style="margin-right: 6px;"></i> Viajes Pendientes</div><div class="viajes-list">';
     viajesPendientes.forEach(v => {
-      const fecha = v.fecha ? new Date(v.fecha).toLocaleDateString('es-CL') : 'Sin fecha';
       const estado = v.estado || 'Programado';
-      html += `
-        <div class="viaje-item">
-          <div class="viaje-fecha">${fecha} - ${estado}</div>
-          <div class="viaje-detalle">${v.descripcion || 'Sin descripción'}</div>
-        </div>
-      `;
+      html += '<div class="viaje-item" style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 8px;">';
+      html += `<div class="viaje-estado" style="font-weight: 600; color: #4f46e5; margin-bottom: 6px;">${estado}</div>`;
+      
+      // Iterar sobre los tramos del viaje
+      if (v.tramos && v.tramos.length > 0) {
+        html += '<div class="viaje-tramos" style="display: flex; flex-direction: column; gap: 4px;">';
+        v.tramos.forEach(tramo => {
+          const icono = tramo.tipo_transporte === 'AVION' ? '✈️' : '🚌';
+          const origen = tramo.origen || 'Desconocido';
+          const destino = tramo.destino || 'Desconocido';
+          
+          // Formatear fecha y hora
+          let fechaHora = '';
+          if (tramo.fecha) {
+            const fecha = new Date(tramo.fecha);
+            fechaHora = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+          if (tramo.hora) {
+            fechaHora += ` ${tramo.hora.substring(0, 5)}`;
+          }
+          if (!fechaHora) fechaHora = 'Fecha no especificada';
+          
+          html += `<div class="viaje-tramo" style="font-size: 13px; color: #333;">`;
+          html += `${icono} <strong>${origen}</strong> → <strong>${destino}</strong> | ${fechaHora}`;
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div style="font-size: 13px; color: #666;">Sin tramos definidos</div>';
+      }
+      
+      html += '</div>';
     });
     html += '</div>';
     container.innerHTML = html;
