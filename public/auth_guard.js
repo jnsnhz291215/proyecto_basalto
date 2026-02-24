@@ -125,28 +125,47 @@
     }
   }
 
-  // Función para ocultar elementos solo para admin
+  // Función para ocultar elementos según el rol del usuario
   function hideAdminElements() {
-    if (userRole === 'user') {
-      // Ocultar enlaces con clase .admin-only
+    // Si no hay sesión: ocultar todo excepto Inicio y Viajes
+    if (!userRole) {
       const adminElements = document.querySelectorAll('.admin-only');
       adminElements.forEach(element => {
         element.style.setProperty('display', 'none', 'important');
-        console.log('[AUTH_GUARD] Ocultando elemento admin-only');
+        console.log('[AUTH_GUARD] Ocultando elemento admin-only (sin sesión)');
       });
 
-      // Ocultar el menú dropdown de "Gestionar" en el navbar
+      // Ocultar elementos no permitidos para invitados
+      const navInforme = document.getElementById('nav-informe');
+      if (navInforme) {
+        navInforme.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando "Informe de turno" (sin sesión)');
+      }
+
+      const navDatos = document.getElementById('nav-datos');
+      if (navDatos) {
+        navDatos.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando "Mi Perfil" (sin sesión)');
+      }
+
       const navGestionarParent = document.getElementById('nav-gestionar-parent');
       if (navGestionarParent) {
         navGestionarParent.style.setProperty('display', 'none', 'important');
-        console.log('[AUTH_GUARD] Ocultando menú dropdown Gestionar');
+        console.log('[AUTH_GUARD] Ocultando menú Gestionar (sin sesión)');
       }
-      
-      // Fallback: ocultar el antiguo enlace si existe
-      const navGestionar = document.querySelector('#nav-gestionar');
-      if (navGestionar) {
-        navGestionar.style.setProperty('display', 'none', 'important');
-        console.log('[AUTH_GUARD] Ocultando menú Gestionar (fallback)');
+    } 
+    // Si es usuario normal (no admin): ocultar solo opciones admin
+    else if (userRole === 'user') {
+      const adminElements = document.querySelectorAll('.admin-only');
+      adminElements.forEach(element => {
+        element.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando elemento admin-only (user)');
+      });
+
+      const navGestionarParent = document.getElementById('nav-gestionar-parent');
+      if (navGestionarParent) {
+        navGestionarParent.style.setProperty('display', 'none', 'important');
+        console.log('[AUTH_GUARD] Ocultando menú dropdown Gestionar (user)');
       }
     }
   }
