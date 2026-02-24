@@ -1877,16 +1877,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function normalizarFechaParaUI(fechaStr) {
     if (!fechaStr) return '';
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr)) return fechaStr;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
-      const [anio, mes, dia] = fechaStr.split('-');
-      return `${dia}/${mes}/${anio}`;
+    // El input type="date" requiere formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) return fechaStr;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr)) {
+      const [dia, mes, anio] = fechaStr.split('/');
+      return `${anio}-${mes}-${dia}`;
     }
     return fechaStr;
   }
 
   function convertirFechaIso(fechaStr) {
     if (!fechaStr) return null;
+    // El input type="date" ya devuelve formato YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) return fechaStr;
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr)) {
       const [dia, mes, anio] = fechaStr.split('/').map(Number);
@@ -2018,21 +2020,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Validar formato DD/MM/YYYY mientras el usuario escribe
-  if (modalFechaSemilla) {
-    modalFechaSemilla.addEventListener('input', (e) => {
-      let value = e.target.value.replace(/\D/g, ''); // Solo números
-      
-      if (value.length >= 2) {
-        value = value.slice(0, 2) + '/' + value.slice(2);
-      }
-      if (value.length >= 5) {
-        value = value.slice(0, 5) + '/' + value.slice(5, 9);
-      }
-      
-      e.target.value = value;
-    });
-  }
+  // Con type="date", no necesitamos validación manual de formato
+  // El navegador lo valida automáticamente
 
   // Guardar configuración
   if (formConfigCiclos) {
@@ -2040,7 +2029,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
 
       const pistaNombre = modalPistaNombre ? modalPistaNombre.value.trim() : '';
-      const fechaSemilla = modalFechaSemilla ? modalFechaSemilla.value.trim() : '';
+      const fechaSemilla = modalFechaSemilla ? modalFechaSemilla.value : ''; // Ya en formato YYYY-MM-DD
       const jornadaInicial = modalJornadaInicial ? modalJornadaInicial.value : 'NOCHE';
       const configSeleccionada = modalConfigSelect
         ? configsCiclos.find(c => String(c.id_conf) === String(modalConfigSelect.value))
@@ -2058,25 +2047,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (tipoCiclo === 'ROTATIVO') {
         if (!fechaSemilla) {
-          alert('Por favor complete todos los campos');
+          alert('Por favor selecciona una fecha');
           return;
         }
 
-        const fechaRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-        if (!fechaRegex.test(fechaSemilla)) {
-          alert('Formato de fecha inválido. Use DD/MM/YYYY (Ej: 07/02/2026)');
-          return;
-        }
-
-        const [dia, mes, anio] = fechaSemilla.split('/').map(Number);
-        const fecha = new Date(anio, mes - 1, dia);
-
-        if (fecha.getDate() !== dia || fecha.getMonth() !== mes - 1 || fecha.getFullYear() !== anio) {
-          alert('Fecha inválida. Verifique día, mes y año');
-          return;
-        }
-
-        fechaIso = convertirFechaIso(fechaSemilla);
+        // El input type="date" ya devuelve formato YYYY-MM-DD válido
+        fechaIso = fechaSemilla;
       } else if (tipoCiclo === 'SEMANAL') {
         diasSemana = obtenerDiasSemanaSeleccionados();
         if (!diasSemana) {

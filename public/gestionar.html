@@ -370,6 +370,22 @@
       font-size: 14px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
+
+    /* Estilos para input type="date" */
+    input[type="date"] {
+      cursor: pointer;
+    }
+
+    input[type="date"]:focus {
+      border-color: #4f46e5 !important;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+    }
+
+    /* Estilo del calendario en navegadores modernos */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.6) brightness(1.1) saturate(2);
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -761,12 +777,12 @@
 
           <!-- Campo: Fecha Semilla -->
           <div class="form-group" id="modal-fecha-semilla-group">
-            <label for="modal-fecha-semilla">Fecha Semilla (DD/MM/YYYY)</label>
+            <label for="modal-fecha-semilla">Fecha Semilla</label>
             <div class="input-wrapper">
               <i class="fa-solid fa-calendar-days input-icon"></i>
-              <input type="text" id="modal-fecha-semilla" name="fecha_semilla" class="modern-input" placeholder="07/02/2026" maxlength="10" required>
+              <input type="date" id="modal-fecha-semilla" name="fecha_semilla" class="modern-input" required>
             </div>
-            <small style="color: #9ca3af; font-size: 12px;">Fecha donde inicia el ciclo. Escribe en formato DD/MM/YYYY</small>
+            <small style="color: #9ca3af; font-size: 12px;">Fecha donde inicia el ciclo. Selecciona usando el calendario</small>
           </div>
 
           <!-- Campo: Jornada Inicial (solo ROTATIVO) -->
