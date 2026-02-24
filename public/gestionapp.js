@@ -51,11 +51,13 @@ function titleCase(s) {
 const PISTAS_CONFIG = {
   'PISTA_1': {
     fecha_semilla: new Date(2026, 1, 7), // 7 de febrero de 2026
-    grupos: ['A', 'B', 'AB', 'C', 'D', 'CD']
+    grupos: ['A', 'B', 'AB', 'C', 'D', 'CD'],
+    jornada_inicial: 'NOCHE' // Será cargado desde el servidor
   },
   'PISTA_2': {
     fecha_semilla: new Date(2026, 1, 14), // 14 de febrero de 2026
-    grupos: ['E', 'F', 'EF', 'G', 'H', 'GH']
+    grupos: ['E', 'F', 'EF', 'G', 'H', 'GH'],
+    jornada_inicial: 'NOCHE' // Será cargado desde el servidor
   }
 };
 
@@ -63,10 +65,35 @@ const PISTAS_CONFIG = {
 const SUBGRUPO_1 = ['A', 'B', 'AB', 'E', 'F', 'EF']; // Día 0
 const SUBGRUPO_2 = ['C', 'D', 'CD', 'G', 'H', 'GH']; // Día 14
 
-// Configuración de jornadas
-const NOCHE_BASE = ['A', 'D', 'F', 'H']; // Si ciclo impar → Día
-const DIA_BASE = ['B', 'C', 'E', 'G'];    // Si ciclo impar → Noche
+// Configuración de jornadas - Grupos base que alternan
+const GRUPOS_BASE = ['A', 'D', 'F', 'H']; // Grupos base
+const GRUPOS_PAREJA = ['B', 'C', 'E', 'G']; // Grupos pareja
 const FIJOS_DIA = ['AB', 'CD', 'EF', 'GH']; // Siempre Día
+
+// Cargar configuración de turnos desde el servidor
+async function cargarConfigTurnos() {
+  try {
+    const response = await fetch('/api/config-turnos');
+    const data = await response.json();
+    
+    if (response.ok && data.success && Array.isArray(data.configs)) {
+      data.configs.forEach(config => {
+        const nombre = String(config.pista_nombre || '').trim().toUpperCase().replace(/\s+/g, '_');
+        
+        if (PISTAS_CONFIG[nombre]) {
+          if (config.fecha_semilla) {
+            PISTAS_CONFIG[nombre].fecha_semilla = new Date(config.fecha_semilla + 'T00:00:00');
+          }
+          if (config.jornada_inicial) {
+            PISTAS_CONFIG[nombre].jornada_inicial = config.jornada_inicial;
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error al cargar configuración de turnos:', error);
+  }
+}
 
 // Función para calcular estado de turno para Basalto Drilling
 async function calcularEstadoTurno(grupo) {
@@ -115,15 +142,31 @@ async function calcularEstadoTurno(grupo) {
     // Determinar si está en turno (días 0-13)
     const estaEnTurno = diasAjustados >= 0 && diaCiclo >= 0 && diaCiclo <= 13;
     
-    // Calcular jornada (Día/Noche)
+    // Calcular jornada (Día/Noche) usando la configuración de jornada_inicial
     let jornada = '';
     if (!FIJOS_DIA.includes(grupo)) {
-      if (NOCHE_BASE.includes(grupo)) {
-        // Ciclo par → Noche, Ciclo impar → Día
-        jornada = (n_ciclo % 2 === 0) ? 'Noche' : 'Día';
-      } else if (DIA_BASE.includes(grupo)) {
-        // Ciclo par → Día, Ciclo impar → Noche
-        jornada = (n_ciclo % 2 === 0) ? 'Día' : 'Noche';
+      const jornadaInicial = pistaConfig.jornada_inicial || 'NOCHE';
+      
+      if (GRUPOS_BASE.includes(grupo)) {
+        // Grupos base (A/D/F/H): Si jornada_inicial es NOCHE
+        if (jornadaInicial === 'NOCHE') {
+          // Ciclo par → Noche, Ciclo impar → Día
+          jornada = (n_ciclo % 2 === 0) ? 'Noche' : 'Día';
+        } else {
+          // Si jornada_inicial es DIA: Ciclo par → Día, Ciclo impar → Noche
+          jornada = (n_ciclo % 2 === 0) ? 'Día' : 'Noche';
+        }
+      } else if (GRUPOS_PAREJA.includes(grupo)) {
+        // Grupos pareja (B/C/E/G): Son el complemento de los grupos base
+        if (jornadaInicial === 'NOCHE') {
+          // Si base es NOCHE, pareja inicia en DIA
+          // Ciclo par → Día, Ciclo impar → Noche
+          jornada = (n_ciclo % 2 === 0) ? 'Día' : 'Noche';
+        } else {
+          // Si base es DIA, pareja inicia en NOCHE
+          // Ciclo par → Noche, Ciclo impar → Día
+          jornada = (n_ciclo % 2 === 0) ? 'Noche' : 'Día';
+        }
       }
     } else {
       jornada = 'Día'; // Grupos fijos
@@ -1329,6 +1372,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // El auth_guard.js ya verificó que somos admin, cargar datos directamente
   console.log('[GESTION] Inicializando página de gestión');
   cargar();
+  
+  // Cargar configuración de turnos desde el servidor
+  cargarConfigTurnos();
 
   // Cargar cargos al iniciar
   cargarCargos();
@@ -1823,6 +1869,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalPistaNombre = document.getElementById('modal-pista-nombre');
   const modalFechaSemilla = document.getElementById('modal-fecha-semilla');
   const modalFechaSemillaGroup = document.getElementById('modal-fecha-semilla-group');
+  const modalJornadaInicial = document.getElementById('modal-jornada-inicial');
+  const modalJornadaInicialGroup = document.getElementById('modal-jornada-inicial-group');
   const modalDiasSemanaGroup = document.getElementById('modal-dias-semana-group');
   const modalDiasSemanaChecks = Array.from(document.querySelectorAll('[data-dia-semana]'));
   let configsCiclos = [];
@@ -1861,13 +1909,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tipoCiclo = (config.tipo_ciclo || 'ROTATIVO').toUpperCase();
     const esSemanal = tipoCiclo === 'SEMANAL';
+    const esRotativo = tipoCiclo === 'ROTATIVO';
 
     if (modalFechaSemillaGroup) modalFechaSemillaGroup.style.display = esSemanal ? 'none' : 'block';
+    if (modalJornadaInicialGroup) modalJornadaInicialGroup.style.display = esRotativo ? 'block' : 'none';
     if (modalDiasSemanaGroup) modalDiasSemanaGroup.style.display = esSemanal ? 'block' : 'none';
     if (modalFechaSemilla) modalFechaSemilla.required = !esSemanal;
 
     if (modalFechaSemilla) {
       modalFechaSemilla.value = normalizarFechaParaUI(config.fecha_semilla) || '';
+    }
+
+    if (modalJornadaInicial) {
+      modalJornadaInicial.value = config.jornada_inicial || 'NOCHE';
     }
 
     if (modalDiasSemanaChecks.length) {
@@ -1987,6 +2041,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const pistaNombre = modalPistaNombre ? modalPistaNombre.value.trim() : '';
       const fechaSemilla = modalFechaSemilla ? modalFechaSemilla.value.trim() : '';
+      const jornadaInicial = modalJornadaInicial ? modalJornadaInicial.value : 'NOCHE';
       const configSeleccionada = modalConfigSelect
         ? configsCiclos.find(c => String(c.id_conf) === String(modalConfigSelect.value))
         : null;
@@ -2039,7 +2094,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pista_nombre: pistaNombre,
             tipo_ciclo: tipoCiclo,
             fecha_semilla: fechaIso,
-            dias_semana: diasSemana
+            dias_semana: diasSemana,
+            jornada_inicial: tipoCiclo === 'ROTATIVO' ? jornadaInicial : null
           })
         });
 
@@ -2064,7 +2120,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     pista_nombre: pista2Config.pista_nombre,
                     tipo_ciclo: pista2Config.tipo_ciclo || 'ROTATIVO',
                     fecha_semilla: fechaPista2Iso,
-                    dias_semana: null
+                    dias_semana: null,
+                    jornada_inicial: jornadaInicial
                   })
                 });
               }
@@ -2075,6 +2132,10 @@ document.addEventListener('DOMContentLoaded', () => {
           cerrarModalConfig();
 
           await cargarConfigCiclos();
+          
+          // Refrescar configuración de turnos y visualización
+          await cargarConfigTurnos();
+          render();
           
           // Refrescar el calendario si existe la función
           if (typeof cargarGrupos === 'function') {

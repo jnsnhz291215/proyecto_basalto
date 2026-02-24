@@ -35,13 +35,15 @@ async function obtenerConfigCiclos() {
   }
 
   const [rows] = await pool.execute(
-    'SELECT pista_nombre, tipo_ciclo, fecha_semilla, dias_semana FROM configuracion_ciclos WHERE activo = 1'
+    'SELECT pista_nombre, tipo_ciclo, fecha_semilla, dias_semana, jornada_inicial FROM configuracion_ciclos WHERE activo = 1'
   );
 
   const config = {
     rotativo: {
       pista1: null,
-      pista2: null
+      pista2: null,
+      jornada_inicial_pista1: 'NOCHE',
+      jornada_inicial_pista2: 'NOCHE'
     },
     semanal: {
       J: null,
@@ -57,9 +59,11 @@ async function obtenerConfigCiclos() {
       if (tipo === 'ROTATIVO') {
         if (nombre === 'PISTA_1' && row.fecha_semilla) {
           config.rotativo.pista1 = new Date(row.fecha_semilla);
+          config.rotativo.jornada_inicial_pista1 = row.jornada_inicial || 'NOCHE';
         }
         if (nombre === 'PISTA_2' && row.fecha_semilla) {
           config.rotativo.pista2 = new Date(row.fecha_semilla);
+          config.rotativo.jornada_inicial_pista2 = row.jornada_inicial || 'NOCHE';
         }
       }
 

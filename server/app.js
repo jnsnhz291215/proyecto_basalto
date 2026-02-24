@@ -1315,7 +1315,7 @@ app.get("/api/calcular-turno", async (req, res) => {
 app.get("/api/config-turnos", async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana, activo FROM configuracion_ciclos WHERE activo = 1 ORDER BY pista_nombre'
+      'SELECT id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana, jornada_inicial, activo FROM configuracion_ciclos WHERE activo = 1 ORDER BY pista_nombre'
     );
 
     if (rows.length === 0) {
@@ -1330,6 +1330,7 @@ app.get("/api/config-turnos", async (req, res) => {
       tipo_ciclo: row.tipo_ciclo,
       fecha_semilla: row.fecha_semilla ? row.fecha_semilla.toISOString().split('T')[0] : null,
       dias_semana: row.dias_semana || null,
+      jornada_inicial: row.jornada_inicial || 'NOCHE',
       activo: row.activo
     }));
     
@@ -1346,7 +1347,7 @@ app.get("/api/config-turnos", async (req, res) => {
 // PUT /api/config-turnos - Actualizar configuración de ciclos
 app.put("/api/config-turnos", async (req, res) => {
   try {
-    const { id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana } = req.body;
+    const { id_conf, pista_nombre, tipo_ciclo, fecha_semilla, dias_semana, jornada_inicial } = req.body;
 
     // Validación
     if (!pista_nombre) {
@@ -1362,6 +1363,7 @@ app.put("/api/config-turnos", async (req, res) => {
 
     let fechaSemillaFinal = null;
     let diasSemanaFinal = null;
+    let jornadaInicialFinal = null;
 
     if (tipoCiclo === 'ROTATIVO') {
       if (!fecha_semilla) {
@@ -1382,6 +1384,11 @@ app.put("/api/config-turnos", async (req, res) => {
         }
         fechaSemillaFinal = fecha.toISOString().split('T')[0];
       }
+      
+      // Validar y establecer jornada_inicial
+      jornadaInicialFinal = jornada_inicial && ['DIA', 'NOCHE'].includes(jornada_inicial.toUpperCase()) 
+        ? jornada_inicial.toUpperCase() 
+        : 'NOCHE';
     } else if (tipoCiclo === 'SEMANAL') {
       if (!dias_semana) {
         return res.status(400).json({ error: "Se requieren días para ciclo semanal" });
@@ -1393,12 +1400,12 @@ app.put("/api/config-turnos", async (req, res) => {
 
     // Actualizar configuración
     const query = id_conf 
-      ? 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ? WHERE id_conf = ?'
-      : 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ? WHERE pista_nombre = ? AND activo = 1';
+      ? 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ?, jornada_inicial = ? WHERE id_conf = ?'
+      : 'UPDATE configuracion_ciclos SET pista_nombre = ?, tipo_ciclo = ?, fecha_semilla = ?, dias_semana = ?, jornada_inicial = ? WHERE pista_nombre = ? AND activo = 1';
     
     const params = id_conf 
-      ? [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, id_conf]
-      : [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, pista_nombre];
+      ? [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, jornadaInicialFinal, id_conf]
+      : [pista_nombre, tipoCiclo, fechaSemillaFinal, diasSemanaFinal, jornadaInicialFinal, pista_nombre];
 
     await pool.execute(query, params);
 
@@ -1411,7 +1418,8 @@ app.put("/api/config-turnos", async (req, res) => {
         pista_nombre: pista_nombre,
         tipo_ciclo: tipoCiclo,
         fecha_semilla: fechaSemillaFinal,
-        dias_semana: diasSemanaFinal
+        dias_semana: diasSemanaFinal,
+        jornada_inicial: jornadaInicialFinal
       }
     });
   } catch (error) {

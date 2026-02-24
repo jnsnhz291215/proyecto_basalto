@@ -769,6 +769,19 @@
             <small style="color: #9ca3af; font-size: 12px;">Fecha donde inicia el ciclo. Escribe en formato DD/MM/YYYY</small>
           </div>
 
+          <!-- Campo: Jornada Inicial (solo ROTATIVO) -->
+          <div class="form-group" id="modal-jornada-inicial-group">
+            <label for="modal-jornada-inicial">Jornada Inicial (Grupo Base)</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-sun-moon input-icon"></i>
+              <select id="modal-jornada-inicial" name="jornada_inicial" class="modern-input">
+                <option value="NOCHE">Noche</option>
+                <option value="DIA">Día</option>
+              </select>
+            </div>
+            <small style="color: #9ca3af; font-size: 12px;">Define si los grupos A/D/F/H inician en Día o Noche</small>
+          </div>
+
           <!-- Campo: Días de Semana (solo SEMANAL) -->
           <div class="form-group" id="modal-dias-semana-group" style="display: none;">
             <label>Días de la Semana</label>
