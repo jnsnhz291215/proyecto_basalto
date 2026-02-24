@@ -442,19 +442,20 @@
         const destino = tramo.ciudad_destino || 'N/A';
         const empresaTransporte = tramo.empresa_transporte || 'N/A';
         
-        // Formatear fecha y hora
-        let fechaHora = 'N/A';
+        // Formatear fecha a DD/MM y hora por separado
+        let fechaCorta = 'N/A';
+        let hora = 'N/A';
         try {
           const fecha = new Date(tramo.fecha_salida);
-          const hora = tramo.hora_salida.substring(0, 5);
-          const fechaFormateada = fecha.toLocaleDateString('es-CL', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric' 
-          });
-          fechaHora = `${fechaFormateada} ${hora}`;
+          const dia = String(fecha.getDate()).padStart(2, '0');
+          const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+          fechaCorta = `${dia}/${mes}`;
+          
+          if (tramo.hora_salida) {
+            hora = tramo.hora_salida.substring(0, 5);
+          }
         } catch(e) {
-          fechaHora = tramo.fecha_salida;
+          fechaCorta = tramo.fecha_salida;
         }
 
         const estado = tramo.estado || 'Programado';
@@ -465,9 +466,11 @@
         html += `
           <tr style="border-bottom:1px solid #e5e7eb;">
             <td style="padding:8px;color:#1f2937;">${codigoPasaje}</td>
-            <td style="padding:8px;color:#4b5563;">${origen}</td>
-            <td style="padding:8px;color:#4b5563;">${destino}</td>
-            <td style="padding:8px;color:#4b5563;">${fechaHora}</td>
+            <td style="padding:8px;color:#4b5563;">
+              <span style="color: #6b7280; font-weight: 500;">${fechaCorta}</span> | <strong>${origen}</strong>
+            </td>
+            <td style="padding:8px;color:#4b5563;"><strong>${destino}</strong></td>
+            <td style="padding:8px;color:#4f46e5;font-weight:500;">${hora}</td>
             <td style="padding:8px;"><span style="color:#4f46e5;font-weight:600;">🏢 ${empresaTransporte}</span></td>
             <td style="padding:8px;">
               <span style="display:inline-block;padding:4px 8px;border-radius:4px;background-color:${estadoColor};color:#fff;font-size:12px;font-weight:600;">

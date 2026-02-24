@@ -533,6 +533,15 @@ async function cargarViajesPendientes(rut, container) {
           const origen = tramo.origen || 'Desconocido';
           const destino = tramo.destino || 'Desconocido';
           
+          // Formatear fecha a DD/MM
+          let fechaCorta = '';
+          if (tramo.fecha) {
+            const fechaObj = new Date(tramo.fecha);
+            const dia = String(fechaObj.getDate()).padStart(2, '0');
+            const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
+            fechaCorta = `${dia}/${mes}`;
+          }
+          
           let hora = '';
           if (tramo.hora) {
             hora = tramo.hora.substring(0, 5);
@@ -541,7 +550,7 @@ async function cargarViajesPendientes(rut, container) {
           }
           
           html += `<div class="viaje-tramo" style="font-size: 13px; color: #333;">`;
-          html += `${icono} <strong>${origen}</strong> → <strong>${destino}</strong> | ${hora}`;
+          html += `${icono} <span style="color: #6b7280; font-weight: 500;">${fechaCorta}</span> | <strong>${origen}</strong> ➔ <strong>${destino}</strong> | <span style="color: #4f46e5; font-weight: 500;">${hora}</span>`;
           html += '</div>';
         });
         html += '</div>';
