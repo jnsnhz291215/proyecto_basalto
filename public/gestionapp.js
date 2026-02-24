@@ -102,7 +102,9 @@ async function calcularEstadoTurno(grupo) {
   }
 
   try {
-    const hoy = new Date(2026, 1, 20); // 20 de febrero de 2026
+    // Obtener la fecha actual y normalizarla
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
     // Determinar a qué pista pertenece el grupo
     let pistaKey = null;
@@ -120,7 +122,9 @@ async function calcularEstadoTurno(grupo) {
       return ''; // Grupo no reconocido
     }
 
-    const fechaSemilla = pistaConfig.fecha_semilla;
+    // Normalizar la fecha semilla
+    const fechaSemilla = new Date(pistaConfig.fecha_semilla);
+    fechaSemilla.setHours(0, 0, 0, 0);
     
     // Calcular días transcurridos desde la semilla
     const diffTime = hoy - fechaSemilla;
@@ -129,18 +133,16 @@ async function calcularEstadoTurno(grupo) {
     // Calcular número de ciclo (cada ciclo es de 28 días)
     const n_ciclo = Math.floor(diasDesde / 28);
     
-    // Determinar desplazamiento según subgrupo
-    let desplazamiento = 0;
-    if (SUBGRUPO_2.includes(grupo)) {
-      desplazamiento = 14;
-    }
+    // Calcular día del ciclo: (Hoy - fecha_semilla) % 28
+    const diaCiclo = diasDesde % 28;
     
-    // Calcular día del ciclo ajustado para este subgrupo
-    const diasAjustados = diasDesde - desplazamiento;
-    const diaCiclo = diasAjustados % 28;
+    // Determinar ventana según el grupo
+    const ventana1 = ['A', 'B', 'AB', 'E', 'F', 'EF']; // 0-13
+    const ventana2 = ['C', 'D', 'CD', 'G', 'H', 'GH']; // 14-27
     
-    // Determinar si está en turno (días 0-13)
-    const estaEnTurno = diasAjustados >= 0 && diaCiclo >= 0 && diaCiclo <= 13;
+    const enVentana1 = ventana1.includes(grupo) && diaCiclo >= 0 && diaCiclo <= 13;
+    const enVentana2 = ventana2.includes(grupo) && diaCiclo >= 14 && diaCiclo <= 27;
+    const estaEnTurno = enVentana1 || enVentana2;
     
     // Calcular jornada (Día/Noche) usando la configuración de jornada_inicial
     let jornada = '';
@@ -175,24 +177,36 @@ async function calcularEstadoTurno(grupo) {
     if (estaEnTurno) {
       const badgeClass = 'badge badge-turno-activo';
       let texto = 'En turno';
-      if (diaCiclo === 13) {
+      
+      // Si es el último día de su ventana
+      if ((enVentana1 && diaCiclo === 13) || (enVentana2 && diaCiclo === 27)) {
         texto = 'En turno (Termina hoy)';
       }
       
       const jornadaText = jornada ? ` | ${jornada}` : '';
-      return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;"><span class="texto-estado-trabajador">${texto}${jornadaText}</span></span></span></div>`;
+      return `<div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value"><span class="${badgeClass}" style="background: #4f46e5; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;"><span class="texto-estado-trabajador">${texto}${jornadaText}</span></span></span></div>`;
     } else {
       // Calcular días restantes hasta el próximo turno
       let diasRestantes;
-      if (diasAjustados < 0) {
-        // Aún no ha comenzado su primer turno
-        diasRestantes = -diasAjustados;
-      } else {
-        // Está en el período de descanso (días 14-27)
+      
+      if (enVentana1) {
+        // Está en ventana 1, siguiente es ventana 2
+        diasRestantes = 14 - diaCiclo;
+      } else if (enVentana2) {
+        // Está en ventana 2, siguiente es ventana 1
         diasRestantes = 28 - diaCiclo;
+      } else {
+        // No está en ninguna ventana
+        if (diaCiclo < 14) {
+          // Está entre fin de ventana 1 y comienzo de ventana 2
+          diasRestantes = 14 - diaCiclo;
+        } else {
+          // Está entre fin de ventana 2 y comienzo de ventana 1
+          diasRestantes = 28 - diaCiclo;
+        }
       }
       
-      return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">En ${diasRestantes} días</span></div>`;
+      return `<div class="detail-item"><span class="detail-label">Próximo Turno</span><span class="detail-value">Próximo turno en ${diasRestantes} días</span></div>`;
     }
 
   } catch (error) {
