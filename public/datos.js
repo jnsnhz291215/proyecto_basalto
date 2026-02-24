@@ -351,8 +351,41 @@
         throw new Error('Error al obtener viajes');
       }
 
-      const viajes = await response.json();
+      let viajes = await response.json();
       console.log('[DATOS] Viajes cargados:', viajes.length);
+
+      // Si NO estamos viendo viajes anteriores, filtrar solo tramos futuros
+      if (!verAnteriores) {
+        const ahora = new Date();
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        // Filtrar tramos futuros considerando hora actual
+        viajes = viajes.filter(tramo => {
+          if (!tramo.fecha_salida || !tramo.hora_salida) return false;
+          
+          // Construir fecha completa con hora del tramo
+          const [hh, mm] = tramo.hora_salida.split(':');
+          const fechaTramo = new Date(tramo.fecha_salida);
+          fechaTramo.setHours(parseInt(hh), parseInt(mm), 0, 0);
+          
+          // Incluir si es futuro (mayor que ahora)
+          return fechaTramo > ahora;
+        });
+        
+        // Ordenar cronológicamente
+        viajes.sort((a, b) => {
+          const [hhA, mmA] = a.hora_salida.split(':');
+          const fechaA = new Date(a.fecha_salida);
+          fechaA.setHours(parseInt(hhA), parseInt(mmA), 0, 0);
+          
+          const [hhB, mmB] = b.hora_salida.split(':');
+          const fechaB = new Date(b.fecha_salida);
+          fechaB.setHours(parseInt(hhB), parseInt(mmB), 0, 0);
+          
+          return fechaA - fechaB;
+        });
+      }
 
       // Renderizar tabla
       renderizarTablaViajes(viajes);

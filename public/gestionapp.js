@@ -446,28 +446,93 @@ async function cargarViajesPendientes(rut, container) {
     if (!response.ok) throw new Error('Error al cargar viajes');
     
     const viajes = await response.json();
-    const viajesPendientes = viajes.filter(v => v.estado && v.estado.toLowerCase() !== 'cancelado' && v.estado.toLowerCase() !== 'completado');
     
-    if (viajesPendientes.length === 0) {
+    // Obtener instancia actual completa (con hora)
+    const ahora = new Date();
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    // Obtener todos los tramos futuros de todos los viajes
+    const tramosFuturos = [];
+    
+    viajes.forEach(v => {
+      if (v.estado && v.estado.toLowerCase() !== 'cancelado' && v.estado.toLowerCase() !== 'completado') {
+        if (v.tramos && v.tramos.length > 0) {
+          // Filtrar tramos futuros para este viaje
+          const tramosFuturoDelViaje = v.tramos.filter(tramo => {
+            if (!tramo.fecha || !tramo.hora) return false;
+            
+            // Construir fecha completa con hora del tramo
+            const [hh, mm] = tramo.hora.split(':');
+            const fechaTramo = new Date(tramo.fecha);
+            fechaTramo.setHours(parseInt(hh), parseInt(mm), 0, 0);
+            
+            // Incluir si es futuro (mayor que ahora) o si es hoy pero aún no pasó
+            return fechaTramo > ahora;
+          });
+          
+          // Si el viaje tiene al menos un tramo futuro
+          if (tramosFuturoDelViaje.length > 0) {
+            tramosFuturoDelViaje.forEach(tramo => {
+              tramosFuturos.push({
+                ...tramo,
+                estado_viaje: v.estado,
+                id_viaje: v.id_viaje
+              });
+            });
+          }
+        }
+      }
+    });
+    
+    // Ordenar tramos cronológicamente
+    tramosFuturos.sort((a, b) => {
+      const fechaA = new Date(a.fecha);
+      const horaA = a.hora ? parseInt(a.hora.split(':')[0]) * 60 + parseInt(a.hora.split(':')[1]) : 0;
+      const fechaB = new Date(b.fecha);
+      const horaB = b.hora ? parseInt(b.hora.split(':')[0]) * 60 + parseInt(b.hora.split(':')[1]) : 0;
+      
+      if (fechaA.getTime() !== fechaB.getTime()) {
+        return fechaA - fechaB;
+      }
+      return horaA - horaB;
+    });
+    
+    if (tramosFuturos.length === 0) {
       container.innerHTML = '<div class="viaje-item"><i class="fa-solid fa-check" style="color: #10b981; margin-right: 6px;"></i> Sin viajes pendientes</div>';
       return;
     }
     
-    let html = '<div class="viajes-titulo"><i class="fa-solid fa-route" style="margin-right: 6px;"></i> Viajes Pendientes</div><div class="viajes-list">';
-    viajesPendientes.forEach(v => {
-      const estado = v.estado || 'Programado';
+    let html = '<div class="viajes-titulo"><i class="fa-solid fa-route" style="margin-right: 6px;"></i> Viajes Pendientes (' + tramosFuturos.length + ' tramos)</div><div class="viajes-list">';
+    
+    // Agrupar por id_viaje para mostrar un respaldo por viaje
+    // VERIFICACIÓN: Cada id_viaje única se cuenta una sola vez (viajes multi-tramo se agrupan correctamente)
+    const viajesPorId = {};
+    tramosFuturos.forEach(tramo => {
+      if (!viajesPorId[tramo.id_viaje]) {
+        viajesPorId[tramo.id_viaje] = {
+          estado: tramo.estado_viaje,
+          tramos: []
+        };
+      }
+      viajesPorId[tramo.id_viaje].tramos.push(tramo);
+    });
+    
+    // Renderizar cada viaje con sus tramos futuros
+    Object.keys(viajesPorId).forEach(idViaje => {
+      const viaje = viajesPorId[idViaje];
+      const estado = viaje.estado || 'Programado';
       html += '<div class="viaje-item" style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 8px;">';
       html += `<div class="viaje-estado" style="font-weight: 600; color: #4f46e5; margin-bottom: 6px;">${estado}</div>`;
       
-      // Iterar sobre los tramos del viaje
-      if (v.tramos && v.tramos.length > 0) {
+      if (viaje.tramos && viaje.tramos.length > 0) {
         html += '<div class="viaje-tramos" style="display: flex; flex-direction: column; gap: 4px;">';
-        v.tramos.forEach(tramo => {
+        // Mostrar todos los tramos futuros de este viaje (ya están ordenados cronológicamente)
+        viaje.tramos.forEach(tramo => {
           const icono = tramo.tipo_transporte === 'AVION' ? '✈️' : '🚌';
           const origen = tramo.origen || 'Desconocido';
           const destino = tramo.destino || 'Desconocido';
           
-          // Formatear solo la hora
           let hora = '';
           if (tramo.hora) {
             hora = tramo.hora.substring(0, 5);
@@ -480,8 +545,6 @@ async function cargarViajesPendientes(rut, container) {
           html += '</div>';
         });
         html += '</div>';
-      } else {
-        html += '<div style="font-size: 13px; color: #666;">Sin tramos definidos</div>';
       }
       
       html += '</div>';
