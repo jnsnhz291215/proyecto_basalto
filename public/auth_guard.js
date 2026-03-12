@@ -9,9 +9,10 @@
   const userRole = localStorage.getItem('user_role');
   const userRut = localStorage.getItem('user_rut');
   const userName = localStorage.getItem('user_name');
+  const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
   const currentPath = window.location.pathname;
 
-  console.log('[AUTH_GUARD] Sesión actual:', { userRole, userRut, userName, currentPath });
+  console.log('[AUTH_GUARD] Sesión actual:', { userRole, userRut, userName, isSuperAdmin, currentPath });
 
   // Páginas que requieren autenticación
   const authRequiredPages = [
@@ -19,13 +20,20 @@
     'gestionviajes.html',
     'viajes.html',
     'informe.html',
-    'datos.html'
+    'datos.html',
+    'gestionadmins.html'
   ];
 
   // Páginas solo para admin
   const adminOnlyPages = [
     'gestionar.html',
-    'gestionviajes.html'
+    'gestionviajes.html',
+    'gestionadmins.html'
+  ];
+
+  // Páginas solo para Super Admin
+  const superAdminOnlyPages = [
+    'gestionadmins.html'
   ];
 
   // Verificar si la página actual requiere autenticación
@@ -47,6 +55,17 @@
   if (requiresAdmin && userRole !== 'admin') {
     console.log('[AUTH_GUARD] Acceso denegado - Solo administradores');
     alert('Acceso denegado. Solo administradores pueden acceder a esta página.');
+    window.location.href = '/index.html';
+    return;
+  }
+
+  // ============================================
+  // 2.5. PROTECCIÓN: Si es página solo Super Admin y usuario no es Super Admin
+  // ============================================
+  const requiresSuperAdmin = superAdminOnlyPages.some(page => currentPath.includes(page));
+  if (requiresSuperAdmin && !isSuperAdmin) {
+    console.log('[AUTH_GUARD] Acceso denegado - Solo Super Administradores');
+    alert('Acceso denegado. Solo Super Administradores pueden acceder a esta página.');
     window.location.href = '/index.html';
     return;
   }
@@ -253,12 +272,18 @@
     return userRole === 'admin';
   };
 
+  // Función global para verificar si el usuario es Super Admin
+  window.isSuperAdmin = function() {
+    return isSuperAdmin;
+  };
+
   // Función global para obtener datos de sesión
   window.getSession = function() {
     return {
       role: userRole,
       rut: userRut,
-      name: userName
+      name: userName,
+      isSuperAdmin: isSuperAdmin
     };
   };
 

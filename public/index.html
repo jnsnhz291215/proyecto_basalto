@@ -227,14 +227,21 @@
             localStorage.setItem('user_rut', data.rut);
             localStorage.setItem('user_name', data.nombre);
             
-            // Guardar datos completos si es admin
-            if (data.role === 'admin' && data.user) {
-              localStorage.setItem('adminData', JSON.stringify({
-                ...data.user,
-                isAdmin: true
-              }));
-              localStorage.setItem('userRUT', data.rut);
-              localStorage.setItem('userName', data.nombre);
+            // Guardar datos de Super Admin y permisos si es admin
+            if (data.role === 'admin') {
+              localStorage.setItem('user_super_admin', data.es_super_admin ? '1' : '0');
+              localStorage.setItem('user_permisos', JSON.stringify(data.permisos || []));
+              
+              if (data.user) {
+                localStorage.setItem('adminData', JSON.stringify({
+                  ...data.user,
+                  isAdmin: true,
+                  es_super_admin: data.es_super_admin,
+                  permisos: data.permisos || []
+                }));
+                localStorage.setItem('userRUT', data.rut);
+                localStorage.setItem('userName', data.nombre);
+              }
             }
             
             // Mantener compatibilidad con código antiguo
@@ -242,10 +249,12 @@
               rol: data.role, 
               nombre: data.nombre,
               rut: data.rut,
-              isAdmin: data.role === 'admin'
+              isAdmin: data.role === 'admin',
+              es_super_admin: data.es_super_admin || 0,
+              permisos: data.permisos || []
             }));
             
-            console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre);
+            console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre, '- Super Admin:', data.es_super_admin);
             
             // Cerrar modal y redirigir
             if (dualModal) dualModal.classList.remove('show');

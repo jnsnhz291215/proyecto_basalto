@@ -33,6 +33,13 @@ app.use('/api', trabajadoresRoutes);
 // ============================================
 const informesRoutes = require('./routes/informes');
 app.use('/api', informesRoutes);
+
+// ============================================
+// RUTAS DE GESTIÓN DE ADMINISTRADORES
+// ============================================
+const adminManagementRoutes = require('./routes/admin_management');
+app.use('/api', adminManagementRoutes);
+
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");

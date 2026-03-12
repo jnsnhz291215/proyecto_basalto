@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Administradores</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styleg.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <script src="js/navbar_core.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/route-guard.js"></script>
+  <script src="auth_guard.js"></script>
+  <script src="navbar.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: #f3f4f6; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20px; margin: 0; }
+
+    .gestionar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+    }
+
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #ffffff;
+      padding: 18px 20px;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .page-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .page-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: #7c3aed;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+    }
+
+    .page-title h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .page-title p {
+      margin: 4px 0 0 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .action-btn {
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #7c3aed;
+      color: #ffffff;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: #6d28d9;
+      box-shadow: 0 6px 14px rgba(124, 58, 237, 0.25);
+    }
+
+    .admins-table-container {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .table-header {
+      background: #f9fafb;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: #f9fafb;
+    }
+
+    th {
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    td {
+      padding: 14px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+
+    tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    .admin-name {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .admin-email {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .badge-super-admin {
+      background: #fcd34d;
+      color: #92400e;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    .badge-regular-admin {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-permissions {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .btn-permissions:hover {
+      background: #bfdbfe;
+    }
+
+    .btn-delete {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .btn-delete:hover {
+      background: #fecaca;
+    }
+
+    .estado-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #d1d5db;
+      transition: .2s;
+      border-radius: 999px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: .2s;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+      background-color: #22c55e;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    .estado-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      min-width: 52px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .form-input {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #ffffff;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+    }
+
+    .checkbox-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #374151;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      color: #d1d5db;
+      margin-bottom: 16px;
+    }
+
+    /* MODAL STYLES */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6b7280;
+    }
+
+    .modal-close:hover {
+      color: #1f2937;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .permissions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .permission-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f9fafb;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .permission-item:hover {
+      background: #f3f4f6;
+    }
+
+    .permission-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #7c3aed;
+    }
+
+    .permission-label {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .permission-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .permission-description {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+      border-top: 1px solid #e5e7eb;
+      justify-content: flex-end;
+    }
+
+    .btn-modal {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .btn-cancel:hover {
+      background: #d1d5db;
+    }
+
+    .btn-save {
+      background: #7c3aed;
+      color: #ffffff;
+    }
+
+    .btn-save:hover {
+      background: #6d28d9;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      display: none;
+      animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .notification.show {
+      display: block;
+    }
+
+    .notification.success {
+      background: #dcfce7;
+      color: #166534;
+      border-left: 4px solid #16a34a;
+    }
+
+    .notification.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border-left: 4px solid #dc2626;
+    }
+
+    .notification.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f4f6;
+      border-top: 2px solid #7c3aed;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .header-actions {
+        width: 100%;
+      }
+
+      .action-btn {
+        flex: 1;
+        justify-content: center;
+      }
+
+      th, td {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .btn-icon {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .modal-content {
+        width: 95%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav id="navbar" class="navbar navbar-expand-lg"></nav>
+
+  <!-- Main Content -->
+  <div class="gestionar-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-icon">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="page-title">
+          <h1>Gestión de Administradores</h1>
+          <p>Administra los permisos y accesos de los administradores del sistema</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="action-btn" id="btnNuevoAdmin">
+          <i class="fas fa-plus"></i> Nuevo Admin
+        </button>
+      </div>
+    </div>
+
+    <!-- Admins Table -->
+    <div class="admins-table-container">
+      <div class="table-header">
+        <h3>Administradores del Sistema</h3>
+        <span id="adminCount" style="color: #6b7280; font-size: 14px; font-weight: 600;"></span>
+      </div>
+      
+      <div id="tableLoadingState" class="loading-state" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Cargando administradores...</p>
+      </div>
+
+      <div id="tableEmptyState" class="empty-state" style="display: none;">
+        <div class="empty-state-icon">
+          <i class="fas fa-user-shield"></i>
+        </div>
+        <p>No hay administradores registrados</p>
+      </div>
+
+      <table id="adminsTable" style="display: none;">
+        <thead>
+          <tr>
+            <th>RUT</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Estado</th>
+            <th style="text-align: center;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="adminsTableBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Permisos -->
+  <div class="modal-overlay" id="permisosModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Administrar Permisos</h2>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div id="adminInfo" style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
+          <p style="margin: 0; font-weight: 600; color: #1f2937;" id="infoAdminName"></p>
+          <p style="margin: 4px 0 0 0; font-size: 13px; color: #6b7280;" id="infoAdminRut"></p>
+        </div>
+
+        <div id="permisosLoadingState" class="loading-state" style="padding: 20px; display: none;">
+          <div class="loading-spinner" style="margin: 0 auto 10px;"></div>
+          <p>Cargando permisos...</p>
+        </div>
+
+        <div id="permissionsContainer" style="display: none;">
+          <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px; font-weight: 600;">
+            Selecciona los permisos para este administrador:
+          </p>
+          <div class="permissions-list" id="permissionsList">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-modal btn-cancel" id="btnCancelModal">Cancelar</button>
+        <button class="btn-modal btn-save" id="btnSavePermissions">
+          <i class="fas fa-save"></i> Guardar Permisos
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Creación de Admin -->
+  <div class="modal-overlay" id="crearAdminModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Crear Nuevo Administrador</h2>
+        <button class="modal-close" id="btnCloseCreateModal">&times;</button>
+      </div>
+
+      <form id="createAdminForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="adminRut">RUT</label>
+            <input type="text" class="form-input" id="adminRut" placeholder="Ej: 12.345.678-5" maxlength="12" required>
+          </div>
+
+          <div class="form-group">
+            <label for="adminNombres">Nombres</label>
+            <input type="text" class="form-input" id="adminNombres" placeholder="Nombres" required>
+          </div>
+
+          <div class="form-group">
+            <label for="adminApellidoPaterno">Apellido Paterno</label>
+            <input type="text" class="form-input" id="adminApellidoPaterno" placeholder="Apellido paterno">
+          </div>
+
+          <div class="form-group">
+            <label for="adminApellidoMaterno">Apellido Materno</label>
+            <input type="text" class="form-input" id="adminApellidoMaterno" placeholder="Apellido materno">
+          </div>
+
+          <div class="form-group">
+            <label for="adminEmail">Email</label>
+            <input type="email" class="form-input" id="adminEmail" placeholder="correo@dominio.com" required>
+          </div>
+
+          <div class="form-group">
+            <label for="adminPassword">Contraseña</label>
+            <input type="password" class="form-input" id="adminPassword" placeholder="Contraseña" required>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-inline" for="adminEsSuper">
+              <input type="checkbox" id="adminEsSuper">
+              Es Super Administrador
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-modal btn-cancel" id="btnCancelCreateModal">Cancelar</button>
+          <button type="submit" class="btn-modal btn-save" id="btnSaveCreateAdmin">
+            <i class="fas fa-user-plus"></i> Crear Admin
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div class="notification" id="notification"></div>
+
+  <!-- Scripts -->
+  <script src="js/gestionadmins.js"></script>
+</body>
+</html>

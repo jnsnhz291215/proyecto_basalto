@@ -40,14 +40,38 @@ router.post('/login', async (req, res) => {
 
     // PASO 1: Intentar login como ADMIN
     try {
-      const sqlAdmin = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? LIMIT 1';
+      const sqlAdmin = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
       const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordParaBuscar]);
 
       if (admins && admins.length > 0) {
         const admin = admins[0];
         const nombreCompleto = `${admin.nombres || ''} ${admin.apellido_paterno || ''} ${admin.apellido_materno || ''}`.trim() || rutLimpio;
         
-        console.log(`[AUTH] Login exitoso como ADMIN - ${nombreCompleto}`);
+        // Obtener permisos del administrador
+        let permisos = [];
+        let esSuperAdmin = admin.es_super_admin || 0;
+        
+        try {
+          const sqlPermisos = `
+            SELECT p.id_permiso, p.nombre_permiso 
+            FROM admin_permisos ap
+            INNER JOIN permisos p ON ap.id_permiso = p.id_permiso
+            WHERE REPLACE(REPLACE(REPLACE(ap.rut_admin, ".", ""), "-", ""), " ", "") = ?
+            ORDER BY p.nombre_permiso ASC
+          `;
+          const [permisosData] = await pool.execute(sqlPermisos, [rutLimpio]);
+          
+          if (permisosData && permisosData.length > 0) {
+            permisos = permisosData.map(p => p.nombre_permiso);
+          }
+          
+          console.log(`[AUTH] Permisos obtenidos para admin ${rutLimpio}:`, permisos);
+        } catch (permisosError) {
+          console.warn('[AUTH] Error consultando permisos:', permisosError.message);
+          // No es crítico si falla - continuar sin permisos
+        }
+        
+        console.log(`[AUTH] Login exitoso como ADMIN - ${nombreCompleto} (Super Admin: ${esSuperAdmin})`);
         
         return res.json({
           success: true,
@@ -55,6 +79,8 @@ router.post('/login', async (req, res) => {
           rut: admin.rut || rutLimpio,
           nombre: nombreCompleto,
           email: admin.email || null,
+          es_super_admin: esSuperAdmin,
+          permisos: permisos,
           redirect: '/gestionar.html',
           user: {
             rut: admin.rut || rutLimpio,
@@ -63,6 +89,15 @@ router.post('/login', async (req, res) => {
             apellido_materno: admin.apellido_materno || null,
             email: admin.email || null
           }
+        });
+      }
+
+      const sqlAdminInactivo = 'SELECT rut FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 0 LIMIT 1';
+      const [adminsInactivos] = await pool.execute(sqlAdminInactivo, [rutLimpio, passwordParaBuscar]);
+      if (adminsInactivos && adminsInactivos.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Su cuenta de administrador está desactivada. Contacte a un Super Administrador.'
         });
       }
     } catch (adminError) {

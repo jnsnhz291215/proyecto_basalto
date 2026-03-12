@@ -51,6 +51,16 @@
         }
       });
     }
+
+    // Mostrar opción de Administradores si es Super Admin
+    const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+    if (isSuperAdmin) {
+      const navAdminsDivider = document.getElementById('nav-admins');
+      const navAdminsItem = document.getElementById('nav-admins-item');
+      if (navAdminsDivider) navAdminsDivider.style.display = 'block';
+      if (navAdminsItem) navAdminsItem.style.display = 'block';
+      console.log('[NAVBAR] Opción de Administradores visible para Super Admin');
+    }
   });
 
 })();
