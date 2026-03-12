@@ -140,6 +140,7 @@ router.post('/login', async (req, res) => {
       }
 
       userFound = userAdmin || userTrabajador;
+      console.log('[AUTH][DIAG] userFound RAW:', JSON.stringify(userFound));
       console.log('Estado Activo:', userFound?.activo);
 
       const sqlUser = 'SELECT * FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
