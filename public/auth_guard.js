@@ -5,6 +5,9 @@
 (function() {
   'use strict';
 
+  let authReadyDispatched = false;
+  let userNameApplied = false;
+
   // Obtener datos de sesión
   const userRole = localStorage.getItem('user_role');
   const userRut = localStorage.getItem('user_rut');
@@ -70,12 +73,27 @@
     return;
   }
 
+  function markAuthReady() {
+    if (authReadyDispatched) return;
+    authReadyDispatched = true;
+    window.__basaltoAuthReady = true;
+    window.dispatchEvent(new CustomEvent('basalto:auth-ready', {
+      detail: { role: userRole, rut: userRut, isSuperAdmin: isSuperAdmin }
+    }));
+    console.log('[AUTH_GUARD] Evento basalto:auth-ready emitido');
+  }
+
+  // La sesion ya fue validada por este guard y puede ser consumida por el navbar.
+  markAuthReady();
+
   // ============================================
   // 3. ACTUALIZAR INTERFAZ: Mostrar nombre y ocultar elementos
   // ============================================
   
   // Ejecutar toggleAuthUI cuando los elementos estén disponibles
   function initAuthUI() {
+    if (!initAuthUI.attempts) initAuthUI.attempts = 0;
+
     const loginBtn = document.getElementById('nav-login-btn');
     const userToggleBtn = document.getElementById('user_toggle_btn');
     const userDropdown = document.getElementById('user-dropdown');
@@ -83,9 +101,13 @@
     if (loginBtn || userToggleBtn || userDropdown) {
       // Elementos encontrados, ejecutar toggleAuthUI
       toggleAuthUI();
+      return;
     } else {
       // Elementos no encontrados, esperar un poco y reintentar
-      setTimeout(initAuthUI, 50);
+      initAuthUI.attempts += 1;
+      if (initAuthUI.attempts <= 60) {
+        setTimeout(initAuthUI, 50);
+      }
     }
   }
   
@@ -134,11 +156,14 @@
 
   // Función para actualizar el nombre del usuario en el navbar
   function updateUserName() {
+    if (userNameApplied) return;
+
     if (userName) {
       // Buscar el elemento del nombre de usuario en el navbar
       const userNameElement = document.getElementById('user_name_span');
       if (userNameElement) {
         userNameElement.textContent = userName;
+        userNameApplied = true;
         console.log('[AUTH_GUARD] Nombre de usuario actualizado:', userName);
       }
     }

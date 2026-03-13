@@ -8,6 +8,7 @@
   'use strict';
 
   console.log('[NAVBAR_CORE] Inicializando...');
+  let userNameApplied = false;
 
   // ============================================
   // DELEGACIÓN DE EVENTOS GLOBAL
@@ -56,13 +57,18 @@
   // ACTUALIZAR NOMBRE DE USUARIO
   // ============================================
   function updateUserName() {
-    const userName = localStorage.getItem('user_name');
     const userNameElement = document.getElementById('user_name_span');
-    
-    if (userName && userNameElement) {
-      userNameElement.textContent = userName;
-      console.log('[NAVBAR_CORE] Nombre actualizado:', userName);
+
+    if (!userNameElement || userNameApplied) {
+      return;
     }
+
+    const userName = localStorage.getItem('user_name');
+    if (!userName) return;
+
+    userNameElement.textContent = userName;
+    userNameApplied = true;
+    console.log('[NAVBAR_CORE] Nombre actualizado:', userName);
   }
 
   // ============================================
@@ -83,7 +89,7 @@
     navAnchors.forEach(anchor => anchor.classList.remove('active'));
 
     // Páginas de Gestión: marcar el botón padre 'Gestionar' en TODAS (púrpura corporativo #4f46e5)
-    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html'];
+    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html', 'gestionadmins.html'];
     const esPaginaGestion = paginasGestion.some(pagina => currentPath.endsWith(pagina));
 
     if (esPaginaGestion) {
@@ -100,6 +106,9 @@
       } else if (currentPath.endsWith('gestionar.html')) {
         const gestionarLink = document.querySelector('.dropdown-menu a[href="gestionar.html"], .dropdown-menu a[href="/gestionar.html"]');
         if (gestionarLink) gestionarLink.classList.add('active');
+      } else if (currentPath.endsWith('gestionadmins.html')) {
+        const gestionAdminsLink = document.querySelector('.dropdown-menu a[href="gestionadmins.html"], .dropdown-menu a[href="/gestionadmins.html"]');
+        if (gestionAdminsLink) gestionAdminsLink.classList.add('active');
       }
 
       // No marcar 'Viajes' (calendario)
@@ -135,29 +144,45 @@
     }
   }
 
+  function refreshNavbarState(forceUserNameRefresh = false) {
+    if (forceUserNameRefresh) {
+      userNameApplied = false;
+    }
+
+    updateUserName();
+    toggleAuthUI();
+    syncNavbarActive();
+  }
+
+  function initNavbarState(retries = 0) {
+    refreshNavbarState();
+
+    const hasDynamicNavbar = !!document.getElementById('nav-items') || !!document.getElementById('user-dropdown');
+    if (hasDynamicNavbar || retries >= 40) return;
+
+    setTimeout(() => initNavbarState(retries + 1), 50);
+  }
+
   // ============================================
   // INICIALIZACIÓN
   // ============================================
   // Ejecutar inmediatamente
-  updateUserName();
-  toggleAuthUI();
-  syncNavbarActive();
+  initNavbarState();
 
   // Ejecutar cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      updateUserName();
-      toggleAuthUI();
-      syncNavbarActive();
+      initNavbarState();
     });
   }
 
-  // Re-ejecutar periódicamente por seguridad (para vistas dinámicas)
-  setInterval(() => {
-    updateUserName();
-    toggleAuthUI();
-    syncNavbarActive();
-  }, 1000);
+  window.addEventListener('basalto:menu-ready', () => {
+    refreshNavbarState(true);
+  });
+
+  window.addEventListener('basalto:auth-ready', () => {
+    refreshNavbarState(true);
+  });
 
   console.log('[NAVBAR_CORE] Listo');
 })();
