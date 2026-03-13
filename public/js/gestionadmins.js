@@ -488,13 +488,20 @@
   // ============================================
   // CREACIÓN DE ADMINISTRADORES
   // ============================================
-  function openCreateModal() {
+  function resetCreateAdminForm() {
     createAdminForm.reset();
+    btnSaveCreateAdmin.disabled = false;
+    btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
+  }
+
+  function openCreateModal() {
+    resetCreateAdminForm();
     crearAdminModal.classList.add('show');
   }
 
   function closeCreateModal() {
     crearAdminModal.classList.remove('show');
+    resetCreateAdminForm();
   }
 
   async function createAdmin(event) {
@@ -557,7 +564,7 @@
       showNotification(error.message || 'Error al crear administrador', 'error');
     } finally {
       btnSaveCreateAdmin.disabled = false;
-      btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear Admin';
+      btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
     }
   }
 

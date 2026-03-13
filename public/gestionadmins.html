@@ -296,14 +296,64 @@
       box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
     }
 
-    .checkbox-inline {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
       font-size: 13px;
-      color: #374151;
       font-weight: 600;
+      color: #374151;
+    }
+
+    .form-group-toggle {
+      margin-top: 4px;
+      margin-bottom: 0;
+    }
+
+    .toggle-field {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      background: #f9fafb;
       cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .toggle-field:hover {
+      border-color: #a78bfa;
+      background: #f5f3ff;
+    }
+
+    .toggle-field:focus-within {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+      background: #ffffff;
+    }
+
+    .toggle-field-control {
+      flex: 0 0 auto;
+    }
+
+    .toggle-field-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .toggle-field-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
+      line-height: 1.3;
+    }
+
+    .toggle-field-description {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.4;
     }
 
     .empty-state {
@@ -322,14 +372,16 @@
     .modal-overlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 999;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      padding: 24px;
+      box-sizing: border-box;
+      background: rgba(15, 23, 42, 0.58);
+      z-index: 2200;
       align-items: center;
       justify-content: center;
+      overflow-y: auto;
     }
 
     .modal-overlay.show {
@@ -337,6 +389,8 @@
     }
 
     .modal-content {
+      position: relative;
+      z-index: 2201;
       background: #ffffff;
       border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -386,6 +440,10 @@
 
     .modal-body {
       padding: 20px;
+    }
+
+    .modal-body-form {
+      padding-bottom: 28px;
     }
 
     .permissions-list {
@@ -439,7 +497,7 @@
     .modal-footer {
       display: flex;
       gap: 10px;
-      padding: 20px;
+      padding: 18px 20px 24px;
       border-top: 1px solid #e5e7eb;
       justify-content: flex-end;
     }
@@ -575,6 +633,10 @@
       .modal-content {
         width: 95%;
       }
+
+      .modal-overlay {
+        padding: 16px;
+      }
     }
   </style>
 </head>
@@ -597,7 +659,7 @@
       </div>
       <div class="header-actions">
         <button class="action-btn" id="btnNuevoAdmin">
-          <i class="fas fa-plus"></i> Nuevo Admin
+          <i class="fas fa-plus"></i> Nuevo administrador
         </button>
       </div>
     </div>
@@ -678,12 +740,12 @@
   <div class="modal-overlay" id="crearAdminModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Crear Nuevo Administrador</h2>
-        <button class="modal-close" id="btnCloseCreateModal">&times;</button>
+        <h2>Crear nuevo administrador</h2>
+        <button class="modal-close" id="btnCloseCreateModal" type="button" aria-label="Cerrar ventana">&times;</button>
       </div>
 
       <form id="createAdminForm">
-        <div class="modal-body">
+        <div class="modal-body modal-body-form">
           <div class="form-group">
             <label for="adminRut">RUT</label>
             <input type="text" class="form-input" id="adminRut" placeholder="Ej: 12.345.678-5" maxlength="12" required>
@@ -695,12 +757,12 @@
           </div>
 
           <div class="form-group">
-            <label for="adminApellidoPaterno">Apellido Paterno</label>
+            <label for="adminApellidoPaterno">Apellido paterno</label>
             <input type="text" class="form-input" id="adminApellidoPaterno" placeholder="Apellido paterno">
           </div>
 
           <div class="form-group">
-            <label for="adminApellidoMaterno">Apellido Materno</label>
+            <label for="adminApellidoMaterno">Apellido materno</label>
             <input type="text" class="form-input" id="adminApellidoMaterno" placeholder="Apellido materno">
           </div>
 
@@ -714,10 +776,17 @@
             <input type="password" class="form-input" id="adminPassword" placeholder="Contraseña" required>
           </div>
 
-          <div class="form-group">
-            <label class="checkbox-inline" for="adminEsSuper">
-              <input type="checkbox" id="adminEsSuper">
-              Es Super Administrador
+          <div class="form-group form-group-toggle">
+            <span class="form-label">¿Es superadministrador?</span>
+            <label class="toggle-field" for="adminEsSuper">
+              <span class="switch toggle-field-control">
+                <input type="checkbox" id="adminEsSuper">
+                <span class="slider"></span>
+              </span>
+              <span class="toggle-field-text">
+                <span class="toggle-field-title">¿Es superadministrador?</span>
+                <span class="toggle-field-description">Activa esta opción para otorgar acceso completo a la gestión de administradores.</span>
+              </span>
             </label>
           </div>
         </div>
@@ -725,7 +794,7 @@
         <div class="modal-footer">
           <button type="button" class="btn-modal btn-cancel" id="btnCancelCreateModal">Cancelar</button>
           <button type="submit" class="btn-modal btn-save" id="btnSaveCreateAdmin">
-            <i class="fas fa-user-plus"></i> Crear Admin
+            <i class="fas fa-user-plus"></i> Crear administrador
           </button>
         </div>
       </form>
