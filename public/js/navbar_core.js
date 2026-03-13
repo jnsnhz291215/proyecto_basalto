@@ -89,7 +89,7 @@
     navAnchors.forEach(anchor => anchor.classList.remove('active'));
 
     // Páginas de Gestión: marcar el botón padre 'Gestionar' en TODAS (púrpura corporativo #4f46e5)
-    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html', 'gestionadmins.html'];
+    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html', 'gestionadmins.html', 'gestioncargos.html'];
     const esPaginaGestion = paginasGestion.some(pagina => currentPath.endsWith(pagina));
 
     if (esPaginaGestion) {
@@ -109,6 +109,9 @@
       } else if (currentPath.endsWith('gestionadmins.html')) {
         const gestionAdminsLink = document.querySelector('.dropdown-menu a[href="gestionadmins.html"], .dropdown-menu a[href="/gestionadmins.html"]');
         if (gestionAdminsLink) gestionAdminsLink.classList.add('active');
+      } else if (currentPath.endsWith('gestioncargos.html')) {
+        const gestionCargosLink = document.querySelector('.dropdown-menu a[href="gestioncargos.html"], .dropdown-menu a[href="/gestioncargos.html"]');
+        if (gestionCargosLink) gestionCargosLink.classList.add('active');
       }
 
       // No marcar 'Viajes' (calendario)

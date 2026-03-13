@@ -226,6 +226,11 @@
             localStorage.setItem('user_role', data.role);
             localStorage.setItem('user_rut', data.rut);
             localStorage.setItem('user_name', data.nombre);
+            localStorage.setItem('user_permissions_cargo', JSON.stringify(data.permisos_cargo || []));
+            localStorage.setItem('user_permissions_cargo_ids', JSON.stringify(data.permisos_cargo_ids || []));
+            localStorage.setItem('user_permissions_total', JSON.stringify(data.permisos_totales || []));
+            localStorage.setItem('user_cargo_name', data.cargo?.nombre_cargo || '');
+            localStorage.setItem('user_cargo_id', data.cargo?.id_cargo ? String(data.cargo.id_cargo) : '');
             
             // Guardar datos de Super Admin y permisos si es admin
             if (data.role === 'admin') {
@@ -243,6 +248,10 @@
                 localStorage.setItem('userName', data.nombre);
               }
             }
+            else {
+              localStorage.removeItem('user_super_admin');
+              localStorage.removeItem('user_permisos');
+            }
             
             // Mantener compatibilidad con código antiguo
             localStorage.setItem('usuarioActivo', JSON.stringify({ 
@@ -251,7 +260,10 @@
               rut: data.rut,
               isAdmin: data.role === 'admin',
               es_super_admin: data.es_super_admin || 0,
-              permisos: data.permisos || []
+              permisos: data.permisos || [],
+              permisos_cargo: data.permisos_cargo || [],
+              permisos_totales: data.permisos_totales || [],
+              cargo: data.cargo || null
             }));
             
             console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre, '- Super Admin:', data.es_super_admin);

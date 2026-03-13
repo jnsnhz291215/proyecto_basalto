@@ -8,14 +8,89 @@
   let authReadyDispatched = false;
   let userNameApplied = false;
 
+  function parseJSONList(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function normalizePermissionName(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
   // Obtener datos de sesión
   const userRole = localStorage.getItem('user_role');
   const userRut = localStorage.getItem('user_rut');
   const userName = localStorage.getItem('user_name');
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+  const userPermisos = parseJSONList('user_permisos');
+  const cargoPermisos = parseJSONList('user_permissions_cargo');
+  const totalPermisosSession = parseJSONList('user_permissions_total');
   const currentPath = window.location.pathname;
 
-  console.log('[AUTH_GUARD] Sesión actual:', { userRole, userRut, userName, isSuperAdmin, currentPath });
+  const permisosCombinados = [
+    ...userPermisos,
+    ...cargoPermisos,
+    ...totalPermisosSession
+  ];
+
+  const permisosNormalizados = new Set(
+    permisosCombinados
+      .map(normalizePermissionName)
+      .filter(Boolean)
+  );
+
+  const hasAnyPermissionData = permisosNormalizados.size > 0;
+
+  const permissionAliases = {
+    gestionar_trabajadores: ['gestionar_trabajadores', 'ver_trabajadores', 'trabajadores'],
+    editar_trabajadores: ['editar_trabajadores', 'modificar_trabajadores'],
+    borrar_trabajadores: ['borrar_trabajadores', 'eliminar_trabajadores'],
+    gestionar_viajes: ['gestionar_viajes', 'editar_viajes', 'viajes'],
+    gestionar_informes: ['gestionar_informes', 'ver_informes', 'informes'],
+    crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno'],
+    editar_informe_propio: ['editar_informe_propio', 'editar_informes'],
+    cerrar_turno: ['cerrar_turno', 'finalizar_turno'],
+    ver_historial: ['ver_historial', 'historial'],
+    gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos']
+  };
+
+  function hasPermission(permissionKey) {
+    if (!userRole) return false;
+    if (isSuperAdmin) return true;
+    if (!hasAnyPermissionData) return userRole === 'admin';
+
+    const target = normalizePermissionName(permissionKey);
+    const aliases = permissionAliases[target] || [target];
+
+    return aliases.some((alias) => {
+      const normalizedAlias = normalizePermissionName(alias);
+      if (!normalizedAlias) return false;
+
+      return Array.from(permisosNormalizados).some((perm) => (
+        perm === normalizedAlias || perm.includes(normalizedAlias) || normalizedAlias.includes(perm)
+      ));
+    });
+  }
+
+  console.log('[AUTH_GUARD] Sesión actual:', {
+    userRole,
+    userRut,
+    userName,
+    isSuperAdmin,
+    currentPath,
+    permisosIndividuales: userPermisos,
+    permisosCargo: cargoPermisos
+  });
 
   // Páginas que requieren autenticación
   const authRequiredPages = [
@@ -24,19 +99,22 @@
     'viajes.html',
     'informe.html',
     'datos.html',
-    'gestionadmins.html'
+    'gestionadmins.html',
+    'gestioncargos.html'
   ];
 
   // Páginas solo para admin
   const adminOnlyPages = [
     'gestionar.html',
     'gestionviajes.html',
-    'gestionadmins.html'
+    'gestionadmins.html',
+    'gestioncargos.html'
   ];
 
   // Páginas solo para Super Admin
   const superAdminOnlyPages = [
-    'gestionadmins.html'
+    'gestionadmins.html',
+    'gestioncargos.html'
   ];
 
   // Verificar si la página actual requiere autenticación
@@ -85,6 +163,7 @@
 
   // La sesion ya fue validada por este guard y puede ser consumida por el navbar.
   markAuthReady();
+  window.hasPermission = hasPermission;
 
   // ============================================
   // 3. ACTUALIZAR INTERFAZ: Mostrar nombre y ocultar elementos
@@ -132,6 +211,13 @@
     
     // Asegurar que la UI de auth esté correcta
     toggleAuthUI();
+    applyPermissionVisibility();
+
+    const permissionObserver = new MutationObserver(() => {
+      applyPermissionVisibility();
+    });
+
+    permissionObserver.observe(document.body, { childList: true, subtree: true });
   });
 
   // Función para mostrar/ocultar botones de autenticación
@@ -212,6 +298,54 @@
         console.log('[AUTH_GUARD] Ocultando menú dropdown Gestionar (user)');
       }
     }
+
+    const navGestionTrabajadores = document.querySelector('.dropdown-menu a[href="gestionar.html"]')?.closest('li');
+    if (navGestionTrabajadores && !hasPermission('gestionar_trabajadores')) {
+      navGestionTrabajadores.style.setProperty('display', 'none', 'important');
+    }
+
+    const navGestionViajes = document.querySelector('.dropdown-menu a[href="gestionviajes.html"]')?.closest('li');
+    if (navGestionViajes && !hasPermission('gestionar_viajes')) {
+      navGestionViajes.style.setProperty('display', 'none', 'important');
+    }
+
+    const navGestionInformes = document.querySelector('.dropdown-menu a[href="gestioninformes.html"]')?.closest('li');
+    if (navGestionInformes && !hasPermission('gestionar_informes')) {
+      navGestionInformes.style.setProperty('display', 'none', 'important');
+    }
+
+    const navGestionCargos = document.querySelector('.dropdown-menu a[href="gestioncargos.html"]')?.closest('li');
+    if (navGestionCargos && !hasPermission('gestionar_cargos')) {
+      navGestionCargos.style.setProperty('display', 'none', 'important');
+    }
+
+    const gestionParent = document.getElementById('nav-gestionar-parent');
+    if (gestionParent) {
+      const visibleChild = gestionParent.querySelector('li:not([style*="display: none"])');
+      if (!visibleChild) {
+        gestionParent.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    applyPermissionVisibility();
+  }
+
+  function applyPermissionVisibility() {
+    const nodes = document.querySelectorAll('[data-permission]');
+    nodes.forEach((node) => {
+      const required = node.getAttribute('data-permission');
+      if (!required) return;
+
+      if (!hasPermission(required)) {
+        const mode = node.getAttribute('data-permission-mode') || 'hide';
+        if (mode === 'disable') {
+          node.setAttribute('disabled', 'disabled');
+          node.classList.add('is-disabled-by-permission');
+        } else {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      }
+    });
   }
 
   // Función para configurar el cierre de sesión
@@ -232,6 +366,11 @@
       localStorage.removeItem('userRUT');
       localStorage.removeItem('userName');
       localStorage.removeItem('adminData');
+      localStorage.removeItem('user_permissions_cargo');
+      localStorage.removeItem('user_permissions_cargo_ids');
+      localStorage.removeItem('user_permissions_total');
+      localStorage.removeItem('user_cargo_name');
+      localStorage.removeItem('user_cargo_id');
       localStorage.clear();
 
       // Redirigir al login
@@ -308,7 +447,10 @@
       role: userRole,
       rut: userRut,
       name: userName,
-      isSuperAdmin: isSuperAdmin
+      isSuperAdmin: isSuperAdmin,
+      permisos: userPermisos,
+      permisosCargo: cargoPermisos,
+      permisosTotales: Array.from(permisosNormalizados)
     };
   };
 

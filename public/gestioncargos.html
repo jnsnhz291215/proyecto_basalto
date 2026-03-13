@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Cargos</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styleg.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="js/navbar_core.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/route-guard.js"></script>
+  <script src="auth_guard.js"></script>
+  <script src="navbar.js"></script>
+  <style>
+    body { background: #f3f4f6; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; }
+    .page-wrap { max-width: 1200px; margin: 16px auto; padding: 0 16px 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .title { font-size: 23px; font-weight: 700; color: #111827; margin: 0; }
+    .subtitle { margin: 4px 0 0 0; color: #6b7280; font-size: 14px; }
+    .btn-primary { border: 0; background: #7c3aed; color: #fff; border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: #6d28d9; }
+
+    .table-card { margin-top: 14px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .table-top { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+    .table-title { font-weight: 700; color: #374151; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    th { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:hover { background: #f9fafb; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 600; }
+    .chip.gestion { background: #ede9fe; color: #6d28d9; }
+    .chip.operacion { background: #dcfce7; color: #15803d; }
+
+    .btn-icon { border: 0; background: #e0e7ff; color: #3730a3; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,.55); display: none; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-backdrop.show { display: flex; }
+    .modal-card { width: min(900px, 94vw); background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 14px 40px rgba(0,0,0,.28); }
+    .modal-head { padding: 14px 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: space-between; }
+    .modal-body { padding: 14px 16px; max-height: 72vh; overflow: auto; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid #e5e7eb; }
+    .btn-outline { border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; margin-bottom: 6px; color: #374151; font-size: 13px; font-weight: 600; }
+    .field input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; }
+
+    .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .perm-group { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
+    .perm-group h4 { margin: 0 0 8px 0; font-size: 14px; }
+    .perm-item { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; cursor: pointer; margin-bottom: 8px; }
+    .perm-item:last-child { margin-bottom: 0; }
+    .perm-item small { color: #6b7280; display: block; margin-top: 2px; }
+
+    .notification { position: fixed; right: 16px; bottom: 16px; z-index: 10000; background: #111827; color: #fff; padding: 10px 12px; border-radius: 8px; opacity: 0; transform: translateY(6px); transition: .2s; }
+    .notification.show { opacity: 1; transform: translateY(0); }
+    .notification.error { background: #b91c1c; }
+    .notification.success { background: #166534; }
+  </style>
+</head>
+<body>
+  <div id="shared-menu-placeholder"></div>
+
+  <div class="page-wrap">
+    <div class="header">
+      <div>
+        <h1 class="title">Gestión de Cargos</h1>
+        <p class="subtitle">Configura plantillas de permisos para administración y operación.</p>
+      </div>
+      <button id="btnNuevoCargo" class="btn-primary" data-permission="gestionar_cargos"><i class="fa-solid fa-plus"></i> Nuevo cargo</button>
+    </div>
+
+    <section class="table-card">
+      <div class="table-top">
+        <span class="table-title">Cargos registrados</span>
+        <span id="cargoCount"></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cargo</th>
+            <th>Permisos</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cargosBody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <div id="cargoModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="cargoModalTitle">Nuevo cargo</strong>
+        <button id="closeCargoModal" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="cargoNombre">Nombre del cargo</label>
+          <input id="cargoNombre" type="text" placeholder="Ej: Supervisor">
+        </div>
+
+        <div class="perm-grid">
+          <section class="perm-group">
+            <h4><i class="fa-solid fa-screwdriver-wrench"></i> Gestión</h4>
+            <div id="permisosGestion"></div>
+          </section>
+
+          <section class="perm-group">
+            <h4><i class="fa-solid fa-industry"></i> Operación</h4>
+            <div id="permisosOperacion"></div>
+          </section>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelCargoModal" class="btn-outline">Cancelar</button>
+        <button id="saveCargoModal" class="btn-primary">Guardar Cargo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="notification" class="notification"></div>
+
+  <script>
+    fetch('menu.html')
+      .then(r => r.text())
+      .then(html => {
+        document.getElementById('shared-menu-placeholder').innerHTML = html;
+        if (window.syncNavbarActive) window.syncNavbarActive();
+        if (window.actualizarInterfaz) window.actualizarInterfaz();
+        window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+      })
+      .catch(err => console.error('Error cargando menú:', err));
+  </script>
+  <script src="js/gestioncargos.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@
     'gestionar.html': { requiresAuth: true, requiresAdmin: true },
     'gestionviajes.html': { requiresAuth: true, requiresAdmin: true },
     'gestioninformes.html': { requiresAuth: true, requiresAdmin: true },
+    'gestioncargos.html': { requiresAuth: true, requiresAdmin: true },
     'datos.html': { requiresAuth: true, requiresAdmin: false },
     'informe.html': { requiresAuth: true, requiresAdmin: false },
     'viajes.html': { requiresAuth: true, requiresAdmin: false }

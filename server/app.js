@@ -40,6 +40,12 @@ app.use('/api', informesRoutes);
 const adminManagementRoutes = require('./routes/admin_management');
 app.use('/api', adminManagementRoutes);
 
+// ============================================
+// RUTAS DE CARGOS (PERFILES DE PERMISOS)
+// ============================================
+const cargosRoutes = require('./routes/cargos');
+app.use('/api', cargosRoutes);
+
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -252,54 +258,6 @@ app.get('/api/logs', async (req, res) => {
   } catch (error) {
     console.error('Error al obtener logs:', error);
     res.status(500).json({ error: 'Error al obtener logs de auditoría' });
-  }
-});
-
-// ============================================
-// ENDPOINTS: GESTIÓN DE CARGOS
-// ============================================
-
-// GET /api/cargos - Obtener lista de cargos
-app.get('/api/cargos', async (req, res) => {
-  try {
-    const [rows] = await pool.execute(
-      'SELECT id_cargo, nombre_cargo FROM cargos ORDER BY nombre_cargo ASC'
-    );
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener cargos:', error);
-    res.status(500).json({ error: 'Error al obtener cargos' });
-  }
-});
-
-// POST /api/cargos - Crear nuevo cargo
-app.post('/api/cargos', async (req, res) => {
-  try {
-    const { nombre_cargo } = req.body;
-    
-    if (!nombre_cargo || !nombre_cargo.trim()) {
-      return res.status(400).json({ error: 'El nombre del cargo es requerido' });
-    }
-
-    const cargoNormalizado = nombre_cargo.trim();
-
-    // Insertar el nuevo cargo
-    const [result] = await pool.execute(
-      'INSERT INTO cargos (nombre_cargo) VALUES (?)',
-      [cargoNormalizado]
-    );
-
-    console.log(`[CARGO CREADO] ${cargoNormalizado}`);
-    res.json({ success: true, id_cargo: result.insertId, nombre_cargo: cargoNormalizado });
-    
-  } catch (error) {
-    // Error de duplicado (código 1062 en MySQL/MariaDB)
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Este cargo ya existe' });
-    }
-    
-    console.error('Error al crear cargo:', error);
-    res.status(500).json({ error: 'Error al crear el cargo' });
   }
 });
 

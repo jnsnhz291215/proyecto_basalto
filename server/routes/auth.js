@@ -7,6 +7,69 @@ function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+function toSlug(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+async function obtenerContextoCargoPorRut(rutLimpio) {
+  try {
+    const sqlCargo = `
+      SELECT c.id_cargo, c.nombre_cargo
+      FROM trabajadores t
+      INNER JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
+      WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
+      LIMIT 1
+    `;
+
+    const [cargoRows] = await pool.execute(sqlCargo, [rutLimpio]);
+    if (!cargoRows || cargoRows.length === 0) {
+      return {
+        cargo: null,
+        permisos_cargo: [],
+        permisos_cargo_ids: []
+      };
+    }
+
+    const cargo = {
+      id_cargo: cargoRows[0].id_cargo,
+      nombre_cargo: cargoRows[0].nombre_cargo
+    };
+
+    const sqlPermisosCargo = `
+      SELECT p.id_permiso, p.nombre_permiso
+      FROM cargo_permisos cp
+      INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
+      WHERE cp.id_cargo = ?
+      ORDER BY p.nombre_permiso ASC
+    `;
+
+    const [permisosCargoRows] = await pool.execute(sqlPermisosCargo, [cargo.id_cargo]);
+    const permisosCargo = (permisosCargoRows || []).map((p) => ({
+      id_permiso: p.id_permiso,
+      nombre_permiso: p.nombre_permiso,
+      slug: toSlug(p.nombre_permiso)
+    }));
+
+    return {
+      cargo,
+      permisos_cargo: permisosCargo.map((p) => p.nombre_permiso),
+      permisos_cargo_ids: permisosCargo.map((p) => p.id_permiso)
+    };
+  } catch (error) {
+    console.warn('[AUTH] No se pudo obtener contexto de cargo:', error.message);
+    return {
+      cargo: null,
+      permisos_cargo: [],
+      permisos_cargo_ids: []
+    };
+  }
+}
+
 // ============================================
 // POST /api/login - Login Unificado
 // ============================================
@@ -68,6 +131,7 @@ router.post('/login', async (req, res) => {
       if (admins && admins.length > 0) {
         const admin = admins[0];
         const nombreCompleto = `${admin.nombres || ''} ${admin.apellido_paterno || ''} ${admin.apellido_materno || ''}`.trim() || rutLimpio;
+        const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
         
         // Obtener permisos del administrador
         let permisos = [];
@@ -103,6 +167,11 @@ router.post('/login', async (req, res) => {
           email: admin.email || null,
           es_super_admin: esSuperAdmin,
           permisos: permisos,
+          permisos_ids: [],
+          cargo: contextoCargo.cargo,
+          permisos_cargo: contextoCargo.permisos_cargo,
+          permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
+          permisos_totales: [...new Set([...(permisos || []), ...(contextoCargo.permisos_cargo || [])])],
           redirect: '/gestionar.html',
           user: {
             rut: admin.rut || rutLimpio,
@@ -149,6 +218,7 @@ router.post('/login', async (req, res) => {
       if (users && users.length > 0) {
         const user = users[0];
         const nombreCompleto = `${user.nombres || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim() || rutLimpio;
+        const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
         
         console.log(`[AUTH] Login exitoso como USER - ${nombreCompleto}`);
         
@@ -158,6 +228,10 @@ router.post('/login', async (req, res) => {
           rut: user.rut || rutLimpio,
           nombre: nombreCompleto,
           email: user.email || null,
+          cargo: contextoCargo.cargo,
+          permisos_cargo: contextoCargo.permisos_cargo,
+          permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
+          permisos_totales: [...new Set(contextoCargo.permisos_cargo || [])],
           redirect: '/index.html',
           user: {
             rut: user.rut || rutLimpio,

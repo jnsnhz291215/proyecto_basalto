@@ -271,6 +271,9 @@ function render() {
   const list = getFiltrados();
   if (!el.accordionTrabajadores) return;
 
+  const canEditWorker = window.hasPermission ? window.hasPermission('editar_trabajadores') : true;
+  const canDeleteWorker = window.hasPermission ? window.hasPermission('borrar_trabajadores') : true;
+
   el.accordionTrabajadores.innerHTML = '';
 
   if (el.sinTrabajadores) {
@@ -390,6 +393,12 @@ function render() {
     btnEditar.type = 'button';
     btnEditar.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
     btnEditar.addEventListener('click', () => abrirEditar(t.RUT));
+    if (!canEditWorker) {
+      btnEditar.disabled = true;
+      btnEditar.style.opacity = '0.5';
+      btnEditar.style.cursor = 'not-allowed';
+      btnEditar.title = 'No tiene permisos para editar trabajadores';
+    }
 
     // Botón dinámico: Reintegrar si está oculto, Fuera de Servicio si está activo
     const btnEstado = document.createElement('button');
@@ -408,12 +417,24 @@ function render() {
       btnEstado.innerHTML = '<i class="fa-solid fa-ban"></i> Fuera de Servicio';
       btnEstado.addEventListener('click', () => cambiarEstadoTrabajador(t.RUT, false));
     }
+    if (!canEditWorker) {
+      btnEstado.disabled = true;
+      btnEstado.style.opacity = '0.5';
+      btnEstado.style.cursor = 'not-allowed';
+      btnEstado.title = 'No tiene permisos para cambiar estado de trabajadores';
+    }
 
     const btnEliminar = document.createElement('button');
     btnEliminar.className = 'btn-accion btn-accion-outline';
     btnEliminar.type = 'button';
     btnEliminar.innerHTML = '<i class="fa-solid fa-trash"></i> Eliminar';
     btnEliminar.addEventListener('click', () => abrirModalEliminar(t.RUT, nombreCompleto));
+    if (!canDeleteWorker) {
+      btnEliminar.disabled = true;
+      btnEliminar.style.opacity = '0.5';
+      btnEliminar.style.cursor = 'not-allowed';
+      btnEliminar.title = 'No tiene permisos para eliminar trabajadores';
+    }
 
     actions.appendChild(btnEditar);
     actions.appendChild(btnEstado);
@@ -1477,7 +1498,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnNuevaCiudadEdit) btnNuevaCiudadEdit.addEventListener('click', pedirNuevaCiudad);
 
   const btnAgregar = document.getElementById('btn-agregar');
-  if (btnAgregar) btnAgregar.addEventListener('click', abrirAgregar);
+  if (btnAgregar) {
+    const canCreateWorkers = window.hasPermission ? window.hasPermission('gestionar_trabajadores') : true;
+    if (canCreateWorkers) {
+      btnAgregar.addEventListener('click', abrirAgregar);
+    } else {
+      btnAgregar.style.display = 'none';
+    }
+  }
   
   const btnDescargar = document.getElementById('btn-descargar');
   if (btnDescargar) btnDescargar.addEventListener('click', descargarTrabajadoresExcel);
