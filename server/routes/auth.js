@@ -13,8 +13,15 @@ function limpiarRUT(rut) {
 router.post('/login', async (req, res) => {
   try {
     const { rut, password } = req.body;
+    let userAdmin = null;
+    let userTrabajador = null;
+    let userFound = null;
+
+    console.log('[AUTH][DIAG] req.body keys:', Object.keys(req.body || {}));
+    console.log('RUT Recibido:', rut);
     
     if (!rut || !password) {
+      console.log('[AUTH][DIAG] Rechazo en validación inicial: faltan llaves o valores de `rut`/`password`');
       return res.status(400).json({ 
         success: false, 
         message: 'Se requiere RUT y contraseña' 
@@ -22,6 +29,7 @@ router.post('/login', async (req, res) => {
     }
 
     const rutLimpio = limpiarRUT(rut);
+    console.log('[AUTH][DIAG] RUT Normalizado para consulta:', rutLimpio);
 
     // Limpieza condicional de password
     const passwordOriginal = String(password).trim();
@@ -36,10 +44,24 @@ router.post('/login', async (req, res) => {
       ? rutLimpio
       : passwordOriginal;
 
+    console.log('[AUTH][DIAG] Método password: comparación en texto plano (sin bcrypt)');
+    console.log('[AUTH][DIAG] Password mode:', (passwordLimpiada === rutLimpio) ? 'RUT normalizado' : 'texto original');
+
     console.log(`[AUTH] Intento de login - RUT: ${rutLimpio}`);
 
     // PASO 1: Intentar login como ADMIN
     try {
+      const sqlAdminDiag = 'SELECT rut, password, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+      const [adminsDiag] = await pool.execute(sqlAdminDiag, [rutLimpio]);
+      userAdmin = (adminsDiag && adminsDiag.length > 0) ? adminsDiag[0] : null;
+
+      console.log('Admin Encontrado:', userAdmin ? 'SÍ' : 'NO');
+      if (userAdmin) {
+        console.log('Estado Activo:', userAdmin?.activo);
+        const adminPasswordOk = String(userAdmin.password || '') === String(passwordParaBuscar || '');
+        console.log('[AUTH][DIAG] Admin password match:', adminPasswordOk ? 'SÍ' : 'NO');
+      }
+
       const sqlAdmin = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
       const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordParaBuscar]);
 
@@ -106,7 +128,22 @@ router.post('/login', async (req, res) => {
 
     // PASO 2: Intentar login como USER (Trabajador)
     try {
-      const sqlUser = 'SELECT * FROM users WHERE rut = ? AND password = ? AND activo = 1 LIMIT 1';
+      const sqlUserDiag = 'SELECT rut, password, activo FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+      const [usersDiag] = await pool.execute(sqlUserDiag, [rutLimpio]);
+      userTrabajador = (usersDiag && usersDiag.length > 0) ? usersDiag[0] : null;
+
+      console.log('Trabajador Encontrado:', userTrabajador ? 'SÍ' : 'NO');
+      if (userTrabajador) {
+        console.log('Estado Activo:', userTrabajador?.activo);
+        const userPasswordOk = String(userTrabajador.password || '') === String(passwordParaBuscar || '');
+        console.log('[AUTH][DIAG] Trabajador password match:', userPasswordOk ? 'SÍ' : 'NO');
+      }
+
+      userFound = userAdmin || userTrabajador;
+      console.log('[AUTH][DIAG] userFound RAW:', JSON.stringify(userFound));
+      console.log('Estado Activo:', userFound?.activo);
+
+      const sqlUser = 'SELECT * FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
       const [users] = await pool.execute(sqlUser, [rutLimpio, passwordParaBuscar]);
 
       if (users && users.length > 0) {
@@ -133,7 +170,7 @@ router.post('/login', async (req, res) => {
       }
 
       // Si existe pero esta inactivo, responder con mensaje especifico
-      const sqlUserInactivo = 'SELECT rut FROM users WHERE rut = ? AND password = ? AND activo = 0 LIMIT 1';
+      const sqlUserInactivo = 'SELECT rut FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 0 LIMIT 1';
       const [usersInactivos] = await pool.execute(sqlUserInactivo, [rutLimpio, passwordParaBuscar]);
       if (usersInactivos && usersInactivos.length > 0) {
         return res.status(403).json({
@@ -146,6 +183,7 @@ router.post('/login', async (req, res) => {
     }
 
     // PASO 3: Credenciales inválidas
+    console.log('[AUTH][DIAG] Rechazo final 401: no hubo coincidencia válida en admin_users ni users con password/activo');
     console.log(`[AUTH] Login fallido - RUT: ${rutLimpio}`);
     return res.status(401).json({ 
       success: false, 
