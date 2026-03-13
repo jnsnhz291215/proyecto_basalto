@@ -7,7 +7,6 @@
 (function() {
   'use strict';
 
-  console.log('[NAVBAR_CORE] Inicializando...');
   let userNameApplied = false;
 
   // ============================================
@@ -66,9 +65,10 @@
     const userName = localStorage.getItem('user_name');
     if (!userName) return;
 
-    userNameElement.textContent = userName;
+    if (userNameElement.textContent !== userName) {
+      userNameElement.textContent = userName;
+    }
     userNameApplied = true;
-    console.log('[NAVBAR_CORE] Nombre actualizado:', userName);
   }
 
   // ============================================
@@ -147,45 +147,30 @@
     }
   }
 
-  function refreshNavbarState(forceUserNameRefresh = false) {
-    if (forceUserNameRefresh) {
-      userNameApplied = false;
-    }
-
+  function refreshNavbarState() {
     updateUserName();
     toggleAuthUI();
     syncNavbarActive();
-  }
-
-  function initNavbarState(retries = 0) {
-    refreshNavbarState();
-
-    const hasDynamicNavbar = !!document.getElementById('nav-items') || !!document.getElementById('user-dropdown');
-    if (hasDynamicNavbar || retries >= 40) return;
-
-    setTimeout(() => initNavbarState(retries + 1), 50);
   }
 
   // ============================================
   // INICIALIZACIÓN
   // ============================================
   // Ejecutar inmediatamente
-  initNavbarState();
+  refreshNavbarState();
 
   // Ejecutar cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      initNavbarState();
+      refreshNavbarState();
     });
   }
 
   window.addEventListener('basalto:menu-ready', () => {
-    refreshNavbarState(true);
+    refreshNavbarState();
   });
 
   window.addEventListener('basalto:auth-ready', () => {
-    refreshNavbarState(true);
+    refreshNavbarState();
   });
-
-  console.log('[NAVBAR_CORE] Listo');
 })();

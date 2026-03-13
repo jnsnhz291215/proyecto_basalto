@@ -13,6 +13,15 @@
   let currentAdminRut = null;
   let currentAdminPermisos = [];
   let pageInitialized = false;
+  const clavesPermitidas = [
+    'trabajadores_ver',
+    'trabajadores_editar',
+    'trabajadores_borrar',
+    'viajes_admin',
+    'informes_ver',
+    'informes_editar',
+    'informes_cerrar'
+  ];
 
   const userRut = localStorage.getItem('user_rut');
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
@@ -44,7 +53,6 @@
   const adminApellidoMaternoInput = document.getElementById('adminApellidoMaterno');
   const adminEmailInput = document.getElementById('adminEmail');
   const adminPasswordInput = document.getElementById('adminPassword');
-  const adminEsSuperInput = document.getElementById('adminEsSuper');
   
   const notification = document.getElementById('notification');
   const infoAdminName = document.getElementById('infoAdminName');
@@ -77,6 +85,11 @@
     setTimeout(() => {
       notification.classList.remove('show');
     }, 4000);
+  }
+
+  function clearNotification() {
+    notification.textContent = '';
+    notification.className = 'notification';
   }
 
   function obtenerMensajeError(defaultMessage, status, payload) {
@@ -204,6 +217,13 @@
     return emailRegex.test(String(email || '').trim());
   }
 
+  function humanizarClavePermiso(clave, descripcion = '') {
+    if (descripcion && descripcion.trim()) return descripcion.trim();
+    return String(clave || '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   // ============================================
   // CARGAR LISTA DE ADMINISTRADORES
   // ============================================
@@ -257,10 +277,11 @@
       const badgeClass = admin.es_super_admin ? 'badge-super-admin' : 'badge-regular-admin';
       const badgeText = admin.es_super_admin ? 'Super Admin' : 'Administrador';
       
-      const permisosCount = admin.permisos.length;
-      const permisosText = permisosCount > 0 
-        ? `${permisosCount} permiso${permisosCount !== 1 ? 's' : ''}`
-        : 'Sin permisos';
+      const badgesPermisos = (admin.permisos || []).length > 0
+        ? admin.permisos.map((permiso) => (
+            `<span class="badge-regular-admin" style="margin: 4px 6px 0 0;">${humanizarClavePermiso(permiso.clave, permiso.descripcion)}</span>`
+          )).join('')
+        : '<span style="font-size: 12px; color: #6b7280;">Sin permisos</span>';
 
       const adminActivo = Number(admin.activo) === 0 ? 0 : 1;
       const checkedAttr = adminActivo ? 'checked' : '';
@@ -282,11 +303,11 @@
             </label>
             <span class="estado-label">${estadoTexto}</span>
           </div>
-          <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${permisosText}</div>
+          <div style="margin-top: 6px; display: flex; flex-wrap: wrap;">${badgesPermisos}</div>
         </td>
         <td style="text-align: center;">
           <div class="action-buttons">
-            <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos">
+            <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
               <i class="fas fa-key"></i>
             </button>
           </div>
@@ -295,6 +316,10 @@
 
       // Agregar event listener al botón de permisos
       row.querySelector('.btn-permissions').addEventListener('click', () => {
+        if (admin.es_super_admin) {
+          showNotification('Los permisos de una cuenta Superadministrador no se pueden modificar', 'error');
+          return;
+        }
         openPermisosModal(admin.rut, admin.nombre_completo, admin.permisos);
       });
 
@@ -347,6 +372,7 @@
     try {
       currentAdminRut = rut;
       currentAdminPermisos = permisosActuales.map(p => String(p.id));
+      clearNotification();
 
       infoAdminName.textContent = nombreCompleto;
       infoAdminRut.textContent = `RUT: ${rut}`;
@@ -380,7 +406,9 @@
 
       const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
-      permisosDisponibles = result.data;
+      permisosDisponibles = (result.data || [])
+        .filter((permiso) => clavesPermitidas.includes(permiso.clave_permiso))
+        .sort((a, b) => clavesPermitidas.indexOf(a.clave_permiso) - clavesPermitidas.indexOf(b.clave_permiso));
       permisosLoadingState.style.display = 'none';
       permissionsContainer.style.display = 'block';
 
@@ -409,6 +437,16 @@
       checkbox.value = permiso.id_permiso;
       checkbox.checked = isChecked;
       checkbox.dataset.permisoId = permiso.id_permiso;
+      checkbox.style.display = 'none';
+
+      const switchLabel = document.createElement('label');
+      switchLabel.className = 'switch';
+      switchLabel.htmlFor = `permiso-${permiso.id_permiso}`;
+
+      const slider = document.createElement('span');
+      slider.className = 'slider';
+      switchLabel.appendChild(checkbox);
+      switchLabel.appendChild(slider);
 
       const label = document.createElement('label');
       label.className = 'permission-label';
@@ -416,16 +454,16 @@
 
       const nameDiv = document.createElement('div');
       nameDiv.className = 'permission-name';
-      nameDiv.textContent = permiso.nombre_permiso;
+      nameDiv.textContent = permiso.clave_permiso;
 
       const descDiv = document.createElement('div');
       descDiv.className = 'permission-description';
-      descDiv.textContent = permiso.descripcion || 'Sin descripción';
+      descDiv.textContent = permiso.descripcion || humanizarClavePermiso(permiso.clave_permiso);
 
       label.appendChild(nameDiv);
       label.appendChild(descDiv);
 
-      permissionDiv.appendChild(checkbox);
+      permissionDiv.appendChild(switchLabel);
       permissionDiv.appendChild(label);
 
       // Click en todo el div para toggle del checkbox
@@ -483,6 +521,8 @@
     permisosModal.classList.remove('show');
     currentAdminRut = null;
     currentAdminPermisos = [];
+    permissionsList.innerHTML = '';
+    clearNotification();
   }
 
   // ============================================
@@ -492,6 +532,7 @@
     createAdminForm.reset();
     btnSaveCreateAdmin.disabled = false;
     btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
+    clearNotification();
   }
 
   function openCreateModal() {
@@ -513,8 +554,6 @@
     const apellidoMaterno = adminApellidoMaternoInput.value.trim();
     const email = adminEmailInput.value.trim().toLowerCase();
     const password = adminPasswordInput.value.trim();
-    const esSuperAdminNuevo = adminEsSuperInput.checked ? 1 : 0;
-
     if (!rutOriginal || !nombres || !email || !password) {
       showNotification('Complete todos los campos obligatorios', 'error');
       return;
@@ -549,7 +588,6 @@
           apellido_materno: apellidoMaterno,
           email,
           password,
-          es_super_admin: esSuperAdminNuevo,
           rut_solicitante: getRutSolicitante()
         })
       });
