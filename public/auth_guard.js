@@ -34,29 +34,29 @@
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
   const userPermisos = parseJSONList('user_permisos');
   const cargoPermisos = parseJSONList('user_permissions_cargo');
-  const totalPermisosSession = parseJSONList('user_permissions_total');
   const currentPath = window.location.pathname;
 
-  const permisosCombinados = [
-    ...userPermisos,
-    ...cargoPermisos,
-    ...totalPermisosSession
-  ];
-
-  const permisosNormalizados = new Set(
-    permisosCombinados
+  const permisosAdminNormalizados = new Set(
+    userPermisos
       .map(normalizePermissionName)
       .filter(Boolean)
   );
 
-  const hasAnyPermissionData = permisosNormalizados.size > 0;
+  const permisosCargoNormalizados = new Set(
+    cargoPermisos
+      .map(normalizePermissionName)
+      .filter(Boolean)
+  );
+
+  const hasAnyAdminPermissionData = permisosAdminNormalizados.size > 0;
+  const hasAnyCargoPermissionData = permisosCargoNormalizados.size > 0;
 
   const permissionAliases = {
-    gestionar_trabajadores: ['gestionar_trabajadores', 'ver_trabajadores', 'trabajadores'],
-    editar_trabajadores: ['editar_trabajadores', 'modificar_trabajadores'],
-    borrar_trabajadores: ['borrar_trabajadores', 'eliminar_trabajadores'],
-    gestionar_viajes: ['gestionar_viajes', 'editar_viajes', 'viajes'],
-    gestionar_informes: ['gestionar_informes', 'ver_informes', 'informes'],
+    gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores'],
+    editar_trabajadores: ['trabajadores_editar', 'editar_trabajadores', 'modificar_trabajadores'],
+    borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores'],
+    gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes'],
+    gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes'],
     crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno'],
     editar_informe_propio: ['editar_informe_propio', 'editar_informes'],
     cerrar_turno: ['cerrar_turno', 'finalizar_turno'],
@@ -64,11 +64,7 @@
     gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos']
   };
 
-  function hasPermission(permissionKey) {
-    if (!userRole) return false;
-    if (isSuperAdmin) return true;
-    if (!hasAnyPermissionData) return userRole === 'admin';
-
+  function matchesPermission(permisosSet, permissionKey) {
     const target = normalizePermissionName(permissionKey);
     const aliases = permissionAliases[target] || [target];
 
@@ -76,10 +72,24 @@
       const normalizedAlias = normalizePermissionName(alias);
       if (!normalizedAlias) return false;
 
-      return Array.from(permisosNormalizados).some((perm) => (
+      return Array.from(permisosSet).some((perm) => (
         perm === normalizedAlias || perm.includes(normalizedAlias) || normalizedAlias.includes(perm)
       ));
     });
+  }
+
+  function hasAdminPermission(permissionKey) {
+    if (!userRole) return false;
+    if (isSuperAdmin) return true;
+    if (!hasAnyAdminPermissionData) return userRole === 'admin';
+    return matchesPermission(permisosAdminNormalizados, permissionKey);
+  }
+
+  function hasCargoPermission(permissionKey) {
+    if (!userRole) return false;
+    if (isSuperAdmin) return true;
+    if (!hasAnyCargoPermissionData) return true;
+    return matchesPermission(permisosCargoNormalizados, permissionKey);
   }
 
   console.log('[AUTH_GUARD] Sesión actual:', {
@@ -163,7 +173,9 @@
 
   // La sesion ya fue validada por este guard y puede ser consumida por el navbar.
   markAuthReady();
-  window.hasPermission = hasPermission;
+  window.hasPermission = hasAdminPermission;
+  window.hasAdminPermission = hasAdminPermission;
+  window.hasCargoPermission = hasCargoPermission;
 
   // ============================================
   // 3. ACTUALIZAR INTERFAZ: Mostrar nombre y ocultar elementos
@@ -300,22 +312,22 @@
     }
 
     const navGestionTrabajadores = document.querySelector('.dropdown-menu a[href="gestionar.html"]')?.closest('li');
-    if (navGestionTrabajadores && !hasPermission('gestionar_trabajadores')) {
+    if (navGestionTrabajadores && !hasAdminPermission('gestionar_trabajadores')) {
       navGestionTrabajadores.style.setProperty('display', 'none', 'important');
     }
 
     const navGestionViajes = document.querySelector('.dropdown-menu a[href="gestionviajes.html"]')?.closest('li');
-    if (navGestionViajes && !hasPermission('gestionar_viajes')) {
+    if (navGestionViajes && !hasAdminPermission('gestionar_viajes')) {
       navGestionViajes.style.setProperty('display', 'none', 'important');
     }
 
     const navGestionInformes = document.querySelector('.dropdown-menu a[href="gestioninformes.html"]')?.closest('li');
-    if (navGestionInformes && !hasPermission('gestionar_informes')) {
+    if (navGestionInformes && !hasAdminPermission('gestionar_informes')) {
       navGestionInformes.style.setProperty('display', 'none', 'important');
     }
 
     const navGestionCargos = document.querySelector('.dropdown-menu a[href="gestioncargos.html"]')?.closest('li');
-    if (navGestionCargos && !hasPermission('gestionar_cargos')) {
+    if (navGestionCargos && !hasAdminPermission('gestionar_cargos')) {
       navGestionCargos.style.setProperty('display', 'none', 'important');
     }
 
@@ -336,7 +348,7 @@
       const required = node.getAttribute('data-permission');
       if (!required) return;
 
-      if (!hasPermission(required)) {
+      if (!hasAdminPermission(required)) {
         const mode = node.getAttribute('data-permission-mode') || 'hide';
         if (mode === 'disable') {
           node.setAttribute('disabled', 'disabled');
@@ -450,7 +462,10 @@
       isSuperAdmin: isSuperAdmin,
       permisos: userPermisos,
       permisosCargo: cargoPermisos,
-      permisosTotales: Array.from(permisosNormalizados)
+      permisosTotales: {
+        admin: Array.from(permisosAdminNormalizados),
+        cargo: Array.from(permisosCargoNormalizados)
+      }
     };
   };
 

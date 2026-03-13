@@ -2,6 +2,30 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion.js');
 
+function limpiarRUT(rut) {
+  return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+}
+
+async function validarHardDeleteSuperAdmin(req) {
+  const rutSolicitante = req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'];
+  const rutLimpio = limpiarRUT(rutSolicitante);
+
+  if (!rutLimpio) {
+    return { ok: false, status: 401, message: 'Se requiere rut_solicitante' };
+  }
+
+  const [rows] = await pool.execute(
+    'SELECT es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+    [rutLimpio]
+  );
+
+  if (!rows || rows.length === 0) return { ok: false, status: 401, message: 'Administrador solicitante no encontrado' };
+  if (Number(rows[0].activo) === 0) return { ok: false, status: 403, message: 'Cuenta solicitante inactiva' };
+  if (Number(rows[0].es_super_admin) !== 1) return { ok: false, status: 403, message: 'Solo un Superadministrador puede realizar eliminación física' };
+
+  return { ok: true };
+}
+
 /**
  * GET /api/viajes/calendario
  * Obtener todos los viajes para renderizar en el calendario
@@ -479,6 +503,10 @@ router.delete('/viajes/:id', async (req, res) => {
   let connection;
   try {
     const { id } = req.params;
+    const validacion = await validarHardDeleteSuperAdmin(req);
+    if (!validacion.ok) {
+      return res.status(validacion.status).json({ error: validacion.message });
+    }
 
     connection = await pool.getConnection();
     await connection.beginTransaction();

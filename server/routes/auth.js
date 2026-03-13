@@ -41,23 +41,24 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     };
 
     const sqlPermisosCargo = `
-      SELECT p.id_permiso, p.nombre_permiso
+      SELECT p.id_permiso, p.clave_permiso, p.descripcion
       FROM cargo_permisos cp
       INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
       WHERE cp.id_cargo = ?
-      ORDER BY p.nombre_permiso ASC
+      ORDER BY p.clave_permiso ASC
     `;
 
     const [permisosCargoRows] = await pool.execute(sqlPermisosCargo, [cargo.id_cargo]);
     const permisosCargo = (permisosCargoRows || []).map((p) => ({
       id_permiso: p.id_permiso,
-      nombre_permiso: p.nombre_permiso,
-      slug: toSlug(p.nombre_permiso)
+      clave_permiso: p.clave_permiso,
+      descripcion: p.descripcion || null,
+      slug: toSlug(p.clave_permiso)
     }));
 
     return {
       cargo,
-      permisos_cargo: permisosCargo.map((p) => p.nombre_permiso),
+      permisos_cargo: permisosCargo.map((p) => p.clave_permiso),
       permisos_cargo_ids: permisosCargo.map((p) => p.id_permiso)
     };
   } catch (error) {
@@ -139,16 +140,16 @@ router.post('/login', async (req, res) => {
         
         try {
           const sqlPermisos = `
-            SELECT p.id_permiso, p.nombre_permiso 
+            SELECT p.id_permiso, p.clave_permiso 
             FROM admin_permisos ap
             INNER JOIN permisos p ON ap.id_permiso = p.id_permiso
             WHERE REPLACE(REPLACE(REPLACE(ap.rut_admin, ".", ""), "-", ""), " ", "") = ?
-            ORDER BY p.nombre_permiso ASC
+            ORDER BY p.clave_permiso ASC
           `;
           const [permisosData] = await pool.execute(sqlPermisos, [rutLimpio]);
           
           if (permisosData && permisosData.length > 0) {
-            permisos = permisosData.map(p => p.nombre_permiso);
+            permisos = permisosData.map(p => p.clave_permiso);
           }
           
           console.log(`[AUTH] Permisos obtenidos para admin ${rutLimpio}:`, permisos);
@@ -171,7 +172,10 @@ router.post('/login', async (req, res) => {
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
-          permisos_totales: [...new Set([...(permisos || []), ...(contextoCargo.permisos_cargo || [])])],
+          permisos_totales: {
+            admin: [...new Set(permisos || [])],
+            cargo: [...new Set(contextoCargo.permisos_cargo || [])]
+          },
           redirect: '/gestionar.html',
           user: {
             rut: admin.rut || rutLimpio,
@@ -231,7 +235,10 @@ router.post('/login', async (req, res) => {
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
-          permisos_totales: [...new Set(contextoCargo.permisos_cargo || [])],
+          permisos_totales: {
+            admin: [],
+            cargo: [...new Set(contextoCargo.permisos_cargo || [])]
+          },
           redirect: '/index.html',
           user: {
             rut: user.rut || rutLimpio,

@@ -67,7 +67,7 @@
     <div class="informe-container">
         
         <!-- HEADER: Información General -->
-        <div class="card-section header-section">
+        <div class="card-section header-section" data-section-panel="antecedentes">
             <div class="input-group">
                 <label>Fecha</label>
                 <input type="date" id="input-fecha" value="2026-02-05" class="modern-input">
@@ -96,22 +96,22 @@
 
         <!-- TABS NAVIGATION -->
         <div class="tabs-header">
-            <button class="tab-btn active" onclick="abrirPestaña(event, 'tab-antecedentes')">
+            <button id="btn-tab-antecedentes" class="tab-btn active" data-section-tab="antecedentes" onclick="abrirPestaña(event, 'tab-antecedentes')">
                 <i class="fa-solid fa-file-lines"></i> Antecedentes
             </button>
-            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-operacion')">
+            <button id="btn-tab-operacion" class="tab-btn" data-section-tab="operacion" onclick="abrirPestaña(event, 'tab-operacion')">
                 <i class="fa-solid fa-gears"></i> Operación
             </button>
-            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-materiales')">
+            <button id="btn-tab-materiales" class="tab-btn" data-section-tab="materiales" onclick="abrirPestaña(event, 'tab-materiales')">
                 <i class="fa-solid fa-boxes"></i> Materiales
             </button>
-            <button class="tab-btn" onclick="abrirPestaña(event, 'tab-cierre')">
+            <button id="btn-tab-cierre" class="tab-btn" data-section-tab="cierre" onclick="abrirPestaña(event, 'tab-cierre')">
                 <i class="fa-solid fa-square-check"></i> Cierre
             </button>
         </div>
 
         <!-- TAB 1: ANTECEDENTES -->
-        <div id="tab-antecedentes" class="tab-content active">
+        <div id="tab-antecedentes" class="tab-content active" data-section-panel="antecedentes">
             <div class="grid-2-col">
                 <div class="card-section">
                     <h3 class="section-title">Antecedentes de Faena</h3>
@@ -223,7 +223,7 @@
 
         <!-- TAB 2: OPERACIÓN -->
         <div id="tab-operacion" class="tab-content">
-            <div class="card-section">
+            <div class="card-section" data-section-panel="operacion">
                 <h3 class="section-title">Perforación</h3>
                 <div class="table-responsive">
                     <table class="activity-table">
@@ -247,7 +247,7 @@
                 </button>
             </div>
 
-            <div class="card-section">
+            <div class="card-section" data-section-panel="actividades">
                 <h3 class="section-title">Descripción Actividades Realizadas</h3>
                 <div class="table-responsive">
                     <table class="activity-table">
@@ -272,7 +272,7 @@
         </div>
 
         <!-- TAB 3: MATERIALES Y HERRAMIENTAS -->
-        <div id="tab-materiales" class="tab-content">
+        <div id="tab-materiales" class="tab-content" data-section-panel="materiales">
             <div class="card-section">
                 <h3 class="section-title">Herramientas de Perforación</h3>
                 <div class="table-responsive">
@@ -299,7 +299,7 @@
         </div>
 
         <!-- TAB 4: CIERRE -->
-        <div id="tab-cierre" class="tab-content">
+        <div id="tab-cierre" class="tab-content" data-section-panel="cierre">
             <div class="card-section">
                 <h3 class="section-title">Notas / Observaciones</h3>
                 <textarea id="notas-observaciones" class="modern-input textarea-large" placeholder="Ingresa cualquier nota, observación o comentario importante sobre el turno..."></textarea>

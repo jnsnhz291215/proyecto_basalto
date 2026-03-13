@@ -483,6 +483,32 @@ function limpiarRUTServidor(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+async function verificarSuperAdminPorRut(rutSolicitante) {
+  const rutLimpio = limpiarRUTServidor(rutSolicitante);
+  if (!rutLimpio) {
+    return { ok: false, status: 401, message: 'Se requiere rut_solicitante' };
+  }
+
+  const [rows] = await pool.execute(
+    'SELECT es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+    [rutLimpio]
+  );
+
+  if (!rows || rows.length === 0) {
+    return { ok: false, status: 401, message: 'Administrador solicitante no encontrado' };
+  }
+
+  if (Number(rows[0].activo) === 0) {
+    return { ok: false, status: 403, message: 'La cuenta solicitante está inactiva' };
+  }
+
+  if (Number(rows[0].es_super_admin) !== 1) {
+    return { ok: false, status: 403, message: 'Solo un Superadministrador puede realizar eliminación física' };
+  }
+
+  return { ok: true, rutLimpio };
+}
+
 async function resolverIdGrupo(grupoInput) {
   const valor = String(grupoInput || '').trim();
   if (!valor) return null;
@@ -853,6 +879,11 @@ const handleEliminarTrabajador = async (req, res) => {
       return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
     }
     
+    const validacionSuperAdmin = await verificarSuperAdminPorRut(admin_rut || req.headers['rut_solicitante'] || req.query?.rut_solicitante);
+    if (!validacionSuperAdmin.ok) {
+      return res.status(validacionSuperAdmin.status).json({ error: validacionSuperAdmin.message });
+    }
+
     // Si se proporciona contraseña de admin, validarla
     if (admin_password) {
       // Validar que el admin existe y la contraseña es correcta
@@ -870,6 +901,10 @@ const handleEliminarTrabajador = async (req, res) => {
         if (String(user.password || '') !== String(admin_password)) {
           console.log(`[HARD DELETE FAIL] rut_worker=${rut} admin_rut=${rutNorm} reason=bad_password`);
           return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
+        }
+
+        if (Number(user.es_super_admin) !== 1) {
+          return res.status(403).json({ error: 'Solo un Superadministrador puede realizar eliminación física' });
         }
         
         // Contraseña válida - proceder con eliminación

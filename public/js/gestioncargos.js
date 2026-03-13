@@ -1,6 +1,20 @@
 (function() {
   'use strict';
 
+  const SECTION_KEYS = [
+    { key: 'antecedentes', label: 'Antecedentes' },
+    { key: 'operacion', label: 'Operación' },
+    { key: 'materiales', label: 'Materiales' },
+    { key: 'actividades', label: 'Actividades' },
+    { key: 'cierre', label: 'Cierre' }
+  ];
+
+  const ACCESS_LEVELS = [
+    { key: 'none', label: 'Sin acceso' },
+    { key: 'r', label: 'Solo lectura' },
+    { key: 'w', label: 'Escritura' }
+  ];
+
   const state = {
     cargos: [],
     permisos: [],
@@ -28,17 +42,24 @@
     el.notification.className = `notification show ${type}`;
     setTimeout(() => {
       el.notification.classList.remove('show');
-    }, 2500);
+    }, 3000);
+  }
+
+  function clearNotification() {
+    if (!el.notification) return;
+    el.notification.textContent = '';
+    el.notification.className = 'notification';
   }
 
   function sanitizeRut(rut) {
     return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
   }
 
-  function classifyPermiso(permiso) {
-    const txt = String(permiso?.nombre_permiso || '').toLowerCase();
-    const gestion = ['admin', 'trabajador', 'viaje', 'informe', 'editar', 'borrar', 'eliminar', 'gestionar', 'cargo'];
-    return gestion.some((w) => txt.includes(w)) ? 'gestion' : 'operacion';
+  function humanizeKey(clave) {
+    return String(clave || '')
+      .replace(/^inf_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   function buildHeaders() {
@@ -49,35 +70,33 @@
     };
   }
 
-  async function loadPermisos() {
-    try {
-      const res = await fetch('/api/permisos', { headers: buildHeaders() });
-      const data = await res.json();
-      if (res.ok && data?.success && Array.isArray(data.data)) {
-        state.permisos = data.data;
-        return;
-      }
-    } catch (_error) {}
+  function getSectionPermissionKey(section, level) {
+    if (level === 'none') return null;
+    return `inf_seccion_${section}_${level}`;
+  }
 
-    const fallback = [];
-    state.cargos.forEach((cargo) => {
-      (cargo.permisos || []).forEach((permiso) => {
-        if (!fallback.some((p) => p.id_permiso === permiso.id_permiso)) {
-          fallback.push({
-            id_permiso: permiso.id_permiso,
-            nombre_permiso: permiso.nombre_permiso,
-            descripcion: permiso.descripcion || ''
-          });
-        }
-      });
+  function getAuxiliaryOperationalPermissions() {
+    return state.permisos.filter((permiso) => {
+      const key = String(permiso.clave_permiso || '');
+      if (!key.startsWith('inf_')) return false;
+      if (/^inf_seccion_[a-z_]+_[rw]$/.test(key)) return false;
+      return true;
     });
+  }
 
-    state.permisos = fallback;
+  async function loadPermisos() {
+    const res = await fetch('/api/permisos', { headers: buildHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.success || !Array.isArray(data.data)) {
+      throw new Error(data?.message || 'No fue posible cargar los permisos');
+    }
+
+    state.permisos = data.data;
   }
 
   async function loadCargos() {
     const res = await fetch('/api/cargos');
-    const data = await res.json();
+    const data = await res.json().catch(() => ([]));
     if (!res.ok || !Array.isArray(data)) {
       throw new Error('No fue posible cargar los cargos');
     }
@@ -96,7 +115,7 @@
       const row = document.createElement('tr');
       const permisos = cargo.permisos || [];
       const chips = permisos.length
-        ? permisos.map((p) => `<span class="chip ${classifyPermiso(p)}">${p.nombre_permiso}</span>`).join('')
+        ? permisos.map((permiso) => `<span class="chip operacion">${humanizeKey(permiso.clave_permiso || permiso.nombre_permiso)}</span>`).join('')
         : '<span style="color:#6b7280">Sin permisos</span>';
 
       row.innerHTML = `
@@ -109,83 +128,140 @@
         </td>
       `;
 
-      row.querySelector('.btn-icon')?.addEventListener('click', () => {
-        openModal(cargo.id_cargo);
-      });
-
+      row.querySelector('.btn-icon')?.addEventListener('click', () => openModal(cargo.id_cargo));
       el.cargosBody.appendChild(row);
     });
   }
 
-  function selectedPermisos() {
-    return Array.from(document.querySelectorAll('input[name="cargo_permiso"]:checked'))
-      .map((node) => parseInt(node.value, 10))
-      .filter(Number.isInteger);
-  }
+  function renderAuxiliaryPermissions(selectedSet) {
+    const list = getAuxiliaryOperationalPermissions();
+    if (!el.permisosGestion) return;
 
-  function renderPermisosCheckboxes(selected = []) {
-    const selectedSet = new Set((selected || []).map((v) => Number(v)));
-    const grouped = {
-      gestion: state.permisos.filter((p) => classifyPermiso(p) === 'gestion'),
-      operacion: state.permisos.filter((p) => classifyPermiso(p) !== 'gestion')
-    };
-
-    function renderGroup(container, list) {
-      if (!container) return;
-      container.innerHTML = '';
-
-      list.forEach((permiso) => {
-        const id = `permiso-${permiso.id_permiso}`;
-        const checked = selectedSet.has(Number(permiso.id_permiso)) ? 'checked' : '';
-
-        const item = document.createElement('label');
-        item.className = 'perm-item';
-        item.setAttribute('for', id);
-        item.innerHTML = `
-          <input id="${id}" type="checkbox" name="cargo_permiso" value="${permiso.id_permiso}" ${checked}>
-          <span>
-            <strong>${permiso.nombre_permiso}</strong>
-            <small>${permiso.descripcion || 'Sin descripción'}</small>
-          </span>
-        `;
-        container.appendChild(item);
-      });
+    if (list.length === 0) {
+      el.permisosGestion.innerHTML = '<p style="margin:0;color:#6b7280;font-size:13px;">No hay permisos operativos adicionales configurados.</p>';
+      return;
     }
 
-    renderGroup(el.permisosGestion, grouped.gestion);
-    renderGroup(el.permisosOperacion, grouped.operacion);
+    el.permisosGestion.innerHTML = '';
+    list.forEach((permiso) => {
+      const id = `cargo-perm-${permiso.id_permiso}`;
+      const checked = selectedSet.has(Number(permiso.id_permiso)) ? 'checked' : '';
+      const item = document.createElement('label');
+      item.className = 'perm-item';
+      item.setAttribute('for', id);
+      item.innerHTML = `
+        <input id="${id}" type="checkbox" name="cargo_permiso_aux" value="${permiso.id_permiso}" ${checked}>
+        <span>
+          <strong>${humanizeKey(permiso.clave_permiso)}</strong>
+          <small>${permiso.descripcion || humanizeKey(permiso.clave_permiso)}</small>
+        </span>
+      `;
+      el.permisosGestion.appendChild(item);
+    });
+  }
+
+  function renderSectionMatrix(selectedSet) {
+    if (!el.permisosOperacion) return;
+    el.permisosOperacion.innerHTML = '';
+
+    SECTION_KEYS.forEach((section) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'perm-item';
+      wrap.style.display = 'block';
+
+      const title = document.createElement('div');
+      title.innerHTML = `<strong>${section.label}</strong><small style="display:block; margin-top:4px; color:#6b7280;">Define si la sección queda oculta, en solo lectura o con escritura.</small>`;
+      wrap.appendChild(title);
+
+      const radios = document.createElement('div');
+      radios.style.display = 'flex';
+      radios.style.gap = '12px';
+      radios.style.marginTop = '10px';
+      radios.style.flexWrap = 'wrap';
+
+      const selectedLevel = ACCESS_LEVELS.find((level) => {
+        const permissionKey = getSectionPermissionKey(section.key, level.key);
+        if (!permissionKey) return false;
+        const permiso = state.permisos.find((item) => item.clave_permiso === permissionKey);
+        return permiso ? selectedSet.has(Number(permiso.id_permiso)) : false;
+      })?.key || 'none';
+
+      ACCESS_LEVELS.forEach((level) => {
+        const radioId = `section-${section.key}-${level.key}`;
+        const checked = selectedLevel === level.key ? 'checked' : '';
+        const option = document.createElement('label');
+        option.style.display = 'inline-flex';
+        option.style.alignItems = 'center';
+        option.style.gap = '6px';
+        option.innerHTML = `
+          <input type="radio" id="${radioId}" name="section_${section.key}" value="${level.key}" ${checked}>
+          <span>${level.label}</span>
+        `;
+        radios.appendChild(option);
+      });
+
+      wrap.appendChild(radios);
+      el.permisosOperacion.appendChild(wrap);
+    });
+  }
+
+  function renderModal(cargo) {
+    const selectedSet = new Set((cargo?.id_permisos || []).map(Number));
+    el.cargoNombre.value = cargo?.nombre_cargo || '';
+    renderAuxiliaryPermissions(selectedSet);
+    renderSectionMatrix(selectedSet);
   }
 
   function openModal(cargoId = null) {
     state.editingCargoId = cargoId;
-    const cargo = cargoId ? state.cargos.find((c) => Number(c.id_cargo) === Number(cargoId)) : null;
-
+    clearNotification();
+    const cargo = cargoId ? state.cargos.find((item) => Number(item.id_cargo) === Number(cargoId)) : null;
     el.modalTitle.textContent = cargo ? 'Editar cargo' : 'Nuevo cargo';
-    el.cargoNombre.value = cargo?.nombre_cargo || '';
-    renderPermisosCheckboxes((cargo?.id_permisos || []).map(Number));
-
+    renderModal(cargo || null);
     el.modal.classList.add('show');
     el.modal.setAttribute('aria-hidden', 'false');
   }
 
   function closeModal() {
     state.editingCargoId = null;
+    el.cargoNombre.value = '';
+    if (el.permisosGestion) el.permisosGestion.innerHTML = '';
+    if (el.permisosOperacion) el.permisosOperacion.innerHTML = '';
+    clearNotification();
     el.modal.classList.remove('show');
     el.modal.setAttribute('aria-hidden', 'true');
   }
 
+  function collectSelectedPermissionIds() {
+    const ids = new Set(
+      Array.from(document.querySelectorAll('input[name="cargo_permiso_aux"]:checked'))
+        .map((node) => parseInt(node.value, 10))
+        .filter(Number.isInteger)
+    );
+
+    SECTION_KEYS.forEach((section) => {
+      const selected = document.querySelector(`input[name="section_${section.key}"]:checked`);
+      const level = selected?.value || 'none';
+      const permissionKey = getSectionPermissionKey(section.key, level);
+      if (!permissionKey) return;
+
+      const permiso = state.permisos.find((item) => item.clave_permiso === permissionKey);
+      if (permiso) ids.add(Number(permiso.id_permiso));
+    });
+
+    return Array.from(ids);
+  }
+
   async function saveCargo() {
     const nombre = String(el.cargoNombre.value || '').trim();
-    const id_permisos = selectedPermisos();
-
     if (!nombre) {
-      notify('Debes ingresar el nombre del cargo', 'error');
+      notify('No se puede guardar un cargo sin nombre', 'error');
       return;
     }
 
     const payload = {
       nombre_cargo: nombre,
-      id_permisos,
+      id_permisos: collectSelectedPermissionIds(),
       ...(state.editingCargoId ? { id_cargo: state.editingCargoId } : {})
     };
 
@@ -207,9 +283,8 @@
       notify('Cargo guardado exitosamente', 'success');
       closeModal();
       await loadCargos();
-      await loadPermisos();
     } catch (error) {
-      notify(error.message || 'No se pudo guardar', 'error');
+      notify(error.message || 'No se pudo guardar el cargo', 'error');
     } finally {
       el.saveModal.disabled = false;
       el.saveModal.textContent = 'Guardar Cargo';
@@ -222,7 +297,7 @@
       notify('Solo Super Administradores pueden gestionar cargos', 'error');
       setTimeout(() => {
         window.location.href = '/gestionar.html';
-      }, 1000);
+      }, 1200);
       return false;
     }
     return true;
@@ -232,8 +307,8 @@
     if (!verificarAcceso()) return;
 
     try {
-      await loadCargos();
       await loadPermisos();
+      await loadCargos();
     } catch (error) {
       notify(error.message || 'Error inicializando la vista', 'error');
     }
@@ -242,7 +317,6 @@
     el.closeModal?.addEventListener('click', closeModal);
     el.cancelModal?.addEventListener('click', closeModal);
     el.saveModal?.addEventListener('click', saveCargo);
-
     el.modal?.addEventListener('click', (ev) => {
       if (ev.target === el.modal) closeModal();
     });

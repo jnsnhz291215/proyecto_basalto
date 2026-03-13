@@ -13,14 +13,19 @@
   let currentAdminRut = null;
   let currentAdminPermisos = [];
   let pageInitialized = false;
-  const clavesPermitidas = [
-    'trabajadores_ver',
-    'trabajadores_editar',
-    'trabajadores_borrar',
-    'viajes_admin',
-    'informes_ver',
-    'informes_editar',
-    'informes_cerrar'
+  const matrizPermisosAdmin = [
+    {
+      modulo: 'Trabajadores',
+      items: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete']
+    },
+    {
+      modulo: 'Viajes',
+      items: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete']
+    },
+    {
+      modulo: 'Informes de gestión',
+      items: ['informes_ver', 'informes_editar', 'informes_soft_delete']
+    }
   ];
 
   const userRut = localStorage.getItem('user_rut');
@@ -224,6 +229,12 @@
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  function obtenerOrdenClave(clave) {
+    const orden = matrizPermisosAdmin.flatMap((grupo) => grupo.items);
+    const index = orden.indexOf(clave);
+    return index === -1 ? 999 : index;
+  }
+
   // ============================================
   // CARGAR LISTA DE ADMINISTRADORES
   // ============================================
@@ -406,9 +417,10 @@
 
       const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
+      const clavesPermitidas = matrizPermisosAdmin.flatMap((grupo) => grupo.items);
       permisosDisponibles = (result.data || [])
         .filter((permiso) => clavesPermitidas.includes(permiso.clave_permiso))
-        .sort((a, b) => clavesPermitidas.indexOf(a.clave_permiso) - clavesPermitidas.indexOf(b.clave_permiso));
+        .sort((a, b) => obtenerOrdenClave(a.clave_permiso) - obtenerOrdenClave(b.clave_permiso));
       permisosLoadingState.style.display = 'none';
       permissionsContainer.style.display = 'block';
 
@@ -425,55 +437,70 @@
   function renderPermisosCheckboxes() {
     permissionsList.innerHTML = '';
 
-    permisosDisponibles.forEach((permiso) => {
-      const isChecked = currentAdminPermisos.includes(String(permiso.id_permiso));
+    matrizPermisosAdmin.forEach((grupo) => {
+      const groupWrap = document.createElement('div');
+      groupWrap.style.marginBottom = '14px';
 
-      const permissionDiv = document.createElement('div');
-      permissionDiv.className = 'permission-item';
+      const groupTitle = document.createElement('div');
+      groupTitle.textContent = grupo.modulo;
+      groupTitle.style.fontWeight = '700';
+      groupTitle.style.fontSize = '13px';
+      groupTitle.style.color = '#374151';
+      groupTitle.style.marginBottom = '8px';
+      groupWrap.appendChild(groupTitle);
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.id = `permiso-${permiso.id_permiso}`;
-      checkbox.value = permiso.id_permiso;
-      checkbox.checked = isChecked;
-      checkbox.dataset.permisoId = permiso.id_permiso;
-      checkbox.style.display = 'none';
+      grupo.items.forEach((clave) => {
+        const permiso = permisosDisponibles.find((item) => item.clave_permiso === clave);
+        if (!permiso) return;
 
-      const switchLabel = document.createElement('label');
-      switchLabel.className = 'switch';
-      switchLabel.htmlFor = `permiso-${permiso.id_permiso}`;
+        const isChecked = currentAdminPermisos.includes(String(permiso.id_permiso));
+        const permissionDiv = document.createElement('div');
+        permissionDiv.className = 'permission-item';
 
-      const slider = document.createElement('span');
-      slider.className = 'slider';
-      switchLabel.appendChild(checkbox);
-      switchLabel.appendChild(slider);
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `permiso-${permiso.id_permiso}`;
+        checkbox.value = permiso.id_permiso;
+        checkbox.checked = isChecked;
+        checkbox.dataset.permisoId = permiso.id_permiso;
+        checkbox.style.display = 'none';
 
-      const label = document.createElement('label');
-      label.className = 'permission-label';
-      label.htmlFor = `permiso-${permiso.id_permiso}`;
+        const switchLabel = document.createElement('label');
+        switchLabel.className = 'switch';
+        switchLabel.htmlFor = `permiso-${permiso.id_permiso}`;
 
-      const nameDiv = document.createElement('div');
-      nameDiv.className = 'permission-name';
-      nameDiv.textContent = permiso.clave_permiso;
+        const slider = document.createElement('span');
+        slider.className = 'slider';
+        switchLabel.appendChild(checkbox);
+        switchLabel.appendChild(slider);
 
-      const descDiv = document.createElement('div');
-      descDiv.className = 'permission-description';
-      descDiv.textContent = permiso.descripcion || humanizarClavePermiso(permiso.clave_permiso);
+        const label = document.createElement('label');
+        label.className = 'permission-label';
+        label.htmlFor = `permiso-${permiso.id_permiso}`;
 
-      label.appendChild(nameDiv);
-      label.appendChild(descDiv);
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'permission-name';
+        nameDiv.textContent = humanizarClavePermiso(clave);
 
-      permissionDiv.appendChild(switchLabel);
-      permissionDiv.appendChild(label);
+        const descDiv = document.createElement('div');
+        descDiv.className = 'permission-description';
+        descDiv.textContent = permiso.descripcion || humanizarClavePermiso(clave);
 
-      // Click en todo el div para toggle del checkbox
-      permissionDiv.addEventListener('click', (e) => {
-        if (e.target !== checkbox) {
-          checkbox.checked = !checkbox.checked;
-        }
+        label.appendChild(nameDiv);
+        label.appendChild(descDiv);
+        permissionDiv.appendChild(switchLabel);
+        permissionDiv.appendChild(label);
+
+        permissionDiv.addEventListener('click', (e) => {
+          if (e.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+          }
+        });
+
+        groupWrap.appendChild(permissionDiv);
       });
 
-      permissionsList.appendChild(permissionDiv);
+      permissionsList.appendChild(groupWrap);
     });
   }
 

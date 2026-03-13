@@ -1,11 +1,12 @@
 const InformeTurno = (() => {
+  const SECTION_KEYS = ['antecedentes', 'operacion', 'materiales', 'actividades', 'cierre'];
+
   const state = {
     role: localStorage.getItem('user_role') || '',
     userRut: localStorage.getItem('user_rut') || '',
     userName: localStorage.getItem('user_name') || '',
     cargoName: localStorage.getItem('user_cargo_name') || '',
     permisosCargo: parseJSONArray('user_permissions_cargo'),
-    permisosTotal: parseJSONArray('user_permissions_total'),
     locked: false,
     mode: 'default' // default | supervisor | operador_faena | operador_maquina
   };
@@ -28,17 +29,27 @@ const InformeTurno = (() => {
       .replace(/^_+|_+$/g, '');
   }
 
-  function allPerms() {
-    return new Set([...state.permisosCargo, ...state.permisosTotal].map(normalizePerm).filter(Boolean));
+  function cargoPermSet() {
+    return new Set((state.permisosCargo || []).map(normalizePerm).filter(Boolean));
   }
 
-  function hasPermission(alias) {
-    if (typeof window.hasPermission === 'function') return window.hasPermission(alias);
-    const perms = allPerms();
-    if (perms.size === 0) return true;
+  function hasCargoPermission(key) {
+    if (typeof window.hasCargoPermission === 'function') return !!window.hasCargoPermission(key);
+    return cargoPermSet().has(normalizePerm(key));
+  }
 
-    const target = normalizePerm(alias);
-    return Array.from(perms).some((p) => p === target || p.includes(target) || target.includes(p));
+  function sectionAccess(sectionKey) {
+    if (hasCargoPermission(`inf_seccion_${sectionKey}_w`)) return 'w';
+    if (hasCargoPermission(`inf_seccion_${sectionKey}_r`)) return 'r';
+    return 'none';
+  }
+
+  function sectionWritable(sectionKey) {
+    return sectionAccess(sectionKey) === 'w';
+  }
+
+  function sectionReadable(sectionKey) {
+    return sectionAccess(sectionKey) !== 'none';
   }
 
   function detectModeByCargo() {
@@ -123,33 +134,57 @@ const InformeTurno = (() => {
     const operadorInput = document.getElementById('input-operador');
     const group = operadorInput?.closest('.input-group');
     const label = group?.querySelector('label');
-    if (label) label.textContent = 'Responsable';
+    if (label) label.textContent = 'Responsable de Turno';
   }
 
-  function updateTabVisibility() {
-    const rules = {
-      'tab-antecedentes': 'crear_informe_turno',
-      'tab-operacion': 'editar_informe_propio',
-      'tab-materiales': 'editar_informe_propio',
-      'tab-cierre': 'cerrar_turno'
-    };
-
-    const buttons = document.querySelectorAll('.tabs-header .tab-btn');
-    buttons.forEach((btn) => {
-      const onclick = btn.getAttribute('onclick') || '';
-      const match = onclick.match(/'([^']+)'/);
-      const tabId = match ? match[1] : null;
-      const needed = tabId ? rules[tabId] : null;
-      if (!needed) return;
-
-      if (!hasPermission(needed) && state.role !== 'admin') {
-        btn.style.display = 'none';
-        const panel = document.getElementById(tabId);
-        if (panel) panel.style.display = 'none';
-      }
+  function setSectionReadOnly(sectionKey, readOnly) {
+    const panels = document.querySelectorAll(`[data-section-panel="${sectionKey}"]`);
+    panels.forEach((panel) => {
+      panel.querySelectorAll('input, select, textarea, button').forEach((node) => {
+        if (node.closest('.tabs-header') || node.closest('.action-bar')) return;
+        if (readOnly) node.setAttribute('disabled', 'disabled');
+        else node.removeAttribute('disabled');
+      });
     });
+  }
 
-    const visibleBtn = Array.from(buttons).find((b) => b.style.display !== 'none');
+  function updateSectionsByCargoPermissions() {
+    const btnAntecedentes = document.getElementById('btn-tab-antecedentes');
+    const btnOperacion = document.getElementById('btn-tab-operacion');
+    const btnMateriales = document.getElementById('btn-tab-materiales');
+    const btnCierre = document.getElementById('btn-tab-cierre');
+
+    const tabAntecedentes = document.getElementById('tab-antecedentes');
+    const tabOperacion = document.getElementById('tab-operacion');
+    const tabMateriales = document.getElementById('tab-materiales');
+    const tabCierre = document.getElementById('tab-cierre');
+
+    const accesoAntecedentes = sectionAccess('antecedentes');
+    const accesoOperacion = sectionAccess('operacion');
+    const accesoActividades = sectionAccess('actividades');
+    const accesoMateriales = sectionAccess('materiales');
+    const accesoCierre = sectionAccess('cierre');
+
+    if (btnAntecedentes) btnAntecedentes.style.display = accesoAntecedentes === 'none' ? 'none' : '';
+    if (tabAntecedentes) tabAntecedentes.style.display = accesoAntecedentes === 'none' ? 'none' : '';
+
+    const mostrarOperacionTab = (accesoOperacion !== 'none') || (accesoActividades !== 'none');
+    if (btnOperacion) btnOperacion.style.display = mostrarOperacionTab ? '' : 'none';
+    if (tabOperacion) tabOperacion.style.display = mostrarOperacionTab ? '' : 'none';
+
+    if (btnMateriales) btnMateriales.style.display = accesoMateriales === 'none' ? 'none' : '';
+    if (tabMateriales) tabMateriales.style.display = accesoMateriales === 'none' ? 'none' : '';
+
+    if (btnCierre) btnCierre.style.display = accesoCierre === 'none' ? 'none' : '';
+    if (tabCierre) tabCierre.style.display = accesoCierre === 'none' ? 'none' : '';
+
+    setSectionReadOnly('antecedentes', accesoAntecedentes !== 'w');
+    setSectionReadOnly('operacion', accesoOperacion !== 'w');
+    setSectionReadOnly('actividades', accesoActividades !== 'w');
+    setSectionReadOnly('materiales', accesoMateriales !== 'w');
+    setSectionReadOnly('cierre', accesoCierre !== 'w');
+
+    const visibleBtn = [btnAntecedentes, btnOperacion, btnMateriales, btnCierre].find((btn) => btn && btn.style.display !== 'none');
     if (visibleBtn && !visibleBtn.classList.contains('active')) visibleBtn.click();
   }
 
@@ -164,6 +199,14 @@ const InformeTurno = (() => {
 
     const btnFinalizar = document.getElementById('btn-finalizar-turno');
 
+    const canCloseTurno = sectionWritable('cierre') || hasCargoPermission('cerrar_turno') || hasCargoPermission('inf_cerrar_turno');
+    if (canCloseTurno) {
+      setResponsableLabel();
+      if (btnFinalizar) btnFinalizar.removeAttribute('disabled');
+    } else if (btnFinalizar) {
+      btnFinalizar.setAttribute('disabled', 'disabled');
+    }
+
     if (state.mode === 'supervisor') {
       setFormReadOnly(true);
       if (btnFinalizar) btnFinalizar.setAttribute('disabled', 'disabled');
@@ -171,13 +214,12 @@ const InformeTurno = (() => {
 
     if (state.mode === 'operador_faena') {
       habilitarSelectoresPersonal();
-      if (btnFinalizar && !hasPermission('cerrar_turno')) btnFinalizar.setAttribute('disabled', 'disabled');
+      if (btnFinalizar && !canCloseTurno) btnFinalizar.setAttribute('disabled', 'disabled');
     }
 
     if (state.mode === 'operador_maquina') {
-      setResponsableLabel();
       habilitarSelectoresPersonal();
-      if (btnFinalizar) btnFinalizar.removeAttribute('disabled');
+      if (btnFinalizar && canCloseTurno) btnFinalizar.removeAttribute('disabled');
     }
 
     if (state.locked) {
@@ -186,7 +228,7 @@ const InformeTurno = (() => {
       alert('Este turno ya fue finalizado y bloqueado para futuras ediciones.');
     }
 
-    updateTabVisibility();
+    updateSectionsByCargoPermissions();
   }
 
   function collectTableData() {
@@ -357,7 +399,8 @@ const InformeTurno = (() => {
 
     document.getElementById('btn-finalizar-turno')?.addEventListener('click', (e) => {
       e.preventDefault();
-      if (!hasPermission('cerrar_turno') && state.role !== 'admin') {
+      const canCloseTurno = sectionWritable('cierre') || hasCargoPermission('cerrar_turno') || hasCargoPermission('inf_cerrar_turno');
+      if (!canCloseTurno) {
         alert('No tiene permisos para cerrar turno.');
         return;
       }

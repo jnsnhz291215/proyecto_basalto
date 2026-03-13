@@ -271,8 +271,8 @@ function render() {
   const list = getFiltrados();
   if (!el.accordionTrabajadores) return;
 
-  const canEditWorker = window.hasPermission ? window.hasPermission('editar_trabajadores') : true;
-  const canDeleteWorker = window.hasPermission ? window.hasPermission('borrar_trabajadores') : true;
+  const canEditWorker = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_editar') : true;
+  const canDeleteWorker = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_soft_delete') : true;
 
   el.accordionTrabajadores.innerHTML = '';
 
@@ -1499,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) {
-    const canCreateWorkers = window.hasPermission ? window.hasPermission('gestionar_trabajadores') : true;
+    const canCreateWorkers = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_editar') : true;
     if (canCreateWorkers) {
       btnAgregar.addEventListener('click', abrirAgregar);
     } else {

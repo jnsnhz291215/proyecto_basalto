@@ -16,8 +16,8 @@ function dedupeNumberArray(values) {
   return [...new Set(values.map(v => parseInt(v, 10)).filter(Number.isInteger))];
 }
 
-function clasificarPermiso(nombrePermiso) {
-  const slug = toSlug(nombrePermiso);
+function clasificarPermiso(clavePermiso) {
+  const slug = toSlug(clavePermiso);
   const gestionKeywords = [
     'admin', 'trabajador', 'trabajadores', 'viaje', 'viajes', 'informe', 'informes',
     'gestion', 'gestionar', 'crear', 'editar', 'borrar', 'eliminar', 'estado', 'cargo', 'cargos'
@@ -28,20 +28,20 @@ function clasificarPermiso(nombrePermiso) {
 
 async function obtenerPermisosPorCargo(connection, idCargo) {
   const sql = `
-    SELECT p.id_permiso, p.nombre_permiso, p.descripcion
+    SELECT p.id_permiso, p.clave_permiso, p.descripcion
     FROM cargo_permisos cp
     INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
     WHERE cp.id_cargo = ?
-    ORDER BY p.nombre_permiso ASC
+    ORDER BY p.clave_permiso ASC
   `;
 
   const [rows] = await connection.execute(sql, [idCargo]);
   return rows.map((permiso) => ({
     id_permiso: permiso.id_permiso,
-    nombre_permiso: permiso.nombre_permiso,
+    clave_permiso: permiso.clave_permiso,
     descripcion: permiso.descripcion || null,
-    slug: toSlug(permiso.nombre_permiso),
-    categoria: clasificarPermiso(permiso.nombre_permiso)
+    slug: toSlug(permiso.clave_permiso),
+    categoria: clasificarPermiso(permiso.clave_permiso)
   }));
 }
 
@@ -55,11 +55,11 @@ router.get('/cargos', async (_req, res) => {
     );
 
     const [relacionesRows] = await pool.execute(`
-      SELECT c.id_cargo, p.id_permiso, p.nombre_permiso, p.descripcion
+      SELECT c.id_cargo, p.id_permiso, p.clave_permiso, p.descripcion
       FROM cargos c
       LEFT JOIN cargo_permisos cp ON cp.id_cargo = c.id_cargo
       LEFT JOIN permisos p ON p.id_permiso = cp.id_permiso
-      ORDER BY c.nombre_cargo ASC, p.nombre_permiso ASC
+      ORDER BY c.nombre_cargo ASC, p.clave_permiso ASC
     `);
 
     const permisosPorCargo = new Map();
@@ -73,10 +73,10 @@ router.get('/cargos', async (_req, res) => {
       if (row.id_permiso) {
         permisosPorCargo.get(row.id_cargo).push({
           id_permiso: row.id_permiso,
-          nombre_permiso: row.nombre_permiso,
+          clave_permiso: row.clave_permiso,
           descripcion: row.descripcion || null,
-          slug: toSlug(row.nombre_permiso),
-          categoria: clasificarPermiso(row.nombre_permiso)
+          slug: toSlug(row.clave_permiso),
+          categoria: clasificarPermiso(row.clave_permiso)
         });
       }
     });
