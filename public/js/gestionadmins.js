@@ -12,6 +12,7 @@
   let permisosDisponibles = [];
   let currentAdminRut = null;
   let currentAdminPermisos = [];
+  let pageInitialized = false;
 
   const userRut = localStorage.getItem('user_rut');
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
@@ -85,6 +86,76 @@
     return `${defaultMessage}${status ? ` (HTTP ${status})` : ''}`;
   }
 
+  async function parseApiResponse(response, defaultMessage, contextLabel) {
+    let payload = null;
+    let rawText = '';
+
+    try {
+      rawText = await response.text();
+      payload = rawText ? JSON.parse(rawText) : null;
+    } catch (_error) {
+      payload = null;
+    }
+
+    if (!response.ok || !payload?.success) {
+      const backendMessage = payload?.message || rawText || defaultMessage;
+      console.error(`[GESTIONADMINS] ${contextLabel}:`, {
+        status: response.status,
+        message: backendMessage,
+        payload
+      });
+
+      throw new Error(obtenerMensajeError(defaultMessage, response.status, payload || { message: backendMessage }));
+    }
+
+    return payload;
+  }
+
+  function getRutSolicitante() {
+    return sanitizarRUT(localStorage.getItem('user_rut'));
+  }
+
+  function buildApiUrl(path, includeRutQuery = false) {
+    const url = new URL(path, window.location.origin);
+    const rutSolicitante = getRutSolicitante();
+
+    if (includeRutQuery && rutSolicitante) {
+      url.searchParams.set('rut_solicitante', rutSolicitante);
+    }
+
+    return url.toString();
+  }
+
+  function buildRequestHeaders(extraHeaders = {}) {
+    const rutSolicitante = getRutSolicitante();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(rutSolicitante ? { rut_solicitante: rutSolicitante } : {}),
+      ...extraHeaders
+    };
+  }
+
+  function waitForNavbarReady() {
+    return new Promise((resolve) => {
+      if (window.__basaltoMenuReady || document.getElementById('nav-gestionar-parent')) {
+        resolve();
+        return;
+      }
+
+      const onMenuReady = () => {
+        window.removeEventListener('basalto:menu-ready', onMenuReady);
+        resolve();
+      };
+
+      window.addEventListener('basalto:menu-ready', onMenuReady);
+      setTimeout(() => {
+        window.removeEventListener('basalto:menu-ready', onMenuReady);
+        resolve();
+      }, 1500);
+    });
+  }
+
   function sanitizarRUT(rut) {
     return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
   }
@@ -142,26 +213,16 @@
       adminsTable.style.display = 'none';
       tableEmptyState.style.display = 'none';
 
-      const response = await fetch('/api/admins', {
+      const rutSolicitante = getRutSolicitante();
+      const response = await fetch(buildApiUrl('/api/admins', true), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'rut_solicitante': userRut
-        }
+        headers: buildRequestHeaders()
       });
 
-      let result = null;
-      try {
-        result = await response.json();
-      } catch (_e) {
-        result = null;
-      }
-
-      if (!response.ok || !result?.success) {
-        throw new Error(obtenerMensajeError('Error al cargar administradores', response.status, result));
-      }
+      const result = await parseApiResponse(response, 'Error al cargar administradores', 'Error cargando admins');
 
       adminsData = result.data;
+      console.log('[GESTIONADMINS] Administradores cargados con rut_solicitante:', rutSolicitante);
       renderAdminsTable();
       tableLoadingState.style.display = 'none';
 
@@ -265,26 +326,15 @@
   async function updateAdminEstado(rutAdmin, activo) {
     const response = await fetch('/api/admins/estado', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: buildRequestHeaders(),
       body: JSON.stringify({
         rut_admin: rutAdmin,
         activo,
-        rut_solicitante: userRut
+        rut_solicitante: getRutSolicitante()
       })
     });
 
-    let result = null;
-    try {
-      result = await response.json();
-    } catch (_e) {
-      result = null;
-    }
-
-    if (!response.ok || !result?.success) {
-      throw new Error(obtenerMensajeError('Error al actualizar estado', response.status, result));
-    }
+    const result = await parseApiResponse(response, 'Error al actualizar estado', 'Error actualizando estado');
 
     showNotification(result.message || 'Estado actualizado', 'success');
     await loadAdmins();
@@ -325,22 +375,10 @@
 
       const response = await fetch('/api/permisos', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'rut_solicitante': userRut
-        }
+        headers: buildRequestHeaders()
       });
 
-      let result = null;
-      try {
-        result = await response.json();
-      } catch (_e) {
-        result = null;
-      }
-
-      if (!response.ok || !result?.success) {
-        throw new Error(obtenerMensajeError('Error al cargar permisos', response.status, result));
-      }
+      const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
       permisosDisponibles = result.data;
       permisosLoadingState.style.display = 'none';
@@ -415,26 +453,15 @@
 
       const response = await fetch('/api/admins/permisos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: buildRequestHeaders(),
         body: JSON.stringify({
           rut_admin: currentAdminRut,
-          rut_solicitante: userRut,
+          rut_solicitante: getRutSolicitante(),
           id_permisos: selectedPermissions
         })
       });
 
-      let result = null;
-      try {
-        result = await response.json();
-      } catch (_e) {
-        result = null;
-      }
-
-      if (!response.ok || !result?.success) {
-        throw new Error(obtenerMensajeError('Error al guardar permisos', response.status, result));
-      }
+      const result = await parseApiResponse(response, 'Error al guardar permisos', 'Error guardando permisos');
 
       showNotification('Permisos actualizados exitosamente', 'success');
       closePermisosModal();
@@ -507,9 +534,7 @@
     try {
       const response = await fetch('/api/admins/crear', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: buildRequestHeaders(),
         body: JSON.stringify({
           rut: sanitizarRUT(rutOriginal),
           nombres,
@@ -518,20 +543,11 @@
           email,
           password,
           es_super_admin: esSuperAdminNuevo,
-          rut_solicitante: userRut
+          rut_solicitante: getRutSolicitante()
         })
       });
 
-      let result = null;
-      try {
-        result = await response.json();
-      } catch (_e) {
-        result = null;
-      }
-
-      if (!response.ok || !result?.success) {
-        throw new Error(obtenerMensajeError('Error al crear administrador', response.status, result));
-      }
+      const result = await parseApiResponse(response, 'Error al crear administrador', 'Error creando admin');
 
       showNotification('Administrador creado exitosamente', 'success');
       closeCreateModal();
@@ -545,14 +561,15 @@
     }
   }
 
-  // ============================================
-  // EVENT LISTENERS
-  // ============================================
-  document.addEventListener('DOMContentLoaded', () => {
-    // Verificar acceso
+  async function initPage() {
+    if (pageInitialized) return;
+    pageInitialized = true;
+
     if (!verificarAcceso()) {
       return;
     }
+
+    await waitForNavbarReady();
 
     if (adminRutInput) {
       adminRutInput.addEventListener('blur', () => {
@@ -560,15 +577,12 @@
       });
     }
 
-    // Cargar administradores
-    loadAdmins();
+    await loadAdmins();
 
-    // Botones del modal
     btnCloseModal.addEventListener('click', closePermisosModal);
     btnCancelModal.addEventListener('click', closePermisosModal);
     btnSavePermissions.addEventListener('click', savePermissions);
 
-    // Cerrar modal al clickear fuera del contenido
     permisosModal.addEventListener('click', (e) => {
       if (e.target === permisosModal) {
         closePermisosModal();
@@ -585,6 +599,16 @@
       if (e.target === crearAdminModal) {
         closeCreateModal();
       }
+    });
+  }
+
+  // ============================================
+  // EVENT LISTENERS
+  // ============================================
+  document.addEventListener('DOMContentLoaded', () => {
+    initPage().catch((error) => {
+      console.error('[GESTIONADMINS] Error inicializando página:', error);
+      showNotification(error.message || 'No se pudo inicializar la página', 'error');
     });
   });
 

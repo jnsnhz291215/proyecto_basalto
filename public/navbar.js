@@ -149,6 +149,7 @@
 
     if (renderAdminLink()) {
       navbarInitialized = true;
+      window.__basaltoMenuReady = true;
       stopMenuObserver();
       syncNavbarAfterRender();
       window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
