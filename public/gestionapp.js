@@ -11,6 +11,7 @@ const el = {
   formLogin: null,
   accordionTrabajadores: null,
   sinTrabajadores: null,
+  permissionBanner: null,
   inputBuscar: null,
   selectGrupo: null,
   selectCargo: null,
@@ -273,6 +274,10 @@ function render() {
 
   const canEditWorker = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_editar') : true;
   const canDeleteWorker = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_soft_delete') : true;
+
+  if (el.permissionBanner) {
+    el.permissionBanner.classList.toggle('visible', !canEditWorker && !canDeleteWorker);
+  }
 
   el.accordionTrabajadores.innerHTML = '';
 
@@ -1457,6 +1462,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Referencias a elementos del DOM
   el.accordionTrabajadores = document.getElementById('accordion-trabajadores');
   el.sinTrabajadores = document.getElementById('sin-trabajadores');
+  el.permissionBanner = document.getElementById('trabajadores-permission-banner');
   el.inputBuscar = document.getElementById('input-buscar');
   el.selectGrupo = document.getElementById('filtro-grupo');
   el.selectCargo = document.getElementById('filtro-cargo');
@@ -2102,12 +2108,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Abrir modal de configuración
   if (btnConfigCiclos) {
-    btnConfigCiclos.addEventListener('click', () => {
-      cargarConfigCiclos();
-      if (modalConfigCiclos) {
-        modalConfigCiclos.style.display = 'flex';
-      }
-    });
+    const canManageWorkers = window.hasAdminPermission ? window.hasAdminPermission('trabajadores_editar') : true;
+    if (canManageWorkers) {
+      btnConfigCiclos.addEventListener('click', () => {
+        cargarConfigCiclos();
+        if (modalConfigCiclos) {
+          modalConfigCiclos.style.display = 'flex';
+        }
+      });
+    } else {
+      btnConfigCiclos.style.display = 'none';
+    }
   }
 
   // Cerrar modal

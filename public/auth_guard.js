@@ -52,17 +52,25 @@
   const hasAnyCargoPermissionData = permisosCargoNormalizados.size > 0;
 
   const permissionAliases = {
-    gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores'],
+    gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores', 'admin_trabajadores_v'],
     editar_trabajadores: ['trabajadores_editar', 'editar_trabajadores', 'modificar_trabajadores'],
-    borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores'],
-    gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes'],
-    gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes'],
+    borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores', 'admin_softdelete'],
+    gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes', 'admin_viajes_v'],
+    gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes', 'admin_informes_v'],
     crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno'],
     editar_informe_propio: ['editar_informe_propio', 'editar_informes'],
     cerrar_turno: ['cerrar_turno', 'finalizar_turno'],
     ver_historial: ['ver_historial', 'historial'],
     gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos']
   };
+
+  function hasAdminModuleView(moduleKey) {
+    return permisosAdminNormalizados.has(normalizePermissionName(moduleKey));
+  }
+
+  function hasAdminSoftDeleteFlag() {
+    return permisosAdminNormalizados.has('admin_softdelete');
+  }
 
   function matchesPermission(permisosSet, permissionKey) {
     const target = normalizePermissionName(permissionKey);
@@ -82,6 +90,27 @@
     if (!userRole) return false;
     if (isSuperAdmin) return true;
     if (!hasAnyAdminPermissionData) return userRole === 'admin';
+
+    const normalized = normalizePermissionName(permissionKey);
+    if (['trabajadores_editar', 'trabajadores_soft_delete', 'borrar_trabajadores'].includes(normalized)) {
+      return hasAdminModuleView('admin_trabajadores_v') && hasAdminSoftDeleteFlag();
+    }
+    if (['viajes_editar', 'viajes_soft_delete'].includes(normalized)) {
+      return hasAdminModuleView('admin_viajes_v') && hasAdminSoftDeleteFlag();
+    }
+    if (['informes_editar', 'informes_soft_delete'].includes(normalized)) {
+      return hasAdminModuleView('admin_informes_v') && hasAdminSoftDeleteFlag();
+    }
+    if (['trabajadores_ver', 'gestionar_trabajadores'].includes(normalized)) {
+      return hasAdminModuleView('admin_trabajadores_v');
+    }
+    if (['viajes_ver', 'gestionar_viajes'].includes(normalized)) {
+      return hasAdminModuleView('admin_viajes_v');
+    }
+    if (['informes_ver', 'gestionar_informes'].includes(normalized)) {
+      return hasAdminModuleView('admin_informes_v');
+    }
+
     return matchesPermission(permisosAdminNormalizados, permissionKey);
   }
 

@@ -13,20 +13,12 @@
   let currentAdminRut = null;
   let currentAdminPermisos = [];
   let pageInitialized = false;
-  const matrizPermisosAdmin = [
-    {
-      modulo: 'Trabajadores',
-      items: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete']
-    },
-    {
-      modulo: 'Viajes',
-      items: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete']
-    },
-    {
-      modulo: 'Informes de gestión',
-      items: ['informes_ver', 'informes_editar', 'informes_soft_delete']
-    }
+  const ADMIN_VIEW_MODULES = [
+    { label: 'Trabajadores', key: 'admin_trabajadores_v' },
+    { label: 'Viajes', key: 'admin_viajes_v' },
+    { label: 'Informes de Gestión', key: 'admin_informes_v' }
   ];
+  const ADMIN_SOFTDELETE_KEY = 'admin_softdelete';
 
   const userRut = localStorage.getItem('user_rut');
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
@@ -57,7 +49,6 @@
   const adminApellidoPaternoInput = document.getElementById('adminApellidoPaterno');
   const adminApellidoMaternoInput = document.getElementById('adminApellidoMaterno');
   const adminEmailInput = document.getElementById('adminEmail');
-  const adminPasswordInput = document.getElementById('adminPassword');
   
   const notification = document.getElementById('notification');
   const infoAdminName = document.getElementById('infoAdminName');
@@ -83,18 +74,65 @@
   // ============================================
   // NOTIFICACIONES
   // ============================================
-  function showNotification(message, type = 'info') {
-    notification.textContent = message;
+  function showNotification(message, type = 'info', options = {}) {
+    const {
+      html = false,
+      autoHideMs = 4000,
+      onRender = null
+    } = options || {};
+
+    if (html) notification.innerHTML = message;
+    else notification.textContent = message;
+
     notification.className = `notification show ${type}`;
+
+    if (typeof onRender === 'function') {
+      onRender(notification);
+    }
 
     setTimeout(() => {
       notification.classList.remove('show');
-    }, 4000);
+    }, autoHideMs);
   }
 
   function clearNotification() {
-    notification.textContent = '';
+    notification.innerHTML = '';
     notification.className = 'notification';
+  }
+
+  async function copiarTexto(texto) {
+    try {
+      await navigator.clipboard.writeText(String(texto || ''));
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function showInitialPasswordNotification(passwordInicial, rutAdmin) {
+    const clave = String(passwordInicial || '').trim();
+    const html = `
+      <div class="notification-title">Administrador creado correctamente</div>
+      <div>Clave inicial para ${formatearRUT(rutAdmin) || rutAdmin}: usa el RUT normalizado sin puntos ni guión.</div>
+      <div class="notification-copy-row">
+        <span class="notification-code">${clave}</span>
+        <button type="button" class="notification-copy-btn" data-copy-password="${clave}">
+          <i class="fas fa-copy"></i> Copiar clave
+        </button>
+      </div>
+    `;
+
+    showNotification(html, 'success', {
+      html: true,
+      autoHideMs: 9000,
+      onRender: (container) => {
+        const copyBtn = container.querySelector('[data-copy-password]');
+        copyBtn?.addEventListener('click', async () => {
+          const copied = await copiarTexto(clave);
+          copyBtn.textContent = copied ? 'Copiada' : 'No se pudo copiar';
+        }, { once: false });
+      }
+    });
   }
 
   function obtenerMensajeError(defaultMessage, status, payload) {
@@ -224,15 +262,51 @@
 
   function humanizarClavePermiso(clave, descripcion = '') {
     if (descripcion && descripcion.trim()) return descripcion.trim();
+    if (clave === 'admin_softdelete') return 'Borrar / Soft Delete';
+    if (clave === 'admin_trabajadores_v') return 'Ver Trabajadores';
+    if (clave === 'admin_viajes_v') return 'Ver Viajes';
+    if (clave === 'admin_informes_v') return 'Ver Informes de Gestión';
     return String(clave || '')
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   function obtenerOrdenClave(clave) {
-    const orden = matrizPermisosAdmin.flatMap((grupo) => grupo.items);
+    const orden = [
+      ...ADMIN_VIEW_MODULES.map((item) => item.key),
+      ADMIN_SOFTDELETE_KEY
+    ];
     const index = orden.indexOf(clave);
     return index === -1 ? 999 : index;
+  }
+
+  function getAdminPermissionByKey(clave) {
+    return permisosDisponibles.find((permiso) => permiso.clave_permiso === clave) || null;
+  }
+
+  function currentPermissionIdSet() {
+    return new Set((currentAdminPermisos || []).map(String));
+  }
+
+  function currentPermissionKeySet() {
+    const selectedIds = currentPermissionIdSet();
+    return new Set(
+      permisosDisponibles
+        .filter((permiso) => selectedIds.has(String(permiso.id_permiso)))
+        .map((permiso) => permiso.clave_permiso)
+    );
+  }
+
+  function getAdminModuleAccessSummary(permisos = []) {
+    const keys = new Set((permisos || []).map((permiso) => String(permiso.clave || permiso.clave_permiso || '')));
+    const softDeleteActivo = keys.has(ADMIN_SOFTDELETE_KEY);
+
+    return ADMIN_VIEW_MODULES
+      .filter((module) => keys.has(module.key))
+      .map((module) => ({
+        modulo: module.label,
+        nivel: softDeleteActivo ? 'Edición/SoftDelete' : 'Lectura'
+      }));
   }
 
   // ============================================
@@ -288,9 +362,10 @@
       const badgeClass = admin.es_super_admin ? 'badge-super-admin' : 'badge-regular-admin';
       const badgeText = admin.es_super_admin ? 'Super Admin' : 'Administrador';
       
-      const badgesPermisos = (admin.permisos || []).length > 0
-        ? admin.permisos.map((permiso) => (
-            `<span class="badge-regular-admin" style="margin: 4px 6px 0 0;">${humanizarClavePermiso(permiso.clave, permiso.descripcion)}</span>`
+      const resumenPermisos = getAdminModuleAccessSummary(admin.permisos || []);
+      const badgesPermisos = resumenPermisos.length > 0
+        ? resumenPermisos.map((permiso) => (
+            `<span class="badge-regular-admin" style="margin: 4px 6px 0 0;">${permiso.modulo}: ${permiso.nivel}</span>`
           )).join('')
         : '<span style="font-size: 12px; color: #6b7280;">Sin permisos</span>';
 
@@ -417,7 +492,10 @@
 
       const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
-      const clavesPermitidas = matrizPermisosAdmin.flatMap((grupo) => grupo.items);
+      const clavesPermitidas = [
+        ...ADMIN_VIEW_MODULES.map((item) => item.key),
+        ADMIN_SOFTDELETE_KEY
+      ];
       permisosDisponibles = (result.data || [])
         .filter((permiso) => clavesPermitidas.includes(permiso.clave_permiso))
         .sort((a, b) => obtenerOrdenClave(a.clave_permiso) - obtenerOrdenClave(b.clave_permiso));
@@ -437,71 +515,153 @@
   function renderPermisosCheckboxes() {
     permissionsList.innerHTML = '';
 
-    matrizPermisosAdmin.forEach((grupo) => {
-      const groupWrap = document.createElement('div');
-      groupWrap.style.marginBottom = '14px';
+    const currentKeys = currentPermissionKeySet();
+    const hasViewAccess = ADMIN_VIEW_MODULES.some((module) => currentKeys.has(module.key));
+    const hasSoftDelete = currentKeys.has(ADMIN_SOFTDELETE_KEY);
 
-      const groupTitle = document.createElement('div');
-      groupTitle.textContent = grupo.modulo;
-      groupTitle.style.fontWeight = '700';
-      groupTitle.style.fontSize = '13px';
-      groupTitle.style.color = '#374151';
-      groupTitle.style.marginBottom = '8px';
-      groupWrap.appendChild(groupTitle);
+    const generalWrap = document.createElement('div');
+    generalWrap.style.marginBottom = '16px';
 
-      grupo.items.forEach((clave) => {
-        const permiso = permisosDisponibles.find((item) => item.clave_permiso === clave);
-        if (!permiso) return;
+    const title = document.createElement('div');
+    title.textContent = 'Permisos Generales de Admin';
+    title.style.fontWeight = '700';
+    title.style.fontSize = '13px';
+    title.style.color = '#374151';
+    title.style.marginBottom = '10px';
+    generalWrap.appendChild(title);
 
-        const isChecked = currentAdminPermisos.includes(String(permiso.id_permiso));
-        const permissionDiv = document.createElement('div');
-        permissionDiv.className = 'permission-item';
+    function createSwitchRow(id, name, description, checked) {
+      const row = document.createElement('div');
+      row.className = 'permission-item';
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `permiso-${permiso.id_permiso}`;
-        checkbox.value = permiso.id_permiso;
-        checkbox.checked = isChecked;
-        checkbox.dataset.permisoId = permiso.id_permiso;
-        checkbox.style.display = 'none';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.id = id;
+      input.checked = checked;
+      input.style.display = 'none';
 
-        const switchLabel = document.createElement('label');
-        switchLabel.className = 'switch';
-        switchLabel.htmlFor = `permiso-${permiso.id_permiso}`;
+      const switchLabel = document.createElement('label');
+      switchLabel.className = 'switch';
+      switchLabel.htmlFor = id;
 
-        const slider = document.createElement('span');
-        slider.className = 'slider';
-        switchLabel.appendChild(checkbox);
-        switchLabel.appendChild(slider);
+      const slider = document.createElement('span');
+      slider.className = 'slider';
+      switchLabel.appendChild(input);
+      switchLabel.appendChild(slider);
 
-        const label = document.createElement('label');
-        label.className = 'permission-label';
-        label.htmlFor = `permiso-${permiso.id_permiso}`;
+      const textLabel = document.createElement('label');
+      textLabel.className = 'permission-label';
+      textLabel.htmlFor = id;
 
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'permission-name';
-        nameDiv.textContent = humanizarClavePermiso(clave);
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'permission-name';
+      nameDiv.textContent = name;
 
-        const descDiv = document.createElement('div');
-        descDiv.className = 'permission-description';
-        descDiv.textContent = permiso.descripcion || humanizarClavePermiso(clave);
+      const descDiv = document.createElement('div');
+      descDiv.className = 'permission-description';
+      descDiv.textContent = description;
 
-        label.appendChild(nameDiv);
-        label.appendChild(descDiv);
-        permissionDiv.appendChild(switchLabel);
-        permissionDiv.appendChild(label);
+      textLabel.appendChild(nameDiv);
+      textLabel.appendChild(descDiv);
+      row.appendChild(switchLabel);
+      row.appendChild(textLabel);
 
-        permissionDiv.addEventListener('click', (e) => {
-          if (e.target !== checkbox) {
-            checkbox.checked = !checkbox.checked;
-          }
-        });
-
-        groupWrap.appendChild(permissionDiv);
+      row.addEventListener('click', (event) => {
+        if (input.disabled) return;
+        if (event.target === input) return;
+        input.checked = !input.checked;
+        input.dispatchEvent(new Event('change'));
       });
 
-      permissionsList.appendChild(groupWrap);
+      return { row, input };
+    }
+
+    const verToggle = createSwitchRow(
+      'perm-admin-ver',
+      'Ver',
+      'Habilita los módulos que el administrador puede visualizar.',
+      hasViewAccess
+    );
+    const borrarToggle = createSwitchRow(
+      'perm-admin-borrar',
+      'Borrar',
+      'Si está activo, habilita edición y soft delete en los módulos visibles.',
+      hasSoftDelete
+    );
+
+    generalWrap.appendChild(verToggle.row);
+    generalWrap.appendChild(borrarToggle.row);
+
+    const modulesWrap = document.createElement('div');
+    modulesWrap.id = 'admin-view-modules-wrap';
+    modulesWrap.style.display = hasViewAccess ? 'block' : 'none';
+    modulesWrap.style.margin = '8px 0 0 54px';
+    modulesWrap.style.padding = '12px';
+    modulesWrap.style.border = '1px solid #e5e7eb';
+    modulesWrap.style.borderRadius = '10px';
+    modulesWrap.style.background = '#f8fafc';
+
+    const modulesTitle = document.createElement('div');
+    modulesTitle.textContent = 'Vistas disponibles';
+    modulesTitle.style.fontWeight = '700';
+    modulesTitle.style.fontSize = '12px';
+    modulesTitle.style.color = '#475569';
+    modulesTitle.style.marginBottom = '10px';
+    modulesWrap.appendChild(modulesTitle);
+
+    ADMIN_VIEW_MODULES.forEach((module) => {
+      const permiso = getAdminPermissionByKey(module.key);
+      if (!permiso) return;
+
+      const item = document.createElement('label');
+      item.style.display = 'flex';
+      item.style.alignItems = 'center';
+      item.style.gap = '10px';
+      item.style.fontSize = '14px';
+      item.style.color = '#334155';
+      item.style.marginBottom = '8px';
+      item.innerHTML = `
+        <input type="checkbox" class="admin-view-checkbox" value="${permiso.id_permiso}" data-clave="${module.key}" ${currentKeys.has(module.key) ? 'checked' : ''}>
+        <span>${module.label}</span>
+      `;
+      modulesWrap.appendChild(item);
     });
+
+    const softDeletePermiso = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
+    if (softDeletePermiso) {
+      borrarToggle.input.dataset.permissionId = softDeletePermiso.id_permiso;
+    }
+
+    function syncConditionalState() {
+      const hasVer = verToggle.input.checked;
+      const moduleCheckboxes = modulesWrap.querySelectorAll('.admin-view-checkbox');
+      modulesWrap.style.display = hasVer ? 'block' : 'none';
+
+      if (!hasVer) {
+        moduleCheckboxes.forEach((checkbox) => { checkbox.checked = false; });
+        borrarToggle.input.checked = false;
+      }
+
+      const hasAnyModuleSelected = Array.from(moduleCheckboxes).some((checkbox) => checkbox.checked);
+      borrarToggle.input.disabled = !hasVer || !hasAnyModuleSelected;
+      borrarToggle.row.style.opacity = borrarToggle.input.disabled ? '0.65' : '1';
+      if (borrarToggle.input.disabled) {
+        borrarToggle.input.checked = false;
+      }
+    }
+
+    verToggle.input.addEventListener('change', syncConditionalState);
+    modulesWrap.querySelectorAll('.admin-view-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) verToggle.input.checked = true;
+        syncConditionalState();
+      });
+    });
+    borrarToggle.input.addEventListener('change', syncConditionalState);
+
+    generalWrap.appendChild(modulesWrap);
+    permissionsList.appendChild(generalWrap);
+    syncConditionalState();
   }
 
   // ============================================
@@ -513,8 +673,19 @@
       btnSavePermissions.innerHTML = '<span class="loading-spinner"></span> Guardando...';
 
       // Obtener permisos seleccionados
-      const checkboxes = permissionsList.querySelectorAll('input[type="checkbox"]:checked');
-      const selectedPermissions = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      const selectedPermissions = [];
+      permissionsList.querySelectorAll('.admin-view-checkbox:checked').forEach((checkbox) => {
+        const id = parseInt(checkbox.value, 10);
+        if (Number.isInteger(id)) selectedPermissions.push(id);
+      });
+
+      const softDeleteToggle = document.getElementById('perm-admin-borrar');
+      if (softDeleteToggle?.checked) {
+        const softDeletePermission = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
+        if (softDeletePermission) {
+          selectedPermissions.push(Number(softDeletePermission.id_permiso));
+        }
+      }
 
       const response = await fetch('/api/admins/permisos', {
         method: 'POST',
@@ -528,9 +699,9 @@
 
       const result = await parseApiResponse(response, 'Error al guardar permisos', 'Error guardando permisos');
 
-      showNotification('Permisos actualizados exitosamente', 'success');
       closePermisosModal();
       await loadAdmins(); // Recargar tabla
+      showNotification('Permisos actualizados exitosamente', 'success');
 
     } catch (error) {
       console.error('[GESTIONADMINS] Error guardando permisos:', error);
@@ -580,8 +751,7 @@
     const apellidoPaterno = adminApellidoPaternoInput.value.trim();
     const apellidoMaterno = adminApellidoMaternoInput.value.trim();
     const email = adminEmailInput.value.trim().toLowerCase();
-    const password = adminPasswordInput.value.trim();
-    if (!rutOriginal || !nombres || !email || !password) {
+    if (!rutOriginal || !nombres || !email) {
       showNotification('Complete todos los campos obligatorios', 'error');
       return;
     }
@@ -593,11 +763,6 @@
 
     if (!validarEmail(email)) {
       showNotification('El formato de Email no es válido', 'error');
-      return;
-    }
-
-    if (password.length < 4) {
-      showNotification('La contraseña debe tener al menos 4 caracteres', 'error');
       return;
     }
 
@@ -614,16 +779,15 @@
           apellido_paterno: apellidoPaterno,
           apellido_materno: apellidoMaterno,
           email,
-          password,
           rut_solicitante: getRutSolicitante()
         })
       });
 
       const result = await parseApiResponse(response, 'Error al crear administrador', 'Error creando admin');
 
-      showNotification('Administrador creado exitosamente', 'success');
       closeCreateModal();
       await loadAdmins();
+      showInitialPasswordNotification(result.password_inicial || sanitizarRUT(rutOriginal), rutOriginal);
     } catch (error) {
       console.error('[GESTIONADMINS] Error creando admin:', error);
       showNotification(error.message || 'Error al crear administrador', 'error');

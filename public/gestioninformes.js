@@ -7,6 +7,10 @@ let trabajadores = [];
 let informeEditando = null;
 let accionPendiente = null;
 
+const canViewInformesAdmin = () => (window.hasAdminPermission ? window.hasAdminPermission('informes_ver') : true);
+const canManageInformesAdmin = () => (window.hasAdminPermission ? window.hasAdminPermission('informes_editar') : true);
+const isSuperAdminSession = () => localStorage.getItem('user_super_admin') === '1';
+
 // Elementos del DOM
 const el = {
   accordionInformes: null,
@@ -27,6 +31,12 @@ const el = {
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[INFORMES] Iniciando aplicación...');
+
+  if (!canViewInformesAdmin()) {
+    alert('Acceso denegado. No tiene permisos para ver informes de gestión.');
+    window.location.href = '/gestionar.html';
+    return;
+  }
   
   // Obtener referencias a elementos del DOM
   el.accordionInformes = document.getElementById('accordion-informes');
@@ -48,6 +58,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     cargarTrabajadores(),
     cargarInformes()
   ]);
+
+  if (el.btnGuardarEdicion) {
+    el.btnGuardarEdicion.style.display = canManageInformesAdmin() ? '' : 'none';
+  }
   
   // Event listeners
   el.btnAplicarFiltros.addEventListener('click', () => cargarInformes());
@@ -136,26 +150,43 @@ function renderInformes() {
 function crearAccordionItem(informe, index) {
   const div = document.createElement('div');
   div.className = 'accordion-item';
-  
-  // Obtener nombre del operador
+  const puedeGestionar = canManageInformesAdmin();
+  const puedeHardDelete = isSuperAdminSession();
+
   const operador = trabajadores.find(t => t.RUT === informe.operador_rut);
-  const nombreOperador = operador 
+  const nombreOperador = operador
     ? `${operador.nombres} ${operador.apellido_paterno || ''} ${operador.apellido_materno || ''}`.trim()
     : informe.operador_rut || 'N/A';
-  
-  // Formatear fecha
+
   const fecha = informe.fecha ? new Date(informe.fecha).toLocaleDateString('es-CL') : 'N/A';
-  
-  // Estado
   const estadoBadge = informe.estado === 'activo' || informe.estado === 1
     ? '<span class="badge-activo">Activo</span>'
     : '<span class="badge-inactivo">Inactivo</span>';
-  
-  // Turno icon
-  const turnoIcon = informe.turno === 'Día' 
-    ? '<i class="fa-solid fa-sun" style="color: #f59e0b;"></i>' 
+  const turnoIcon = informe.turno === 'Día'
+    ? '<i class="fa-solid fa-sun" style="color: #f59e0b;"></i>'
     : '<i class="fa-solid fa-moon" style="color: #6366f1;"></i>';
-  
+
+  const accionesHTML = puedeGestionar
+    ? `
+      <button class="btn-editar" onclick="editarInforme(${informe.id_informe})">
+        <i class="fa-solid fa-edit"></i> Editar
+      </button>
+      ${informe.estado === 'activo' || informe.estado === 1
+        ? `<button class="btn-soft-delete" onclick="confirmarSoftDelete(${informe.id_informe})">
+            <i class="fa-solid fa-trash-can"></i> Mover a Papelera
+           </button>`
+        : `<button class="btn-restaurar" onclick="confirmarRestaurar(${informe.id_informe})">
+            <i class="fa-solid fa-trash-restore"></i> Restaurar
+           </button>`}
+    `
+    : '<span style="font-size:12px;color:#64748b;font-weight:600;">Modo lectura</span>';
+
+  const hardDeleteHTML = !(informe.estado === 'activo' || informe.estado === 1) && puedeHardDelete
+    ? `<button class="btn-hard-delete" onclick="confirmarHardDelete(${informe.id_informe})">
+        <i class="fa-solid fa-trash"></i> Eliminar Permanente
+       </button>`
+    : '';
+
   div.innerHTML = `
     <h2 class="accordion-header" id="heading-${index}">
       <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}" aria-expanded="false" aria-controls="collapse-${index}">
@@ -176,34 +207,20 @@ function crearAccordionItem(informe, index) {
             </div>
           </div>
         </div>
-        
-        <!-- Botones de Acción -->
+
         <div style="display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
-          <button class="btn-editar" onclick="editarInforme(${informe.id_informe})">
-            <i class="fa-solid fa-edit"></i> Editar
-          </button>
-          ${informe.estado === 'activo' || informe.estado === 1
-            ? `<button class="btn-soft-delete" onclick="confirmarSoftDelete(${informe.id_informe})">
-                <i class="fa-solid fa-trash-can"></i> Mover a Papelera
-               </button>`
-            : `<button class="btn-restaurar" onclick="confirmarRestaurar(${informe.id_informe})">
-                <i class="fa-solid fa-trash-restore"></i> Restaurar
-               </button>
-               <button class="btn-hard-delete" onclick="confirmarHardDelete(${informe.id_informe})">
-                <i class="fa-solid fa-trash"></i> Eliminar Permanente
-               </button>`
-          }
+          ${accionesHTML}
+          ${hardDeleteHTML}
         </div>
       </div>
     </div>
   `;
-  
-  // Agregar listener para cargar detalles cuando se expande
+
   const collapseElement = div.querySelector(`#collapse-${index}`);
   collapseElement.addEventListener('show.bs.collapse', () => {
     cargarDetallesInforme(informe.id_informe);
   });
-  
+
   return div;
 }
 
@@ -317,6 +334,11 @@ function crearInfoItem(label, value) {
 // ============================================
 async function editarInforme(idInforme) {
   try {
+    if (!canManageInformesAdmin()) {
+      mostrarError('No tiene permisos para editar informes');
+      return;
+    }
+
     const response = await fetch(`/api/informes/${idInforme}`);
     if (!response.ok) throw new Error('Error al cargar informe');
     
@@ -361,6 +383,11 @@ async function editarInforme(idInforme) {
 
 async function guardarEdicionInforme() {
   try {
+    if (!canManageInformesAdmin()) {
+      mostrarError('No tiene permisos para editar informes');
+      return;
+    }
+
     const idInforme = document.getElementById('edit-id-informe').value;
     
     const datosActualizados = {
@@ -413,6 +440,11 @@ async function guardarEdicionInforme() {
 // ELIMINACIÓN (SOFT/HARD DELETE)
 // ============================================
 function confirmarSoftDelete(idInforme) {
+  if (!canManageInformesAdmin()) {
+    mostrarError('No tiene permisos para mover informes a la papelera');
+    return;
+  }
+
   accionPendiente = {
     tipo: 'soft-delete',
     idInforme: idInforme
@@ -425,6 +457,11 @@ function confirmarSoftDelete(idInforme) {
 }
 
 function confirmarHardDelete(idInforme) {
+  if (!isSuperAdminSession()) {
+    mostrarError('Solo un Super Administrador puede eliminar informes permanentemente');
+    return;
+  }
+
   accionPendiente = {
     tipo: 'hard-delete',
     idInforme: idInforme
@@ -437,6 +474,11 @@ function confirmarHardDelete(idInforme) {
 }
 
 function confirmarRestaurar(idInforme) {
+  if (!canManageInformesAdmin()) {
+    mostrarError('No tiene permisos para restaurar informes');
+    return;
+  }
+
   accionPendiente = {
     tipo: 'restaurar',
     idInforme: idInforme
@@ -472,6 +514,10 @@ async function ejecutarAccionPendiente() {
 }
 
 async function softDeleteInforme(idInforme) {
+  if (!canManageInformesAdmin()) {
+    throw new Error('No tiene permisos para mover informes a la papelera');
+  }
+
   const response = await fetch(`/api/informes/${idInforme}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -483,6 +529,10 @@ async function softDeleteInforme(idInforme) {
 }
 
 async function hardDeleteInforme(idInforme) {
+  if (!isSuperAdminSession()) {
+    throw new Error('Solo un Super Administrador puede eliminar informes permanentemente');
+  }
+
   const response = await fetch(`/api/informes/${idInforme}`, {
     method: 'DELETE'
   });
@@ -492,6 +542,10 @@ async function hardDeleteInforme(idInforme) {
 }
 
 async function restaurarInforme(idInforme) {
+  if (!canManageInformesAdmin()) {
+    throw new Error('No tiene permisos para restaurar informes');
+  }
+
   const response = await fetch(`/api/informes/${idInforme}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

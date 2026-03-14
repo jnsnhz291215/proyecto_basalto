@@ -248,6 +248,24 @@
     .btn-borrar:hover {
       background: #fecaca;
     }
+
+    .permission-banner {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      font-size: 13px;
+      font-weight: 600;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .permission-banner.visible {
+      display: flex;
+    }
   </style>
 </head>
 <body>
@@ -353,6 +371,11 @@
         </button>
       </div>
     </header>
+
+    <div id="viajes-permission-banner" class="permission-banner" role="status" aria-live="polite">
+      <i class="fa-solid fa-eye"></i>
+      <span>Modo solo lectura: puedes revisar viajes, pero no crear, editar ni desactivar registros.</span>
+    </div>
 
     <!-- Vista de Viajes -->
     <div id="viajes-container" style="margin-top: 24px;">

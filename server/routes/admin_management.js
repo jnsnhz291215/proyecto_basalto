@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion');
 
+const ADMIN_PERMISSION_KEYS = [
+  'admin_trabajadores_v',
+  'admin_viajes_v',
+  'admin_informes_v',
+  'admin_softdelete'
+];
+
 // ============================================
 // MIDDLEWARE: Verificar que el usuario es Super Admin
 // ============================================
@@ -147,10 +154,11 @@ router.get('/permisos', verificarSuperAdmin, async (req, res) => {
         clave_permiso,
         descripcion
       FROM permisos
+      WHERE clave_permiso IN (${ADMIN_PERMISSION_KEYS.map(() => '?').join(', ')})
       ORDER BY clave_permiso ASC
     `;
 
-    const [permisos] = await pool.execute(sql);
+    const [permisos] = await pool.execute(sql, ADMIN_PERMISSION_KEYS);
 
     console.log(`[ADMIN_MGMT] Se obtuvieron ${permisos.length} permisos disponibles`);
     res.json({ 
@@ -191,6 +199,8 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
       });
     }
 
+    const idsSolicitados = [...new Set(id_permisos.map((id) => Number(id)).filter(Number.isInteger))];
+
     // Verificar que el admin existe
     const sqlCheckAdmin = 'SELECT rut, es_super_admin FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
     const [adminExists] = await connection.execute(sqlCheckAdmin, [rutLimpio]);
@@ -209,6 +219,23 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
       });
     }
 
+    if (idsSolicitados.length > 0) {
+      const sqlPermisosValidos = `
+        SELECT id_permiso, clave_permiso
+        FROM permisos
+        WHERE id_permiso IN (${idsSolicitados.map(() => '?').join(', ')})
+      `;
+      const [permisosValidos] = await connection.execute(sqlPermisosValidos, idsSolicitados);
+      const clavesInvalidas = permisosValidos.filter((permiso) => !ADMIN_PERMISSION_KEYS.includes(permiso.clave_permiso));
+
+      if (permisosValidos.length !== idsSolicitados.length || clavesInvalidas.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Se intentó asignar permisos administrativos no permitidos'
+        });
+      }
+    }
+
     // Iniciar transacción
     await connection.beginTransaction();
 
@@ -217,8 +244,8 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
     await connection.execute(sqlDeletePermisos, [rutLimpio]);
 
     // Insertar nuevos permisos
-    if (id_permisos.length > 0) {
-      for (const idPermiso of id_permisos) {
+    if (idsSolicitados.length > 0) {
+      for (const idPermiso of idsSolicitados) {
         const sqlInsertPermiso = 'INSERT INTO admin_permisos (rut_admin, id_permiso) VALUES (?, ?)';
         await connection.execute(sqlInsertPermiso, [adminExists[0].rut, idPermiso]);
       }
@@ -227,13 +254,13 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
     // Confirmar transacción
     await connection.commit();
 
-    console.log(`[ADMIN_MGMT] Permisos actualizados para admin ${rutLimpio}. Nuevos permisos: ${id_permisos.join(', ')}`);
+    console.log(`[ADMIN_MGMT] Permisos actualizados para admin ${rutLimpio}. Nuevos permisos: ${idsSolicitados.join(', ')}`);
     
     res.json({ 
       success: true, 
       message: `Permisos actualizados para el administrador`,
       rut_admin: rutLimpio,
-      permisos_asignados: id_permisos.length
+      permisos_asignados: idsSolicitados.length
     });
 
   } catch (error) {
@@ -253,15 +280,16 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
 // ============================================
 router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
   try {
-    const { rut, nombres, apellido_paterno, apellido_materno, email, password } = req.body;
+    const { rut, nombres, apellido_paterno, apellido_materno, email } = req.body;
     const rutLimpio = limpiarRUT(rut);
     const emailNormalizado = String(email || '').trim().toLowerCase();
+    const passwordInicial = rutLimpio;
 
     // Validaciones
-    if (!rut || !nombres || !password) {
+    if (!rut || !nombres) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Se requieren: rut, nombres, password' 
+        message: 'Se requieren: rut y nombres' 
       });
     }
 
@@ -302,17 +330,18 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       apellido_paterno || null,
       apellido_materno || null,
       emailNormalizado || null,
-      password,
+      passwordInicial,
       0
     ]);
 
-    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio}`);
+    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio} - password inicial configurada con RUT normalizado`);
 
     res.status(201).json({ 
       success: true, 
       message: 'Administrador creado exitosamente',
       rut: rutLimpio,
-      es_super_admin: 0
+      es_super_admin: 0,
+      password_inicial: rutLimpio
     });
 
   } catch (error) {

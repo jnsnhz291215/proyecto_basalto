@@ -9,10 +9,15 @@ let trabajadorSeleccionado = null;
 let tramoCounter = 0;
 let viajeEditando = null; // Para modo edición
 
+const canViewViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_ver') : true);
+const canManageViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_editar') : true);
+const isSuperAdminSession = () => localStorage.getItem('user_super_admin') === '1';
+
 // Elementos del DOM
 const el = {
   viajesLista: null,
   sinViajes: null,
+  permissionBanner: null,
   modalNuevoViaje: null,
   formNuevoViaje: null,
   btnNuevoViaje: null,
@@ -34,10 +39,17 @@ const el = {
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[VIAJES] Iniciando aplicación...');
+
+  if (!canViewViajes()) {
+    alert('Acceso denegado. No tiene permisos para ver viajes.');
+    window.location.href = '/gestionar.html';
+    return;
+  }
   
   // Obtener referencias a elementos del DOM
   el.viajesLista = document.getElementById('viajes-lista');
   el.sinViajes = document.getElementById('sin-viajes');
+  el.permissionBanner = document.getElementById('viajes-permission-banner');
   el.modalNuevoViaje = document.getElementById('modal-nuevo-viaje');
   el.formNuevoViaje = document.getElementById('form-nuevo-viaje');
   el.btnNuevoViaje = document.getElementById('btn-nuevo-viaje');
@@ -59,6 +71,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     cargarCiudades(),
     cargarViajes()
   ]);
+
+  if (el.btnNuevoViaje) {
+    el.btnNuevoViaje.style.display = canManageViajes() ? '' : 'none';
+  }
+  if (el.permissionBanner) {
+    el.permissionBanner.classList.toggle('visible', canViewViajes() && !canManageViajes());
+  }
   
   // Event listeners
   el.btnNuevoViaje.addEventListener('click', prepararNuevoViaje);
@@ -310,6 +329,11 @@ window.eliminarTramo = function(tramoId) {
 // MODAL NUEVO VIAJE
 // ============================================
 function prepararNuevoViaje() {
+  if (!canManageViajes()) {
+    mostrarError('Solo tiene permiso de lectura en la vista de viajes');
+    return;
+  }
+
   viajeEditando = null; // Modo creación
   el.modalNuevoViaje.classList.add('show');
   el.formNuevoViaje.reset();
@@ -337,6 +361,11 @@ function cerrarModalNuevoViaje() {
 // ============================================
 async function guardarViaje() {
   try {
+    if (!canManageViajes()) {
+      mostrarError('No tiene permisos para crear o editar viajes');
+      return;
+    }
+
     // Validar trabajador
     if (!trabajadorSeleccionado) {
       mostrarError('Debe seleccionar un trabajador');
@@ -436,6 +465,12 @@ function renderViajes() {
   
   if (viajes.length === 0) {
     el.sinViajes.style.display = 'block';
+    const emptyText = el.sinViajes.querySelector('p:last-child');
+    if (emptyText) {
+      emptyText.textContent = canManageViajes()
+        ? 'Haz clic en "Nuevo Viaje" para comenzar'
+        : 'Tu perfil tiene acceso de solo lectura a esta vista';
+    }
     return;
   }
   
@@ -450,6 +485,8 @@ function renderViajes() {
 function crearCardViaje(viaje) {
   const card = document.createElement('div');
   card.className = (viaje.estado === 'Cancelado' || viaje.estado === 'Finalizado') ? 'viaje-card oculto' : 'viaje-card';
+  const puedeGestionar = canManageViajes();
+  const puedeHardDelete = isSuperAdminSession();
   
   // Formatear fecha de creación (registro)
   const fecha = new Date(viaje.fecha_registro);
@@ -517,6 +554,7 @@ function crearCardViaje(viaje) {
       ${tramosHTML}
     </div>
     <div class="viaje-acciones">
+      ${puedeGestionar ? `
       <button class="btn-accion btn-editar" onclick="prepararEdicionViaje(${viaje.id_viaje})">
         <i class="fa-solid fa-pen"></i> Editar
       </button>
@@ -525,9 +563,12 @@ function crearCardViaje(viaje) {
         <i class="fa-solid fa-ban"></i> Cancelar
       </button>
       ` : ''}
+      ` : '<span style="font-size:12px;color:#64748b;font-weight:600;">Modo lectura</span>'}
+      ${puedeHardDelete ? `
       <button class="btn-accion btn-borrar" onclick="confirmarEliminarViaje(${viaje.id_viaje})">
         <i class="fa-solid fa-trash"></i> Borrar
       </button>
+      ` : ''}
     </div>
   `;
   
@@ -539,6 +580,11 @@ function crearCardViaje(viaje) {
 // ============================================
 window.prepararEdicionViaje = async function(idViaje) {
   try {
+    if (!canManageViajes()) {
+      mostrarError('No tiene permisos para editar viajes');
+      return;
+    }
+
     if (!ciudades.length) {
       await cargarCiudades();
     }
@@ -659,6 +705,11 @@ window.editarViaje = window.prepararEdicionViaje;
 // OCULTAR VIAJE
 // ============================================
 window.confirmarOcultarViaje = function(idViaje) {
+  if (!canManageViajes()) {
+    mostrarError('No tiene permisos para desactivar viajes');
+    return;
+  }
+
   const viaje = viajes.find(v => v.id_viaje === idViaje);
   if (!viaje) return;
   
@@ -699,6 +750,11 @@ async function ocultarViaje(idViaje) {
 // ELIMINAR VIAJE
 // ============================================
 window.confirmarEliminarViaje = function(idViaje) {
+  if (!isSuperAdminSession()) {
+    mostrarError('Solo un Super Administrador puede eliminar viajes permanentemente');
+    return;
+  }
+
   const viaje = viajes.find(v => v.id_viaje === idViaje);
   if (!viaje) return;
   
@@ -713,6 +769,10 @@ window.confirmarEliminarViaje = function(idViaje) {
 
 async function eliminarViaje(idViaje) {
   try {
+    if (!isSuperAdminSession()) {
+      throw new Error('Solo un Super Administrador puede eliminar viajes permanentemente');
+    }
+
     el.modalConfirm.classList.remove('show');
     
     const response = await fetch(`/api/viajes/${idViaje}`, {

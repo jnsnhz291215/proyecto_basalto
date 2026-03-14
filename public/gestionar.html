@@ -372,6 +372,24 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
 
+    .permission-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+
+    .permission-banner.visible {
+      display: inline-flex;
+    }
+
     /* Estilos para input type="date" */
     input[type="date"] {
       cursor: pointer;
@@ -467,6 +485,11 @@
           <i class="fa-solid fa-sliders"></i> Configurar Ciclos
         </button>
       </div>
+    </div>
+
+    <div id="trabajadores-permission-banner" class="permission-banner" role="status" aria-live="polite">
+      <i class="fa-solid fa-eye"></i>
+      <span>Modo solo lectura: puedes consultar trabajadores, pero no crear, editar ni desactivar cuentas.</span>
     </div>
 
     <div class="filters-bar">

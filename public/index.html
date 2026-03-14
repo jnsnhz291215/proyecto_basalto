@@ -141,9 +141,12 @@
             <label>Contraseña</label>
             <div class="input-wrapper">
               <i class="fa-solid fa-lock input-icon"></i>
-              <input id="login-password" type="password" placeholder="Tu contraseña" class="modern-input" autocomplete="current-password">
+              <input id="login-password" type="password" placeholder="Tu contraseña o RUT inicial" class="modern-input" autocomplete="current-password">
             </div>
-            <small class="helper-text">Inicialmente es tu RUT</small>
+            <small class="helper-text">Si es tu primer acceso, usa tu RUT sin puntos ni guión como contraseña inicial.</small>
+          </div>
+          <div style="margin-top:4px;padding:10px 12px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:600;line-height:1.45;">
+            Tip de acceso inicial: administradores nuevos y usuarios con clave base ingresan con su RUT normalizado en ambos campos.
           </div>
           <div class="login-actions">
             <button id="btn-login" type="submit" class="btn-login-primary">
