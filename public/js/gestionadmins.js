@@ -49,6 +49,7 @@
   const adminApellidoPaternoInput = document.getElementById('adminApellidoPaterno');
   const adminApellidoMaternoInput = document.getElementById('adminApellidoMaterno');
   const adminEmailInput = document.getElementById('adminEmail');
+  const createPermissionsList = document.getElementById('createPermissionsList');
   
   const notification = document.getElementById('notification');
   const infoAdminName = document.getElementById('infoAdminName');
@@ -297,6 +298,26 @@
     );
   }
 
+  function selectedPermissionIdsFromContainer(container) {
+    if (!container) return [];
+
+    const selectedPermissions = [];
+    container.querySelectorAll('.admin-view-checkbox:checked').forEach((checkbox) => {
+      const id = parseInt(checkbox.value, 10);
+      if (Number.isInteger(id)) selectedPermissions.push(id);
+    });
+
+    const softDeleteToggle = container.querySelector('.admin-softdelete-toggle');
+    if (softDeleteToggle?.checked) {
+      const softDeletePermission = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
+      if (softDeletePermission) {
+        selectedPermissions.push(Number(softDeletePermission.id_permiso));
+      }
+    }
+
+    return [...new Set(selectedPermissions)];
+  }
+
   function getAdminModuleAccessSummary(permisos = []) {
     const keys = new Set((permisos || []).map((permiso) => String(permiso.clave || permiso.clave_permiso || '')));
     const softDeleteActivo = keys.has(ADMIN_SOFTDELETE_KEY);
@@ -512,12 +533,12 @@
   // ============================================
   // RENDERIZAR CHECKBOXES DE PERMISOS
   // ============================================
-  function renderPermisosCheckboxes() {
-    permissionsList.innerHTML = '';
+  function renderAdminPermissionMatrix(targetContainer, selectedKeys = new Set(), idPrefix = 'perm-admin') {
+    if (!targetContainer) return;
+    targetContainer.innerHTML = '';
 
-    const currentKeys = currentPermissionKeySet();
-    const hasViewAccess = ADMIN_VIEW_MODULES.some((module) => currentKeys.has(module.key));
-    const hasSoftDelete = currentKeys.has(ADMIN_SOFTDELETE_KEY);
+    const hasViewAccess = ADMIN_VIEW_MODULES.some((module) => selectedKeys.has(module.key));
+    const hasSoftDelete = selectedKeys.has(ADMIN_SOFTDELETE_KEY);
 
     const generalWrap = document.createElement('div');
     generalWrap.style.marginBottom = '16px';
@@ -577,23 +598,24 @@
     }
 
     const verToggle = createSwitchRow(
-      'perm-admin-ver',
-      'Ver',
-      'Habilita los módulos que el administrador puede visualizar.',
+      `${idPrefix}-ver`,
+      'Ver módulos',
+      'Al activarlo, podrás marcar los módulos que este administrador puede visualizar.',
       hasViewAccess
     );
     const borrarToggle = createSwitchRow(
-      'perm-admin-borrar',
-      'Borrar',
-      'Si está activo, habilita edición y soft delete en los módulos visibles.',
+      `${idPrefix}-borrar`,
+      'Permitir borrar (Soft delete)',
+      'Solo se habilita si existe acceso a por lo menos un módulo visible.',
       hasSoftDelete
     );
+    borrarToggle.input.classList.add('admin-softdelete-toggle');
 
     generalWrap.appendChild(verToggle.row);
     generalWrap.appendChild(borrarToggle.row);
 
     const modulesWrap = document.createElement('div');
-    modulesWrap.id = 'admin-view-modules-wrap';
+    modulesWrap.id = `${idPrefix}-modules-wrap`;
     modulesWrap.style.display = hasViewAccess ? 'block' : 'none';
     modulesWrap.style.margin = '8px 0 0 54px';
     modulesWrap.style.padding = '12px';
@@ -621,7 +643,7 @@
       item.style.color = '#334155';
       item.style.marginBottom = '8px';
       item.innerHTML = `
-        <input type="checkbox" class="admin-view-checkbox" value="${permiso.id_permiso}" data-clave="${module.key}" ${currentKeys.has(module.key) ? 'checked' : ''}>
+        <input type="checkbox" class="admin-view-checkbox" value="${permiso.id_permiso}" data-clave="${module.key}" ${selectedKeys.has(module.key) ? 'checked' : ''}>
         <span>${module.label}</span>
       `;
       modulesWrap.appendChild(item);
@@ -660,8 +682,16 @@
     borrarToggle.input.addEventListener('change', syncConditionalState);
 
     generalWrap.appendChild(modulesWrap);
-    permissionsList.appendChild(generalWrap);
+    targetContainer.appendChild(generalWrap);
     syncConditionalState();
+  }
+
+  function renderPermisosCheckboxes() {
+    renderAdminPermissionMatrix(permissionsList, currentPermissionKeySet(), 'perm-admin-edit');
+  }
+
+  function renderCreatePermissions() {
+    renderAdminPermissionMatrix(createPermissionsList, new Set(), 'perm-admin-create');
   }
 
   // ============================================
@@ -673,19 +703,7 @@
       btnSavePermissions.innerHTML = '<span class="loading-spinner"></span> Guardando...';
 
       // Obtener permisos seleccionados
-      const selectedPermissions = [];
-      permissionsList.querySelectorAll('.admin-view-checkbox:checked').forEach((checkbox) => {
-        const id = parseInt(checkbox.value, 10);
-        if (Number.isInteger(id)) selectedPermissions.push(id);
-      });
-
-      const softDeleteToggle = document.getElementById('perm-admin-borrar');
-      if (softDeleteToggle?.checked) {
-        const softDeletePermission = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
-        if (softDeletePermission) {
-          selectedPermissions.push(Number(softDeletePermission.id_permiso));
-        }
-      }
+      const selectedPermissions = selectedPermissionIdsFromContainer(permissionsList);
 
       const response = await fetch('/api/admins/permisos', {
         method: 'POST',
@@ -728,12 +746,16 @@
   // ============================================
   function resetCreateAdminForm() {
     createAdminForm.reset();
+    renderCreatePermissions();
     btnSaveCreateAdmin.disabled = false;
     btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
     clearNotification();
   }
 
-  function openCreateModal() {
+  async function openCreateModal() {
+    if (permisosDisponibles.length === 0) {
+      await loadPermisosDisponibles();
+    }
     resetCreateAdminForm();
     crearAdminModal.classList.add('show');
   }
@@ -751,6 +773,7 @@
     const apellidoPaterno = adminApellidoPaternoInput.value.trim();
     const apellidoMaterno = adminApellidoMaternoInput.value.trim();
     const email = adminEmailInput.value.trim().toLowerCase();
+    const idPermisos = selectedPermissionIdsFromContainer(createPermissionsList);
     if (!rutOriginal || !nombres || !email) {
       showNotification('Complete todos los campos obligatorios', 'error');
       return;
@@ -779,6 +802,7 @@
           apellido_paterno: apellidoPaterno,
           apellido_materno: apellidoMaterno,
           email,
+          id_permisos: idPermisos,
           rut_solicitante: getRutSolicitante()
         })
       });

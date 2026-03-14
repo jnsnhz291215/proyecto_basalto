@@ -279,11 +279,16 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
 // POST /api/admins/crear - Registrar nuevo administrador
 // ============================================
 router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
+  const connection = await pool.getConnection();
+
   try {
-    const { rut, nombres, apellido_paterno, apellido_materno, email } = req.body;
+    const { rut, nombres, apellido_paterno, apellido_materno, email, id_permisos } = req.body;
     const rutLimpio = limpiarRUT(rut);
     const emailNormalizado = String(email || '').trim().toLowerCase();
     const passwordInicial = rutLimpio;
+    const idsSolicitados = Array.isArray(id_permisos)
+      ? [...new Set(id_permisos.map((id) => Number(id)).filter(Number.isInteger))]
+      : [];
 
     // Validaciones
     if (!rut || !nombres) {
@@ -295,7 +300,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
 
     // Verificar duplicado por RUT
     const sqlCheckRut = 'SELECT rut FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
-    const [existingRut] = await pool.execute(sqlCheckRut, [rutLimpio]);
+    const [existingRut] = await connection.execute(sqlCheckRut, [rutLimpio]);
 
     if (existingRut && existingRut.length > 0) {
       return res.status(409).json({ 
@@ -307,7 +312,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
     // Verificar duplicado por Email
     if (emailNormalizado) {
       const sqlCheckEmail = 'SELECT rut FROM admin_users WHERE LOWER(TRIM(email)) = ? LIMIT 1';
-      const [existingEmail] = await pool.execute(sqlCheckEmail, [emailNormalizado]);
+      const [existingEmail] = await connection.execute(sqlCheckEmail, [emailNormalizado]);
 
       if (existingEmail && existingEmail.length > 0) {
         return res.status(409).json({
@@ -317,6 +322,25 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       }
     }
 
+    if (idsSolicitados.length > 0) {
+      const sqlPermisosValidos = `
+        SELECT id_permiso, clave_permiso
+        FROM permisos
+        WHERE id_permiso IN (${idsSolicitados.map(() => '?').join(', ')})
+      `;
+      const [permisosValidos] = await connection.execute(sqlPermisosValidos, idsSolicitados);
+      const clavesInvalidas = permisosValidos.filter((permiso) => !ADMIN_PERMISSION_KEYS.includes(permiso.clave_permiso));
+
+      if (permisosValidos.length !== idsSolicitados.length || clavesInvalidas.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Se intentó asignar permisos administrativos no permitidos al crear el administrador'
+        });
+      }
+    }
+
+    await connection.beginTransaction();
+
     // Insertar nuevo admin
     const sqlInsert = `
       INSERT INTO admin_users 
@@ -324,7 +348,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
     `;
 
-    const [result] = await pool.execute(sqlInsert, [
+    await connection.execute(sqlInsert, [
       rutLimpio,
       nombres,
       apellido_paterno || null,
@@ -334,22 +358,37 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       0
     ]);
 
-    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio} - password inicial configurada con RUT normalizado`);
+    if (idsSolicitados.length > 0) {
+      for (const idPermiso of idsSolicitados) {
+        await connection.execute(
+          'INSERT INTO admin_permisos (rut_admin, id_permiso) VALUES (?, ?)',
+          [rutLimpio, idPermiso]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio} - password inicial configurada con RUT normalizado - permisos: ${idsSolicitados.join(', ') || 'sin permisos'}`);
 
     res.status(201).json({ 
       success: true, 
       message: 'Administrador creado exitosamente',
       rut: rutLimpio,
       es_super_admin: 0,
-      password_inicial: rutLimpio
+      password_inicial: rutLimpio,
+      permisos_asignados: idsSolicitados.length
     });
 
   } catch (error) {
+    await connection.rollback();
     console.error('[ADMIN_MGMT] Error en POST /admins/crear:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Error al crear administrador' 
     });
+  } finally {
+    await connection.release();
   }
 });
 
