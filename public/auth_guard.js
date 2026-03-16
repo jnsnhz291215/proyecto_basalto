@@ -55,7 +55,7 @@
     gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores', 'admin_trabajadores_v'],
     editar_trabajadores: ['trabajadores_editar', 'editar_trabajadores', 'modificar_trabajadores'],
     borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores', 'admin_softdelete'],
-    gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes', 'admin_viajes_v'],
+    gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes', 'admin_viajes_v', 'admin_v_viajes'],
     gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes', 'admin_informes_v'],
     crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno'],
     editar_informe_propio: ['editar_informe_propio', 'editar_informes'],
@@ -64,8 +64,15 @@
     gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos']
   };
 
+  const adminModuleAliases = {
+    admin_trabajadores_v: ['admin_trabajadores_v'],
+    admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes'],
+    admin_informes_v: ['admin_informes_v']
+  };
+
   function hasAdminModuleView(moduleKey) {
-    return permisosAdminNormalizados.has(normalizePermissionName(moduleKey));
+    const aliases = adminModuleAliases[moduleKey] || [moduleKey];
+    return aliases.some((alias) => permisosAdminNormalizados.has(normalizePermissionName(alias)));
   }
 
   function hasAdminSoftDeleteFlag() {

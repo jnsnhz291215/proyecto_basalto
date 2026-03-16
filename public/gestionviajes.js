@@ -34,6 +34,30 @@ const el = {
   filtroMes: null
 };
 
+function openManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.open) {
+    window.basaltoModal.open(modalElement);
+    return;
+  }
+
+  modalElement.classList.add('show');
+  modalElement.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('overflow-hidden', 'modal-open');
+}
+
+function closeManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.close) {
+    window.basaltoModal.close(modalElement);
+    return;
+  }
+
+  modalElement.classList.remove('show');
+  modalElement.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('overflow-hidden', 'modal-open');
+}
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
@@ -95,11 +119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   document.getElementById('result-ok').addEventListener('click', () => {
-    el.modalResult.classList.remove('show');
+    closeManagedModal(el.modalResult);
   });
   
   document.getElementById('confirm-cancel').addEventListener('click', () => {
-    el.modalConfirm.classList.remove('show');
+    closeManagedModal(el.modalConfirm);
   });
   
   console.log('[VIAJES] Aplicación lista');
@@ -335,7 +359,7 @@ function prepararNuevoViaje() {
   }
 
   viajeEditando = null; // Modo creación
-  el.modalNuevoViaje.classList.add('show');
+  openManagedModal(el.modalNuevoViaje);
   el.formNuevoViaje.reset();
   trabajadorSeleccionado = null;
   el.trabajadorInfo.classList.remove('visible');
@@ -352,7 +376,7 @@ function prepararNuevoViaje() {
 }
 
 function cerrarModalNuevoViaje() {
-  el.modalNuevoViaje.classList.remove('show');
+  closeManagedModal(el.modalNuevoViaje);
   viajeEditando = null;
 }
 
@@ -602,7 +626,7 @@ window.prepararEdicionViaje = async function(idViaje) {
     if (modalTitle) modalTitle.innerText = 'Editar Viaje';
     if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Cambios';
 
-    el.modalNuevoViaje.classList.add('show');
+    openManagedModal(el.modalNuevoViaje);
     el.formNuevoViaje.reset();
     el.tramosContainer.innerHTML = '';
     tramoCounter = 0;
@@ -719,12 +743,12 @@ window.confirmarOcultarViaje = function(idViaje) {
   
   document.getElementById('confirm-ok').onclick = () => ocultarViaje(idViaje);
   
-  el.modalConfirm.classList.add('show');
+  openManagedModal(el.modalConfirm);
 };
 
 async function ocultarViaje(idViaje) {
   try {
-    el.modalConfirm.classList.remove('show');
+    closeManagedModal(el.modalConfirm);
     
     const response = await fetch(`/api/viajes/${idViaje}/estado`, {
       method: 'PUT',
@@ -764,7 +788,7 @@ window.confirmarEliminarViaje = function(idViaje) {
   
   document.getElementById('confirm-ok').onclick = () => eliminarViaje(idViaje);
   
-  el.modalConfirm.classList.add('show');
+  openManagedModal(el.modalConfirm);
 };
 
 async function eliminarViaje(idViaje) {
@@ -773,7 +797,7 @@ async function eliminarViaje(idViaje) {
       throw new Error('Solo un Super Administrador puede eliminar viajes permanentemente');
     }
 
-    el.modalConfirm.classList.remove('show');
+    closeManagedModal(el.modalConfirm);
     
     const response = await fetch(`/api/viajes/${idViaje}`, {
       method: 'DELETE'
@@ -800,12 +824,12 @@ function mostrarExito(mensaje) {
   document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i>';
   document.getElementById('result-title').textContent = '¡Éxito!';
   document.getElementById('result-message').textContent = mensaje;
-  el.modalResult.classList.add('show');
+  openManagedModal(el.modalResult);
 }
 
 function mostrarError(mensaje) {
   document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i>';
   document.getElementById('result-title').textContent = 'Error';
   document.getElementById('result-message').textContent = mensaje;
-  el.modalResult.classList.add('show');
+  openManagedModal(el.modalResult);
 }

@@ -31,7 +31,6 @@
     cancelModal: document.getElementById('cancelCargoModal'),
     saveModal: document.getElementById('saveCargoModal'),
     cargoNombre: document.getElementById('cargoNombre'),
-    permisosGestion: document.getElementById('permisosGestion'),
     permisosOperacion: document.getElementById('permisosOperacion'),
     notification: document.getElementById('notification')
   };
@@ -75,13 +74,26 @@
     return `inf_seccion_${section}_${level}`;
   }
 
-  function getAuxiliaryOperationalPermissions() {
-    return state.permisos.filter((permiso) => {
-      const key = String(permiso.clave_permiso || '');
-      if (!key.startsWith('inf_')) return false;
-      if (/^inf_seccion_[a-z_]+_[rw]$/.test(key)) return false;
-      return true;
-    });
+  function openManagedModal(modalElement) {
+    if (window.basaltoModal?.open) {
+      window.basaltoModal.open(modalElement);
+      return;
+    }
+
+    modalElement?.classList.add('show');
+    modalElement?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('overflow-hidden', 'modal-open');
+  }
+
+  function closeManagedModal(modalElement) {
+    if (window.basaltoModal?.close) {
+      window.basaltoModal.close(modalElement);
+      return;
+    }
+
+    modalElement?.classList.remove('show');
+    modalElement?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('overflow-hidden', 'modal-open');
   }
 
   async function loadPermisos() {
@@ -133,51 +145,21 @@
     });
   }
 
-  function renderAuxiliaryPermissions(selectedSet) {
-    const list = getAuxiliaryOperationalPermissions();
-    if (!el.permisosGestion) return;
-
-    if (list.length === 0) {
-      el.permisosGestion.innerHTML = '<p style="margin:0;color:#6b7280;font-size:13px;">No hay permisos operativos adicionales configurados.</p>';
-      return;
-    }
-
-    el.permisosGestion.innerHTML = '';
-    list.forEach((permiso) => {
-      const id = `cargo-perm-${permiso.id_permiso}`;
-      const checked = selectedSet.has(Number(permiso.id_permiso)) ? 'checked' : '';
-      const item = document.createElement('label');
-      item.className = 'perm-item';
-      item.setAttribute('for', id);
-      item.innerHTML = `
-        <input id="${id}" type="checkbox" name="cargo_permiso_aux" value="${permiso.id_permiso}" ${checked}>
-        <span>
-          <strong>${humanizeKey(permiso.clave_permiso)}</strong>
-          <small>${permiso.descripcion || humanizeKey(permiso.clave_permiso)}</small>
-        </span>
-      `;
-      el.permisosGestion.appendChild(item);
-    });
-  }
-
   function renderSectionMatrix(selectedSet) {
     if (!el.permisosOperacion) return;
     el.permisosOperacion.innerHTML = '';
 
     SECTION_KEYS.forEach((section) => {
       const wrap = document.createElement('div');
-      wrap.className = 'perm-item';
-      wrap.style.display = 'block';
+      wrap.className = 'section-permission-card';
 
       const title = document.createElement('div');
-      title.innerHTML = `<strong>${section.label}</strong><small style="display:block; margin-top:4px; color:#6b7280;">Define si la sección queda oculta, en solo lectura o con escritura.</small>`;
+      title.className = 'section-permission-header';
+      title.innerHTML = `<strong>${section.label}</strong><small>Define si la sección queda oculta, en solo lectura o con escritura.</small>`;
       wrap.appendChild(title);
 
       const radios = document.createElement('div');
-      radios.style.display = 'flex';
-      radios.style.gap = '12px';
-      radios.style.marginTop = '10px';
-      radios.style.flexWrap = 'wrap';
+      radios.className = 'section-permission-options';
 
       const selectedLevel = ACCESS_LEVELS.find((level) => {
         const permissionKey = getSectionPermissionKey(section.key, level.key);
@@ -190,9 +172,7 @@
         const radioId = `section-${section.key}-${level.key}`;
         const checked = selectedLevel === level.key ? 'checked' : '';
         const option = document.createElement('label');
-        option.style.display = 'inline-flex';
-        option.style.alignItems = 'center';
-        option.style.gap = '6px';
+        option.className = 'section-permission-option';
         option.innerHTML = `
           <input type="radio" id="${radioId}" name="section_${section.key}" value="${level.key}" ${checked}>
           <span>${level.label}</span>
@@ -208,7 +188,6 @@
   function renderModal(cargo) {
     const selectedSet = new Set((cargo?.id_permisos || []).map(Number));
     el.cargoNombre.value = cargo?.nombre_cargo || '';
-    renderAuxiliaryPermissions(selectedSet);
     renderSectionMatrix(selectedSet);
   }
 
@@ -218,18 +197,15 @@
     const cargo = cargoId ? state.cargos.find((item) => Number(item.id_cargo) === Number(cargoId)) : null;
     el.modalTitle.textContent = cargo ? 'Editar cargo' : 'Nuevo cargo';
     renderModal(cargo || null);
-    el.modal.classList.add('show');
-    el.modal.setAttribute('aria-hidden', 'false');
+    openManagedModal(el.modal);
   }
 
   function closeModal() {
     state.editingCargoId = null;
     el.cargoNombre.value = '';
-    if (el.permisosGestion) el.permisosGestion.innerHTML = '';
     if (el.permisosOperacion) el.permisosOperacion.innerHTML = '';
     clearNotification();
-    el.modal.classList.remove('show');
-    el.modal.setAttribute('aria-hidden', 'true');
+    closeManagedModal(el.modal);
   }
 
   function collectSelectedPermissionIds() {
@@ -280,9 +256,9 @@
         throw new Error(data?.message || data?.error || `Error HTTP ${res.status}`);
       }
 
-      notify('Cargo guardado exitosamente', 'success');
       closeModal();
       await loadCargos();
+      notify('Cargo guardado exitosamente', 'success');
     } catch (error) {
       notify(error.message || 'No se pudo guardar el cargo', 'error');
     } finally {

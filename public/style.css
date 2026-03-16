@@ -402,7 +402,8 @@ body {
 }
 
 /* Bloqueo de scroll del fondo cuando modal está abierto */
-body.modal-open {
+body.modal-open,
+body.overflow-hidden {
   overflow: hidden !important;
   height: 100vh !important;
 }

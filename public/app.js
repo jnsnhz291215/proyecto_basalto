@@ -32,6 +32,30 @@ const monthNames = [
 // Nombres de días de la semana
 const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+function openManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.open) {
+    window.basaltoModal.open(modalElement);
+    return;
+  }
+
+  modalElement.classList.add('show');
+  modalElement.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('overflow-hidden', 'modal-open');
+}
+
+function closeManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.close) {
+    window.basaltoModal.close(modalElement);
+    return;
+  }
+
+  modalElement.classList.remove('show');
+  modalElement.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('overflow-hidden', 'modal-open');
+}
+
 // Feriados nacionales chilenos e irrenunciables 2026
 const feriados2026 = [
   '2026-01-01', // Año Nuevo
@@ -717,11 +741,11 @@ function abrirModalDia(date, nombreDia, trabajadoresDelDia) {
     }
   }
 
-  modalEl.classList.add('show');
+  openManagedModal(modalEl);
 }
 
 function cerrarModal() {
-  modalEl.classList.remove('show');
+  closeManagedModal(modalEl);
 }
 
 // Renderizar leyenda de grupos
@@ -760,29 +784,35 @@ function mostrarConfirmacion(titulo, mensaje, onConfirm, tipoBoton = 'danger') {
   confirmMessageEl.textContent = mensaje;
   confirmOkBtn.className = `confirm-btn confirm-btn-${tipoBoton}`;
   
-  confirmModalEl.classList.add('show');
-  
-  const handleConfirm = () => {
-    confirmModalEl.classList.remove('show');
+  openManagedModal(confirmModalEl);
+
+  const cleanup = () => {
     confirmOkBtn.removeEventListener('click', handleConfirm);
     confirmCancelBtn.removeEventListener('click', handleCancel);
+    confirmModalEl.removeEventListener('click', handleBackdropClick);
+  };
+
+  const handleConfirm = () => {
+    closeManagedModal(confirmModalEl);
+    cleanup();
     if (onConfirm) onConfirm();
   };
-  
+
   const handleCancel = () => {
-    confirmModalEl.classList.remove('show');
-    confirmOkBtn.removeEventListener('click', handleConfirm);
-    confirmCancelBtn.removeEventListener('click', handleCancel);
+    closeManagedModal(confirmModalEl);
+    cleanup();
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === confirmModalEl) {
+      handleCancel();
+    }
   };
   
   confirmOkBtn.addEventListener('click', handleConfirm);
   confirmCancelBtn.addEventListener('click', handleCancel);
-  
+
   // Cerrar al hacer clic fuera del modal
-  confirmModalEl.addEventListener('click', (e) => {
-    if (e.target === confirmModalEl) {
-      handleCancel();
-    }
-  });
+  confirmModalEl.addEventListener('click', handleBackdropClick);
 }
 

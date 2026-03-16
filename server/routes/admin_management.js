@@ -2,12 +2,16 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion');
 
-const ADMIN_PERMISSION_KEYS = [
-  'admin_trabajadores_v',
-  'admin_viajes_v',
-  'admin_informes_v',
-  'admin_softdelete'
-];
+const ADMIN_PERMISSION_GROUPS = {
+  admin_trabajadores_v: ['admin_trabajadores_v'],
+  admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes'],
+  admin_informes_v: ['admin_informes_v'],
+  admin_softdelete: ['admin_softdelete']
+};
+
+const ADMIN_PERMISSION_KEYS = Array.from(new Set(
+  Object.values(ADMIN_PERMISSION_GROUPS).flat()
+));
 
 // ============================================
 // MIDDLEWARE: Verificar que el usuario es Super Admin

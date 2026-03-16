@@ -5,6 +5,64 @@
 (function() {
   'use strict';
 
+  const BODY_MODAL_LOCK_CLASS = 'overflow-hidden';
+  let openManagedModalCount = 0;
+
+  function syncBodyModalLock() {
+    const shouldLock = openManagedModalCount > 0;
+    document.body.classList.toggle(BODY_MODAL_LOCK_CLASS, shouldLock);
+    document.body.classList.toggle('modal-open', shouldLock);
+  }
+
+  function lockBodyScroll() {
+    openManagedModalCount += 1;
+    syncBodyModalLock();
+  }
+
+  function unlockBodyScroll() {
+    openManagedModalCount = Math.max(0, openManagedModalCount - 1);
+    syncBodyModalLock();
+  }
+
+  function openManagedModal(modalElement, options = {}) {
+    if (!modalElement) return false;
+
+    const { showClass = 'show' } = options;
+    if (modalElement.dataset.bodyScrollLocked !== 'true') {
+      modalElement.dataset.bodyScrollLocked = 'true';
+      lockBodyScroll();
+    }
+
+    modalElement.classList.add(showClass);
+    modalElement.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
+  function closeManagedModal(modalElement, options = {}) {
+    if (!modalElement) return false;
+
+    const { showClass = 'show' } = options;
+    modalElement.classList.remove(showClass);
+    modalElement.setAttribute('aria-hidden', 'true');
+
+    if (modalElement.dataset.bodyScrollLocked === 'true') {
+      delete modalElement.dataset.bodyScrollLocked;
+      unlockBodyScroll();
+    }
+
+    return true;
+  }
+
+  window.lockBodyScroll = lockBodyScroll;
+  window.unlockBodyScroll = unlockBodyScroll;
+  window.basaltoModal = {
+    lockBodyScroll,
+    unlockBodyScroll,
+    open: openManagedModal,
+    close: closeManagedModal,
+    syncBodyModalLock
+  };
+
   // ============================================
   // NAVBAR ACTIVE STATE - Lógica excluyente
   // ============================================

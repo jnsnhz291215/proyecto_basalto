@@ -205,6 +205,104 @@ router.put('/informes/:id', async (req, res) => {
     const { id } = req.params;
     const datosActualizados = req.body;
 
+    if (datosActualizados?.datosGenerales) {
+      const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = datosActualizados;
+      connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      await connection.execute(
+        `UPDATE informes_turno SET
+          fecha = ?,
+          turno = ?,
+          horas_trabajadas = ?,
+          faena = ?,
+          lugar = ?,
+          equipo = ?,
+          operador_rut = ?,
+          ayudante_1 = ?,
+          ayudante_2 = ?,
+          pozo_numero = ?,
+          sector = ?,
+          diametro = ?,
+          inclinacion = ?,
+          profundidad_inicial = ?,
+          profundidad_final = ?,
+          mts_perforados = ?,
+          pull_down = ?,
+          rpm = ?,
+          horometro_inicial = ?,
+          horometro_final = ?,
+          horometro_hrs = ?,
+          insumo_petroleo = ?,
+          insumo_lubricantes = ?,
+          observaciones = ?,
+          estado = ?
+        WHERE id_informe = ?`,
+        [
+          datosGenerales.fecha || null,
+          datosGenerales.turno || null,
+          datosGenerales.horas_trabajadas || null,
+          datosGenerales.faena || null,
+          datosGenerales.lugar || null,
+          datosGenerales.equipo || null,
+          datosGenerales.operador_rut || null,
+          datosGenerales.ayudante_1 || null,
+          datosGenerales.ayudante_2 || null,
+          datosGenerales.pozo_numero || null,
+          datosGenerales.sector || null,
+          datosGenerales.diametro || null,
+          datosGenerales.inclinacion || null,
+          datosGenerales.profundidad_inicial || null,
+          datosGenerales.profundidad_final || null,
+          datosGenerales.mts_perforados || null,
+          datosGenerales.pull_down || null,
+          datosGenerales.rpm || null,
+          datosGenerales.horometro_inicial || null,
+          datosGenerales.horometro_final || null,
+          datosGenerales.horometro_hrs || null,
+          datosGenerales.insumo_petroleo || null,
+          datosGenerales.insumo_lubricantes || null,
+          datosGenerales.observaciones || null,
+          datosGenerales.estado || 'Borrador',
+          id
+        ]
+      );
+
+      await connection.execute('DELETE FROM actividades_turno WHERE id_informe = ?', [id]);
+      await connection.execute('DELETE FROM herramientas_turno WHERE id_informe = ?', [id]);
+      await connection.execute('DELETE FROM perforaciones_turno WHERE id_informe = ?', [id]);
+
+      for (const act of actividades) {
+        await connection.execute(
+          'INSERT INTO actividades_turno (id_informe, hora_desde, hora_hasta, detalle, hrs_bd, hrs_cliente) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, act.hora_desde || null, act.hora_hasta || null, act.detalle || null, act.hrs_bd || null, act.hrs_cliente || null]
+        );
+      }
+
+      for (const herr of herramientas) {
+        await connection.execute(
+          'INSERT INTO herramientas_turno (id_informe, tipo_elemente, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, herr.tipo_elemente || null, herr.diametro || null, herr.numero_serie || null, herr.desde_mts || null, herr.hasta_mts || null, herr.detalle_extra || null]
+        );
+      }
+
+      for (const perf of perforaciones) {
+        await connection.execute(
+          'INSERT INTO perforaciones_turno (id_informe, desde, hasta, metros_perforados, recuperacion, tipo_roca, dureza) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, perf.desde || null, perf.hasta || null, perf.metros_perforados || null, perf.recuperacion || null, perf.tipo_roca || null, perf.dureza || null]
+        );
+      }
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        id_informe: Number(id),
+        estado: datosGenerales.estado || 'Borrador',
+        message: 'Informe actualizado correctamente'
+      });
+    }
+
     // Si solo se está actualizando el estado (soft delete/restaurar)
     if (Object.keys(datosActualizados).length === 1 && datosActualizados.estado) {
       connection = await pool.getConnection();

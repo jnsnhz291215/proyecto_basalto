@@ -11,6 +11,28 @@ body {
 	padding-bottom: 50px;
 }
 
+.status-banner {
+	padding: 14px 16px;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.45;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.status-banner.blocked {
+	background: #fff7ed;
+	border-color: #fdba74;
+	color: #9a3412;
+}
+
+.status-banner.warning {
+	background: #eff6ff;
+	border-color: #93c5fd;
+	color: #1d4ed8;
+}
+
 /* TABS HEADER */
 .tabs-header {
 	display: flex;
@@ -84,6 +106,11 @@ body {
 	padding: 20px;
 	border: 1px solid #e5e7eb;
 	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-section.is-readonly,
+.tab-content.is-readonly {
+	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .section-title {
@@ -289,6 +316,19 @@ body {
 	background: linear-gradient(135deg, #059669 0%, #047857 100%);
 	box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 	transform: translateY(-2px);
+}
+
+.btn:disabled,
+.btn-add-row:disabled,
+.btn-delete:disabled,
+.input-group input:disabled,
+.input-group select:disabled,
+.input-group textarea:disabled,
+.modern-input:disabled,
+.input-compact:disabled {
+	cursor: not-allowed;
+	opacity: 0.72;
+	box-shadow: none;
 }
 
 /* Estilo para botón eliminar en filas */

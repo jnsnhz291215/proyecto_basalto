@@ -13,10 +13,13 @@
   let currentAdminRut = null;
   let currentAdminPermisos = [];
   let pageInitialized = false;
+  const ADMIN_PERMISSION_ALIASES = {
+    admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes']
+  };
   const ADMIN_VIEW_MODULES = [
     { label: 'Trabajadores', key: 'admin_trabajadores_v' },
     { label: 'Viajes', key: 'admin_viajes_v' },
-    { label: 'Informes de Gestión', key: 'admin_informes_v' }
+    { label: 'Informes', key: 'admin_informes_v' }
   ];
   const ADMIN_SOFTDELETE_KEY = 'admin_softdelete';
 
@@ -265,11 +268,22 @@
     if (descripcion && descripcion.trim()) return descripcion.trim();
     if (clave === 'admin_softdelete') return 'Borrar / Soft Delete';
     if (clave === 'admin_trabajadores_v') return 'Ver Trabajadores';
-    if (clave === 'admin_viajes_v') return 'Ver Viajes';
-    if (clave === 'admin_informes_v') return 'Ver Informes de Gestión';
+    if (['admin_viajes_v', 'admin_v_viajes'].includes(clave)) return 'Ver Viajes';
+    if (clave === 'admin_informes_v') return 'Ver Informes';
     return String(clave || '')
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function getPermissionAliases(clave) {
+    return ADMIN_PERMISSION_ALIASES[clave] || [clave];
+  }
+
+  function canonicalizeAdminPermissionKey(clave) {
+    const normalizedKey = String(clave || '');
+    const aliasEntry = Object.entries(ADMIN_PERMISSION_ALIASES)
+      .find(([, aliases]) => aliases.includes(normalizedKey));
+    return aliasEntry ? aliasEntry[0] : normalizedKey;
   }
 
   function obtenerOrdenClave(clave) {
@@ -277,12 +291,13 @@
       ...ADMIN_VIEW_MODULES.map((item) => item.key),
       ADMIN_SOFTDELETE_KEY
     ];
-    const index = orden.indexOf(clave);
+    const index = orden.indexOf(canonicalizeAdminPermissionKey(clave));
     return index === -1 ? 999 : index;
   }
 
   function getAdminPermissionByKey(clave) {
-    return permisosDisponibles.find((permiso) => permiso.clave_permiso === clave) || null;
+    const aliases = new Set(getPermissionAliases(clave));
+    return permisosDisponibles.find((permiso) => aliases.has(permiso.clave_permiso)) || null;
   }
 
   function currentPermissionIdSet() {
@@ -294,7 +309,7 @@
     return new Set(
       permisosDisponibles
         .filter((permiso) => selectedIds.has(String(permiso.id_permiso)))
-        .map((permiso) => permiso.clave_permiso)
+        .map((permiso) => canonicalizeAdminPermissionKey(permiso.clave_permiso))
     );
   }
 
@@ -319,7 +334,7 @@
   }
 
   function getAdminModuleAccessSummary(permisos = []) {
-    const keys = new Set((permisos || []).map((permiso) => String(permiso.clave || permiso.clave_permiso || '')));
+    const keys = new Set((permisos || []).map((permiso) => canonicalizeAdminPermissionKey(String(permiso.clave || permiso.clave_permiso || ''))));
     const softDeleteActivo = keys.has(ADMIN_SOFTDELETE_KEY);
 
     return ADMIN_VIEW_MODULES
@@ -490,7 +505,12 @@
       }
 
       renderPermisosCheckboxes();
-      permisosModal.classList.add('show');
+      if (window.basaltoModal?.open) window.basaltoModal.open(permisosModal);
+      else {
+        permisosModal.classList.add('show');
+        permisosModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden', 'modal-open');
+      }
 
     } catch (error) {
       console.error('[GESTIONADMINS] Error abriendo modal:', error);
@@ -513,12 +533,12 @@
 
       const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
-      const clavesPermitidas = [
-        ...ADMIN_VIEW_MODULES.map((item) => item.key),
+      const clavesPermitidas = new Set([
+        ...ADMIN_VIEW_MODULES.flatMap((item) => getPermissionAliases(item.key)),
         ADMIN_SOFTDELETE_KEY
-      ];
+      ]);
       permisosDisponibles = (result.data || [])
-        .filter((permiso) => clavesPermitidas.includes(permiso.clave_permiso))
+        .filter((permiso) => clavesPermitidas.has(permiso.clave_permiso))
         .sort((a, b) => obtenerOrdenClave(a.clave_permiso) - obtenerOrdenClave(b.clave_permiso));
       permisosLoadingState.style.display = 'none';
       permissionsContainer.style.display = 'block';
@@ -541,19 +561,20 @@
     const hasSoftDelete = selectedKeys.has(ADMIN_SOFTDELETE_KEY);
 
     const generalWrap = document.createElement('div');
-    generalWrap.style.marginBottom = '16px';
+    generalWrap.className = 'permission-matrix';
 
     const title = document.createElement('div');
+    title.className = 'permission-group-title';
     title.textContent = 'Permisos Generales de Admin';
-    title.style.fontWeight = '700';
-    title.style.fontSize = '13px';
-    title.style.color = '#374151';
-    title.style.marginBottom = '10px';
     generalWrap.appendChild(title);
+
+    const togglesWrap = document.createElement('div');
+    togglesWrap.className = 'permission-toggle-stack';
+    generalWrap.appendChild(togglesWrap);
 
     function createSwitchRow(id, name, description, checked) {
       const row = document.createElement('div');
-      row.className = 'permission-item';
+      row.className = 'toggle-field permission-toggle-row';
 
       const input = document.createElement('input');
       input.type = 'checkbox';
@@ -562,7 +583,7 @@
       input.style.display = 'none';
 
       const switchLabel = document.createElement('label');
-      switchLabel.className = 'switch';
+      switchLabel.className = 'switch toggle-field-control';
       switchLabel.htmlFor = id;
 
       const slider = document.createElement('span');
@@ -571,15 +592,15 @@
       switchLabel.appendChild(slider);
 
       const textLabel = document.createElement('label');
-      textLabel.className = 'permission-label';
+      textLabel.className = 'toggle-field-text';
       textLabel.htmlFor = id;
 
       const nameDiv = document.createElement('div');
-      nameDiv.className = 'permission-name';
+      nameDiv.className = 'toggle-field-title';
       nameDiv.textContent = name;
 
       const descDiv = document.createElement('div');
-      descDiv.className = 'permission-description';
+      descDiv.className = 'toggle-field-description';
       descDiv.textContent = description;
 
       textLabel.appendChild(nameDiv);
@@ -600,53 +621,50 @@
     const verToggle = createSwitchRow(
       `${idPrefix}-ver`,
       'Ver módulos',
-      'Al activarlo, podrás marcar los módulos que este administrador puede visualizar.',
+      'Activa las vistas que este administrador podrá consultar en el sistema.',
       hasViewAccess
     );
     const borrarToggle = createSwitchRow(
       `${idPrefix}-borrar`,
-      'Permitir borrar (Soft delete)',
-      'Solo se habilita si existe acceso a por lo menos un módulo visible.',
+      'Permitir eliminar registros (soft delete)',
+      'Solo se habilita cuando hay al menos una vista seleccionada.',
       hasSoftDelete
     );
     borrarToggle.input.classList.add('admin-softdelete-toggle');
 
-    generalWrap.appendChild(verToggle.row);
-    generalWrap.appendChild(borrarToggle.row);
+    togglesWrap.appendChild(verToggle.row);
+    togglesWrap.appendChild(borrarToggle.row);
 
     const modulesWrap = document.createElement('div');
     modulesWrap.id = `${idPrefix}-modules-wrap`;
+    modulesWrap.className = 'permission-modules-wrap';
     modulesWrap.style.display = hasViewAccess ? 'block' : 'none';
-    modulesWrap.style.margin = '8px 0 0 54px';
-    modulesWrap.style.padding = '12px';
-    modulesWrap.style.border = '1px solid #e5e7eb';
-    modulesWrap.style.borderRadius = '10px';
-    modulesWrap.style.background = '#f8fafc';
 
     const modulesTitle = document.createElement('div');
+    modulesTitle.className = 'permission-modules-title';
     modulesTitle.textContent = 'Vistas disponibles';
-    modulesTitle.style.fontWeight = '700';
-    modulesTitle.style.fontSize = '12px';
-    modulesTitle.style.color = '#475569';
-    modulesTitle.style.marginBottom = '10px';
     modulesWrap.appendChild(modulesTitle);
+
+    const modulesHelp = document.createElement('p');
+    modulesHelp.className = 'permission-modules-help';
+    modulesHelp.textContent = 'Selecciona las pantallas que estarán visibles para este administrador.';
+    modulesWrap.appendChild(modulesHelp);
+
+    const modulesGrid = document.createElement('div');
+    modulesGrid.className = 'permission-modules-grid';
+    modulesWrap.appendChild(modulesGrid);
 
     ADMIN_VIEW_MODULES.forEach((module) => {
       const permiso = getAdminPermissionByKey(module.key);
       if (!permiso) return;
 
       const item = document.createElement('label');
-      item.style.display = 'flex';
-      item.style.alignItems = 'center';
-      item.style.gap = '10px';
-      item.style.fontSize = '14px';
-      item.style.color = '#334155';
-      item.style.marginBottom = '8px';
+      item.className = 'permission-module-option';
       item.innerHTML = `
         <input type="checkbox" class="admin-view-checkbox" value="${permiso.id_permiso}" data-clave="${module.key}" ${selectedKeys.has(module.key) ? 'checked' : ''}>
         <span>${module.label}</span>
       `;
-      modulesWrap.appendChild(item);
+      modulesGrid.appendChild(item);
     });
 
     const softDeletePermiso = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
@@ -666,7 +684,7 @@
 
       const hasAnyModuleSelected = Array.from(moduleCheckboxes).some((checkbox) => checkbox.checked);
       borrarToggle.input.disabled = !hasVer || !hasAnyModuleSelected;
-      borrarToggle.row.style.opacity = borrarToggle.input.disabled ? '0.65' : '1';
+      borrarToggle.row.classList.toggle('is-disabled', borrarToggle.input.disabled);
       if (borrarToggle.input.disabled) {
         borrarToggle.input.checked = false;
       }
@@ -734,7 +752,12 @@
   // CERRAR MODAL
   // ============================================
   function closePermisosModal() {
-    permisosModal.classList.remove('show');
+    if (window.basaltoModal?.close) window.basaltoModal.close(permisosModal);
+    else {
+      permisosModal.classList.remove('show');
+      permisosModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('overflow-hidden', 'modal-open');
+    }
     currentAdminRut = null;
     currentAdminPermisos = [];
     permissionsList.innerHTML = '';
@@ -757,11 +780,21 @@
       await loadPermisosDisponibles();
     }
     resetCreateAdminForm();
-    crearAdminModal.classList.add('show');
+    if (window.basaltoModal?.open) window.basaltoModal.open(crearAdminModal);
+    else {
+      crearAdminModal.classList.add('show');
+      crearAdminModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden', 'modal-open');
+    }
   }
 
   function closeCreateModal() {
-    crearAdminModal.classList.remove('show');
+    if (window.basaltoModal?.close) window.basaltoModal.close(crearAdminModal);
+    else {
+      crearAdminModal.classList.remove('show');
+      crearAdminModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('overflow-hidden', 'modal-open');
+    }
     resetCreateAdminForm();
   }
 

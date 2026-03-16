@@ -30,6 +30,30 @@ const el = {
   modalEliminar: null
 };
 
+function openManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.open) {
+    window.basaltoModal.open(modalElement);
+    return;
+  }
+
+  modalElement.classList.add('show');
+  modalElement.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('overflow-hidden', 'modal-open');
+}
+
+function closeManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.close) {
+    window.basaltoModal.close(modalElement);
+    return;
+  }
+
+  modalElement.classList.remove('show');
+  modalElement.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('overflow-hidden', 'modal-open');
+}
+
 function formatearRUT(val) {
   const s = (val || '').replace(/[.\-\s]/g, '').toUpperCase();
   if (s.length < 8 || s.length > 9) return null;
@@ -652,8 +676,7 @@ function abrirModalOcultar(rut, nombreTrabajador, esReactivarFlag) {
     }
     
     if (nombre) nombre.textContent = nombreTrabajador;
-    modal.classList.add('show');
-    document.body.classList.add('modal-open');
+    openManagedModal(modal);
   }
 }
 
@@ -672,8 +695,7 @@ function abrirModalEliminar(rut, nombreTrabajador) {
       passwordInput.focus();
     }
     
-    modal.classList.add('show');
-    document.body.classList.add('modal-open');
+    openManagedModal(modal);
   }
 }
 
@@ -726,13 +748,11 @@ async function ejecutarBorrar() {
 
 function abrirAgregar() {
   el.formAgregar.reset();
-  el.modalAgregar.classList.add('show');
-  document.body.classList.add('modal-open');
+  openManagedModal(el.modalAgregar);
 }
 
 function cerrarAgregar() {
-  el.modalAgregar.classList.remove('show');
-  document.body.classList.remove('modal-open');
+  closeManagedModal(el.modalAgregar);
 }
 
 async function abrirEditar(rut) {
@@ -797,13 +817,11 @@ async function abrirEditar(rut) {
     el.formEditar.dataset.originalFechaNacimiento = fechaNacimiento || '';
   }
   
-  el.modalEditar.classList.add('show');
-  document.body.classList.add('modal-open');
+  openManagedModal(el.modalEditar);
 }
 
 function cerrarEditar() {
-  el.modalEditar.classList.remove('show');
-  document.body.classList.remove('modal-open');
+  closeManagedModal(el.modalEditar);
 }
 
 async function enviarAgregar(e) {
@@ -1005,8 +1023,7 @@ function showResult(title, msg, isError=false){
   const p = document.getElementById('result-msg');
   t.textContent = title || 'Resultado';
   p.textContent = msg || '';
-  if (m) m.classList.add('show');
-  document.body.classList.add('modal-open');
+  openManagedModal(m);
   // optional styling for error
   if (isError) t.style.color = '#b91c1c'; else t.style.color = '';
 }
@@ -1392,7 +1409,7 @@ function mostrarResultadoCargo(titulo, mensaje) {
   
   if (resultTitle) resultTitle.textContent = titulo;
   if (resultMsg) resultMsg.textContent = mensaje;
-  if (modalResult) modalResult.classList.add('show');
+  openManagedModal(modalResult);
 }
 
 async function guardarNuevoCargo() {
@@ -1432,7 +1449,7 @@ async function guardarNuevoCargo() {
     // Cerrar modal
     const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
     if (modalNuevoCargo) {
-      modalNuevoCargo.classList.remove('show');
+      closeManagedModal(modalNuevoCargo);
     }
     
     // Limpiar input
@@ -1534,8 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.formEditar) el.formEditar.addEventListener('submit', enviarEdicion);
   el.confirmCancel.addEventListener('click', () => {
     rutParaBorrar = null;
-    el.modalConfirm.classList.remove('show');
-    document.body.classList.remove('modal-open');
+    closeManagedModal(el.modalConfirm);
   });
   el.confirmOk.addEventListener('click', ejecutarBorrar);
 
@@ -1544,8 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelOcultar) {
     cancelOcultar.addEventListener('click', () => {
       rutParaOcultar = null;
-      if (el.modalOcultar) el.modalOcultar.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      closeManagedModal(el.modalOcultar);
     });
   }
 
@@ -1554,8 +1569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmOcultar.addEventListener('click', () => {
       if (rutParaOcultar) {
         cambiarEstadoTrabajador(rutParaOcultar, esReactivar);
-        if (el.modalOcultar) el.modalOcultar.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeManagedModal(el.modalOcultar);
         rutParaOcultar = null;
       }
     });
@@ -1566,8 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el.modalOcultar.addEventListener('click', (ev) => {
       if (ev.target === el.modalOcultar) {
         rutParaOcultar = null;
-        el.modalOcultar.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeManagedModal(el.modalOcultar);
       }
     });
   }
@@ -1579,8 +1592,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rutParaBorrar = null;
       const passwordInput = document.getElementById('eliminar-password');
       if (passwordInput) passwordInput.value = '';
-      if (el.modalEliminar) el.modalEliminar.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      closeManagedModal(el.modalEliminar);
     });
   }
 
@@ -1592,8 +1604,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (rutParaBorrar && password) {
         ejecutarBorrarDefinitivo(rutParaBorrar, password);
-        if (el.modalEliminar) el.modalEliminar.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeManagedModal(el.modalEliminar);
       } else if (!password) {
         // Mostrar error
         if (passwordInput) {
@@ -1613,16 +1624,14 @@ document.addEventListener('DOMContentLoaded', () => {
         rutParaBorrar = null;
         const passwordInput = document.getElementById('eliminar-password');
         if (passwordInput) passwordInput.value = '';
-        el.modalEliminar.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeManagedModal(el.modalEliminar);
       }
     });
   }
 
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {
-      if (el.modalResult) el.modalResult.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      closeManagedModal(el.modalResult);
     });
   }
 
@@ -1630,8 +1639,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.modalResult) {
     el.modalResult.addEventListener('click', (ev) => {
       if (ev.target === el.modalResult) {
-        el.modalResult.classList.remove('show');
-        document.body.classList.remove('modal-open');
+        closeManagedModal(el.modalResult);
       }
     });
   }
@@ -1656,8 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el.modalConfirm.addEventListener('click', ev => {
     if (ev.target === el.modalConfirm) {
       rutParaBorrar = null;
-      el.modalConfirm.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      closeManagedModal(el.modalConfirm);
     }
   });
 
@@ -1696,9 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
       select.addEventListener('change', (e) => {
         if (e.target.value === 'nuevo_cargo') {
           const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-          if (modalNuevoCargo) {
-            modalNuevoCargo.classList.add('show');
-          }
+          openManagedModal(modalNuevoCargo);
           // Resetear el select a la primera opción
           e.target.selectedIndex = 0;
           
@@ -1720,9 +1725,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeNuevoCargo) {
     closeNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) {
-        modalNuevoCargo.classList.remove('show');
-      }
+      closeManagedModal(modalNuevoCargo);
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
@@ -1733,9 +1736,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelNuevoCargo) {
     cancelNuevoCargo.addEventListener('click', () => {
       const modalNuevoCargo = document.getElementById('modal-nuevo-cargo');
-      if (modalNuevoCargo) {
-        modalNuevoCargo.classList.remove('show');
-      }
+      closeManagedModal(modalNuevoCargo);
       const inputNombre = document.getElementById('nuevoNombreCargo');
       if (inputNombre) inputNombre.value = '';
     });
@@ -1765,7 +1766,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalNuevoCargo) {
     modalNuevoCargo.addEventListener('click', (ev) => {
       if (ev.target === modalNuevoCargo) {
-        modalNuevoCargo.classList.remove('show');
+        closeManagedModal(modalNuevoCargo);
         const inputNombre = document.getElementById('nuevoNombreCargo');
         if (inputNombre) inputNombre.value = '';
       }
@@ -1799,7 +1800,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarHistorialExcepciones(rut);
     
     // Mostrar modal
-    modalExcepciones.classList.add('show');
+    openManagedModal(modalExcepciones);
   }
 
   // Función para calcular y mostrar duración en tiempo real
@@ -1954,9 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelExcepciones) {
     cancelExcepciones.addEventListener('click', () => {
       const modalExcepciones = document.getElementById('modal-excepciones');
-      if (modalExcepciones) {
-        modalExcepciones.classList.remove('show');
-      }
+      closeManagedModal(modalExcepciones);
       rutExcepcionActual = null;
     });
   }
@@ -1966,7 +1965,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalExcepciones) {
     modalExcepciones.addEventListener('click', (ev) => {
       if (ev.target === modalExcepciones) {
-        modalExcepciones.classList.remove('show');
+        closeManagedModal(modalExcepciones);
         rutExcepcionActual = null;
       }
     });
@@ -2112,9 +2111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (canManageWorkers) {
       btnConfigCiclos.addEventListener('click', () => {
         cargarConfigCiclos();
-        if (modalConfigCiclos) {
-          modalConfigCiclos.style.display = 'flex';
-        }
+        openManagedModal(modalConfigCiclos);
       });
     } else {
       btnConfigCiclos.style.display = 'none';
@@ -2123,9 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cerrar modal
   function cerrarModalConfig() {
-    if (modalConfigCiclos) {
-      modalConfigCiclos.style.display = 'none';
-    }
+    closeManagedModal(modalConfigCiclos);
   }
 
   if (closeConfigModal) {

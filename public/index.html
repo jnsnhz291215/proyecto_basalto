@@ -183,14 +183,38 @@
       const dualModal = document.getElementById('dual-login-modal');
       const loginForm = document.getElementById('login-form');
       const loginError = document.getElementById('login-error');
+
+      function openManagedModal(modalElement) {
+        if (!modalElement) return;
+        if (window.basaltoModal?.open) {
+          window.basaltoModal.open(modalElement);
+          return;
+        }
+
+        modalElement.classList.add('show');
+        modalElement.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden', 'modal-open');
+      }
+
+      function closeManagedModal(modalElement) {
+        if (!modalElement) return;
+        if (window.basaltoModal?.close) {
+          window.basaltoModal.close(modalElement);
+          return;
+        }
+
+        modalElement.classList.remove('show');
+        modalElement.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden', 'modal-open');
+      }
       
       // Mostrar modal automáticamente si no hay sesión activa
       try {
         const userRole = localStorage.getItem('user_role');
         if (!userRole) { 
-          if (dualModal) dualModal.classList.add('show'); 
+          openManagedModal(dualModal);
         } else { 
-          if (dualModal) dualModal.classList.remove('show'); 
+          closeManagedModal(dualModal);
         }
       } catch(e) {}
 
@@ -272,7 +296,7 @@
             console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre, '- Super Admin:', data.es_super_admin);
             
             // Cerrar modal y redirigir
-            if (dualModal) dualModal.classList.remove('show');
+            closeManagedModal(dualModal);
             window.location.href = data.redirect;
           } else {
             showError(data.message || 'Credenciales inválidas');
@@ -287,7 +311,7 @@
       // SALTAR LOGIN (Ver calendario sin cuenta)
       // ============================================
       document.getElementById('btn-skip-login').addEventListener('click', () => {
-        if (dualModal) dualModal.classList.remove('show');
+        closeManagedModal(dualModal);
       });
 
       // Función para mostrar errores
