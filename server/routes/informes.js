@@ -6,8 +6,28 @@ function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
-async function validarHardDeleteSuperAdmin(req) {
-  const rutSolicitante = req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'];
+const LOCKED_AUDIT_STATUSES = new Set(['cerrado', 'validado', 'finalizado']);
+
+function normalizarEstado(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function estadoFueCerrado(valor) {
+  return LOCKED_AUDIT_STATUSES.has(normalizarEstado(valor));
+}
+
+function parseBoolean(value) {
+  if (value === true || value === false) return value;
+  if (typeof value === 'number') return value === 1;
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'si';
+}
+
+async function validarSuperAdminPorRut(rutSolicitante) {
   const rutLimpio = limpiarRUT(rutSolicitante);
 
   if (!rutLimpio) {
@@ -21,8 +41,15 @@ async function validarHardDeleteSuperAdmin(req) {
 
   if (!rows || rows.length === 0) return { ok: false, status: 401, message: 'Administrador solicitante no encontrado' };
   if (Number(rows[0].activo) === 0) return { ok: false, status: 403, message: 'Cuenta solicitante inactiva' };
-  if (Number(rows[0].es_super_admin) !== 1) return { ok: false, status: 403, message: 'Solo un Superadministrador puede realizar eliminación física' };
+  if (Number(rows[0].es_super_admin) !== 1) return { ok: false, status: 403, message: 'Solo un Superadministrador puede realizar esta accion' };
 
+  return { ok: true, rutLimpio };
+}
+
+async function validarHardDeleteSuperAdmin(req) {
+  const rutSolicitante = req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'];
+  const validacion = await validarSuperAdminPorRut(rutSolicitante);
+  if (!validacion.ok) return validacion;
   return { ok: true };
 }
 
@@ -104,6 +131,144 @@ router.get('/informes', async (req, res) => {
   } catch (error) {
     console.error('[ERROR] Error al obtener informes:', error);
     res.status(500).json({ error: 'Error al obtener informes' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * GET /api/informes/por-turno
+ * Buscar informe existente por fecha y grupo/turno.
+ * DEBE declararse antes de /:id para evitar conflicto de rutas.
+ * Query params:
+ *   - fecha: YYYY-MM-DD
+ *   - grupo: A | B | C | D | AB | etc.
+ */
+router.get('/informes/por-turno', async (req, res) => {
+  let connection;
+  try {
+    const { fecha, grupo } = req.query;
+    if (!fecha || !grupo) {
+      return res.status(400).json({ error: 'Se requieren los parámetros fecha y grupo' });
+    }
+
+    connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT id_informe, estado FROM informes_turno WHERE fecha = ? AND turno = ? ORDER BY creado_el DESC LIMIT 1',
+      [fecha, grupo]
+    );
+
+    if (rows.length > 0) {
+      return res.json({ existe: true, id_informe: rows[0].id_informe, estado: rows[0].estado });
+    }
+
+    res.json({ existe: false });
+  } catch (error) {
+    console.error('[ERROR] Error al buscar informe por turno:', error);
+    res.status(500).json({ error: 'Error al buscar informe por turno' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * POST /api/informes
+ * Crear un nuevo informe de turno
+ */
+router.post('/informes', async (req, res) => {
+  let connection;
+  try {
+    const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = req.body;
+    if (!datosGenerales) {
+      return res.status(400).json({ error: 'Se requieren datosGenerales' });
+    }
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Generar folio correlativo
+    const [lastRow] = await connection.execute(
+      'SELECT numero_informe FROM informes_turno ORDER BY id_informe DESC LIMIT 1'
+    );
+    let nextNum = 1;
+    if (lastRow.length > 0 && lastRow[0].numero_informe) {
+      const parsed = parseInt(String(lastRow[0].numero_informe).replace(/\D/g, ''), 10);
+      if (!isNaN(parsed)) nextNum = parsed + 1;
+    }
+    const folio = `IT-${String(nextNum).padStart(5, '0')}`;
+
+    const [result] = await connection.execute(
+      `INSERT INTO informes_turno (
+        numero_informe, fecha, turno, horas_trabajadas, faena, lugar, equipo,
+        operador_rut, ayudante_1, ayudante_2, pozo_numero, sector, diametro,
+        inclinacion, profundidad_inicial, profundidad_final, mts_perforados,
+        pull_down, rpm, horometro_inicial, horometro_final, horometro_hrs,
+        insumo_petroleo, insumo_lubricantes, observaciones, estado, creado_el
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        folio,
+        datosGenerales.fecha || null,
+        datosGenerales.turno || null,
+        datosGenerales.horas_trabajadas || null,
+        datosGenerales.faena || null,
+        datosGenerales.lugar || null,
+        datosGenerales.equipo || null,
+        datosGenerales.operador_rut || null,
+        datosGenerales.ayudante_1 || null,
+        datosGenerales.ayudante_2 || null,
+        datosGenerales.pozo_numero || null,
+        datosGenerales.sector || null,
+        datosGenerales.diametro || null,
+        datosGenerales.inclinacion || null,
+        datosGenerales.profundidad_inicial || null,
+        datosGenerales.profundidad_final || null,
+        datosGenerales.mts_perforados || null,
+        datosGenerales.pull_down || null,
+        datosGenerales.rpm || null,
+        datosGenerales.horometro_inicial || null,
+        datosGenerales.horometro_final || null,
+        datosGenerales.horometro_hrs || null,
+        datosGenerales.insumo_petroleo || null,
+        datosGenerales.insumo_lubricantes || null,
+        datosGenerales.observaciones || null,
+        datosGenerales.estado || 'Borrador'
+      ]
+    );
+
+    const idInforme = result.insertId;
+
+    for (const act of actividades) {
+      await connection.execute(
+        'INSERT INTO actividades_turno (id_informe, hora_desde, hora_hasta, detalle, hrs_bd, hrs_cliente) VALUES (?, ?, ?, ?, ?, ?)',
+        [idInforme, act.hora_desde || null, act.hora_hasta || null, act.detalle || null, act.hrs_bd || null, act.hrs_cliente || null]
+      );
+    }
+    for (const herr of herramientas) {
+      await connection.execute(
+        'INSERT INTO herramientas_turno (id_informe, tipo_elemente, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [idInforme, herr.tipo_elemente || null, herr.diametro || null, herr.numero_serie || null, herr.desde_mts || null, herr.hasta_mts || null, herr.detalle_extra || null]
+      );
+    }
+    for (const perf of perforaciones) {
+      await connection.execute(
+        'INSERT INTO perforaciones_turno (id_informe, desde, hasta, metros_perforados, recuperacion, tipo_roca, dureza) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [idInforme, perf.desde || null, perf.hasta || null, perf.metros_perforados || null, perf.recuperacion || null, perf.tipo_roca || null, perf.dureza || null]
+      );
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      id_informe: idInforme,
+      folio,
+      estado: datosGenerales.estado || 'Borrador',
+      message: 'Informe creado correctamente'
+    });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('[ERROR] Error al crear informe:', error);
+    res.status(500).json({ error: 'Error al crear el informe', detalle: error.message });
   } finally {
     if (connection) connection.release();
   }
@@ -206,9 +371,33 @@ router.put('/informes/:id', async (req, res) => {
     const datosActualizados = req.body;
 
     if (datosActualizados?.datosGenerales) {
+      const isAuditEdit = parseBoolean(datosActualizados?.is_audit_edit);
+      const adminRutSolicitante = datosActualizados?.admin_rut || req.headers['x-admin-rut'] || req.headers['rut_solicitante'];
+      let auditAdminRut = null;
+
+      if (isAuditEdit) {
+        const validacionAudit = await validarSuperAdminPorRut(adminRutSolicitante);
+        if (!validacionAudit.ok) {
+          return res.status(validacionAudit.status).json({ error: validacionAudit.message });
+        }
+        auditAdminRut = validacionAudit.rutLimpio;
+      }
+
       const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = datosActualizados;
       connection = await pool.getConnection();
       await connection.beginTransaction();
+
+      const [informeActualRows] = await connection.execute(
+        'SELECT estado FROM informes_turno WHERE id_informe = ? LIMIT 1',
+        [id]
+      );
+
+      if (!informeActualRows || informeActualRows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'Informe no encontrado' });
+      }
+
+      const estadoPrevio = informeActualRows[0].estado || '';
 
       await connection.execute(
         `UPDATE informes_turno SET
@@ -290,6 +479,19 @@ router.put('/informes/:id', async (req, res) => {
         await connection.execute(
           'INSERT INTO perforaciones_turno (id_informe, desde, hasta, metros_perforados, recuperacion, tipo_roca, dureza) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [id, perf.desde || null, perf.hasta || null, perf.metros_perforados || null, perf.recuperacion || null, perf.tipo_roca || null, perf.dureza || null]
+        );
+      }
+
+      if (isAuditEdit && auditAdminRut) {
+        const estadoNuevo = datosGenerales.estado || estadoPrevio || 'Borrador';
+        const detalleBase = `Super Admin edito manualmente el informe ID_${id} en modo auditoria. Estado previo: ${estadoPrevio || 'N/A'}. Estado nuevo: ${estadoNuevo || 'N/A'}.`;
+        const detalle = estadoFueCerrado(estadoPrevio)
+          ? `${detalleBase} Edicion realizada despues de su cierre original.`
+          : detalleBase;
+
+        await connection.execute(
+          'INSERT INTO admin_logs (admin_rut, accion, detalle, fecha) VALUES (?, ?, ?, NOW())',
+          [auditAdminRut, 'AUDIT_EDIT_INFORME', detalle]
         );
       }
 

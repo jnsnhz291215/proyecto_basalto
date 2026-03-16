@@ -150,7 +150,7 @@ function renderInformes() {
 function crearAccordionItem(informe, index) {
   const div = document.createElement('div');
   div.className = 'accordion-item';
-  const puedeGestionar = canManageInformesAdmin();
+  const puedeGestionar = canManageInformesAdmin() || isSuperAdminSession();
   const puedeHardDelete = isSuperAdminSession();
 
   const operador = trabajadores.find(t => t.RUT === informe.operador_rut);
@@ -333,52 +333,16 @@ function crearInfoItem(label, value) {
 // EDITAR INFORME
 // ============================================
 async function editarInforme(idInforme) {
-  try {
-    if (!canManageInformesAdmin()) {
-      mostrarError('No tiene permisos para editar informes');
-      return;
-    }
-
-    const response = await fetch(`/api/informes/${idInforme}`);
-    if (!response.ok) throw new Error('Error al cargar informe');
-    
-    const informe = await response.json();
-    informeEditando = informe;
-    
-    // Cargar datos en el formulario
-    document.getElementById('edit-id-informe').value = informe.id_informe;
-    document.getElementById('edit-numero-informe').value = informe.numero_informe || '';
-    document.getElementById('edit-fecha').value = informe.fecha ? informe.fecha.split('T')[0] : '';
-    document.getElementById('edit-turno').value = informe.turno || 'Día';
-    document.getElementById('edit-horas-trabajadas').value = informe.horas_trabajadas || '';
-    document.getElementById('edit-faena').value = informe.faena || '';
-    document.getElementById('edit-lugar').value = informe.lugar || '';
-    document.getElementById('edit-equipo').value = informe.equipo || '';
-    document.getElementById('edit-operador-rut').value = informe.operador_rut || '';
-    document.getElementById('edit-ayudante-1').value = informe.ayudante_1 || '';
-    document.getElementById('edit-ayudante-2').value = informe.ayudante_2 || '';
-    document.getElementById('edit-pozo-numero').value = informe.pozo_numero || '';
-    document.getElementById('edit-sector').value = informe.sector || '';
-    document.getElementById('edit-diametro').value = informe.diametro || '';
-    document.getElementById('edit-inclinacion').value = informe.inclinacion || '';
-    document.getElementById('edit-profundidad-inicial').value = informe.profundidad_inicial || '';
-    document.getElementById('edit-profundidad-final').value = informe.profundidad_final || '';
-    document.getElementById('edit-mts-perforados').value = informe.mts_perforados || '';
-    document.getElementById('edit-pull-down').value = informe.pull_down || '';
-    document.getElementById('edit-rpm').value = informe.rpm || '';
-    document.getElementById('edit-horometro-inicial').value = informe.horometro_inicial || '';
-    document.getElementById('edit-horometro-final').value = informe.horometro_final || '';
-    document.getElementById('edit-horometro-hrs').value = informe.horometro_hrs || '';
-    document.getElementById('edit-insumo-petroleo').value = informe.insumo_petroleo || '';
-    document.getElementById('edit-insumo-lubricantes').value = informe.insumo_lubricantes || '';
-    document.getElementById('edit-observaciones').value = informe.observaciones || '';
-    
-    // Mostrar modal
-    el.modalEditarInforme.show();
-  } catch (error) {
-    console.error('[INFORMES] Error al cargar informe para editar:', error);
-    mostrarError('Error al cargar el informe para edición');
+  const puedeEditar = canManageInformesAdmin() || isSuperAdminSession();
+  if (!puedeEditar) {
+    mostrarError('No tiene permisos para editar informes');
+    return;
   }
+
+  const url = new URL('/informe.html', window.location.origin);
+  url.searchParams.set('id', String(idInforme));
+  url.searchParams.set('mode', 'admin');
+  window.location.href = url.toString();
 }
 
 async function guardarEdicionInforme() {

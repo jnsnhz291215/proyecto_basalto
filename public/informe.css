@@ -33,6 +33,12 @@ body {
 	color: #1d4ed8;
 }
 
+.status-banner.audit {
+	background: #fefce8;
+	border-color: #fde047;
+	color: #854d0e;
+}
+
 /* TABS HEADER */
 .tabs-header {
 	display: flex;
@@ -432,3 +438,51 @@ body {
 		font-size: 0.85rem;
 	}
 }
+
+
+/* ---- Compact header ---- */
+.header-iden-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+flex-wrap: wrap;
+gap: 10px;
+}
+
+.header-iden-title {
+display: flex;
+align-items: center;
+gap: 10px;
+font-size: 1.1rem;
+font-weight: 700;
+color: #1e293b;
+}
+
+.header-iden-title i {
+color: #7c3aed;
+font-size: 1.2rem;
+}
+
+.header-fields-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+gap: 12px;
+}
+
+/* Shift status badge */
+.shift-badge {
+display: inline-flex;
+align-items: center;
+gap: 6px;
+padding: 5px 12px;
+border-radius: 20px;
+font-size: 0.8rem;
+font-weight: 600;
+white-space: nowrap;
+border: 1px solid transparent;
+}
+
+.shift-badge--active   { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.shift-badge--rest     { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.shift-badge--upcoming { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.shift-badge--unknown  { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }

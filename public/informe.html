@@ -66,32 +66,45 @@
   <main>
     <div class="informe-container">
                 <div id="document-status-banner" class="status-banner" hidden></div>
+                                <div id="audit-mode-banner" class="status-banner audit" hidden></div>
         
         <!-- HEADER: Información General -->
-        <div class="card-section header-section" data-section-panel="antecedentes">
-            <div class="input-group">
-                <label>Fecha</label>
-                <input type="date" id="input-fecha" value="2026-02-05" class="modern-input">
+        <!-- HEADER: Información General del Turno -->
+        <div class="card-section header-section" id="section-header">
+            <div class="header-iden-row">
+                <div class="header-iden-title">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>Informe de Turno</span>
+                </div>
+                <div id="shift-status-badge" class="shift-badge" hidden></div>
             </div>
-            <div class="input-group">
-                <label>Turno (Grupo)</label>
-                <select id="input-turno" class="modern-input"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-            </div>
-            <div class="input-group">
-                <label>Horas Trabajadas</label>
-                <input type="number" id="input-horas-trabajadas" placeholder="Ej: 12.5" class="modern-input">
-            </div>
-            <div class="input-group">
-                <label>Horómetro Inicial</label>
-                <input type="number" id="input-horometro-inicial" placeholder="Ej: 1500.5" class="modern-input">
-            </div>
-            <div class="input-group">
-                <label>Horómetro Final</label>
-                <input type="number" id="input-horometro-final" placeholder="Ej: 1512.0" class="modern-input">
-            </div>
-            <div class="input-group">
-                <label>Horas Horómetro</label>
-                <input type="number" id="input-horometro-hrs" placeholder="Ej: 11.5" class="modern-input">
+            <div class="header-fields-grid" data-section-panel="antecedentes">
+                <div class="input-group">
+                    <label>Fecha del Informe</label>
+                    <input type="date" id="input-fecha" class="modern-input">
+                </div>
+                <div class="input-group">
+                    <label>Grupo / Turno</label>
+                    <select id="input-turno" class="modern-input">
+                        <option value="" disabled selected>Detectando turno&hellip;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Hrs. Trabajadas</label>
+                    <input type="number" id="input-horas-trabajadas" placeholder="12.5" class="modern-input">
+                </div>
+                <div class="input-group">
+                    <label>Horóm. Inicial</label>
+                    <input type="number" id="input-horometro-inicial" class="modern-input">
+                </div>
+                <div class="input-group">
+                    <label>Horóm. Final</label>
+                    <input type="number" id="input-horometro-final" class="modern-input">
+                </div>
+                <div class="input-group">
+                    <label>Hrs Horómetro</label>
+                    <input type="number" id="input-horometro-hrs" class="modern-input">
+                </div>
             </div>
         </div>
 
@@ -136,16 +149,22 @@
                     <h3 class="section-title">Operador y Ayudantes</h3>
                     <div class="form-grid">
                         <div class="input-group">
-                            <label>Operador</label>
-                            <input type="text" id="input-operador" value="Juan Sanhueza" readonly class="modern-input input-readonly">
+                            <label id="label-operador">Operador</label>
+                            <select id="input-operador" class="modern-input">
+                                <option value="">— Cargando personal —</option>
+                            </select>
                         </div>
                         <div class="input-group">
                             <label>Ayudante 1</label>
-                            <input type="text" id="input-ayudante-1" placeholder="RUT o nombre" class="modern-input">
+                            <select id="input-ayudante-1" class="modern-input">
+                                <option value="">— Ninguno —</option>
+                            </select>
                         </div>
                         <div class="input-group">
                             <label>Ayudante 2</label>
-                            <input type="text" id="input-ayudante-2" placeholder="RUT o nombre" class="modern-input">
+                            <select id="input-ayudante-2" class="modern-input">
+                                <option value="">— Ninguno —</option>
+                            </select>
                         </div>
                     </div>
                 </div>

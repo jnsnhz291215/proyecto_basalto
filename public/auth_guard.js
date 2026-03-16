@@ -506,3 +506,59 @@
   };
 
 })();
+  // Función global para obtener datos de sesión
+  window.getSession = function() {
+    return {
+      role: userRole,
+      rut: userRut,
+      name: userName,
+      isSuperAdmin: isSuperAdmin,
+      permisos: userPermisos,
+      permisosCargo: cargoPermisos,
+      permisosTotales: {
+        admin: Array.from(permisosAdminNormalizados),
+        cargo: Array.from(permisosCargoNormalizados)
+      }
+    };
+  };
+
+  // ============================================
+  // RESTRICCIÓN TURNO ACTIVO (solo informe.html)
+  // Si el usuario es 'user' (no admin) y no está en turno activo,
+  // se muestra un overlay bloqueante en lugar de redirigir.
+  // ============================================
+  if (currentPath.includes('informe.html') && userRut && !isSuperAdmin && userRole !== 'admin') {
+    fetch('/api/estado-turno/' + encodeURIComponent(userRut))
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(data) {
+        if (data.estado && data.estado !== 'en_turno') {
+          var overlay = document.createElement('div');
+          overlay.id = 'shift-access-denied-overlay';
+          overlay.setAttribute('style',
+            'position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,0.93);' +
+            'display:flex;align-items:center;justify-content:center;'
+          );
+          overlay.innerHTML =
+            '<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:2.5rem 2rem;' +
+            'max-width:420px;width:90%;text-align:center;color:#f8fafc;box-shadow:0 25px 50px rgba(0,0,0,0.5);">' +
+              '<div style="font-size:3rem;margin-bottom:1rem;">&#x1F512;</div>' +
+              '<h2 style="font-size:1.35rem;font-weight:700;margin:0 0 0.6rem;">Fuera de Turno</h2>' +
+              '<p style="color:#94a3b8;margin:0 0 0.4rem;">Usted no se encuentra en turno activo.</p>' +
+              '<p style="color:#64748b;font-size:0.85rem;margin:0 0 1.5rem;">' +
+                (data.mensaje ? data.mensaje.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '') + '</p>' +
+              '<p style="color:#64748b;font-size:0.85rem;margin:0 0 1.5rem;">Acceso denegado.</p>' +
+              '<a href="/menu.html" style="display:inline-block;padding:0.6rem 1.4rem;background:#3b82f6;' +
+              'color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.95rem;">' +
+              '\u2190 Volver al men\u00fa</a>' +
+            '</div>';
+          document.body.appendChild(overlay);
+          // Ocultar contenido principal para que no sea accesible detrás del overlay
+          var main = document.querySelector('main');
+          if (main) main.setAttribute('aria-hidden', 'true');
+          console.log('[AUTH_GUARD] Acceso bloqueado: usuario fuera de turno activo');
+        }
+      })
+      .catch(function() { /* API no disponible: no bloquear */ });
+  }
+
+})();

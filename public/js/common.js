@@ -130,3 +130,26 @@
   setInterval(syncNavbarActiveState, 1000);
 
 })();
+
+// ============================================
+// SHIFT-DATE LOGIC - Fecha Contable del Turno
+// ============================================
+// Si la hora actual es entre 00:00 y 07:59, el turno de noche pertenece
+// al día anterior (ej: turno 20:00-08:00 quedará bajo la fecha de inicio).
+window.getShiftDate = function getShiftDate() {
+  var now = new Date();
+  if (now.getHours() < 8) {
+    var prev = new Date(now);
+    prev.setDate(prev.getDate() - 1);
+    return prev;
+  }
+  return new Date(now);
+};
+
+window.getShiftDateISO = function getShiftDateISO() {
+  var d = window.getShiftDate();
+  var y = d.getFullYear();
+  var mo = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + mo + '-' + day;
+};

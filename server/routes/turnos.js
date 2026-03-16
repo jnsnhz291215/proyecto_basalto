@@ -405,4 +405,49 @@ function parsearFecha(fechaStr) {
   return new Date(anio, mes - 1, dia);
 }
 
+/**
+ * GET /api/turnos/grupos-activos
+ * Retorna los grupos que están trabajando en una fecha dada.
+ * Query params:
+ *   - fecha: YYYY-MM-DD (default: fecha contable actual según jornada)
+ */
+router.get('/turnos/grupos-activos', async (req, res) => {
+  try {
+    let fecha;
+    if (req.query.fecha) {
+      fecha = new Date(req.query.fecha + 'T00:00:00');
+    } else {
+      fecha = new Date();
+    }
+    fecha.setHours(0, 0, 0, 0);
+
+    const configCiclos = await obtenerConfigCiclos();
+    const todosGrupos = ['A', 'B', 'AB', 'C', 'D', 'CD', 'E', 'F', 'EF', 'G', 'H', 'GH', 'J', 'K'];
+    const gruposActivos = [];
+    const detalle = {};
+
+    for (const grupo of todosGrupos) {
+      const estado = calcularEstadoTurno(grupo, fecha, configCiclos);
+      if (estado.estado === 'en_turno') {
+        gruposActivos.push(grupo);
+        detalle[grupo] = {
+          horario: estado.horario || '',
+          turno_tipo: estado.turno_tipo || '',
+          fase_actual: estado.fase_actual || ''
+        };
+      }
+    }
+
+    const y = fecha.getFullYear();
+    const mo = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dy = String(fecha.getDate()).padStart(2, '0');
+    const fechaStr = req.query.fecha || `${y}-${mo}-${dy}`;
+
+    res.json({ fecha: fechaStr, grupos: gruposActivos, detalle });
+  } catch (error) {
+    console.error('[ERROR] Error al calcular grupos activos:', error);
+    res.status(500).json({ error: 'Error al calcular grupos activos' });
+  }
+});
+
 module.exports = router;
