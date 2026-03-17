@@ -41,6 +41,17 @@ const InformeTurno = (() => {
     auditModeRequested: false,
     auditModeEnabled: false
   };
+  window.state = state;
+
+  function activarBotonPDF() {
+    const btnPdf = document.getElementById('btn-descargar-pdf');
+    if (btnPdf) {
+      btnPdf.disabled = false;
+      btnPdf.removeAttribute('title');
+      btnPdf.style.cursor = 'pointer';
+      btnPdf.style.opacity = '1';
+    }
+  }
 
   function parseJSONArray(key) {
     try {
@@ -609,6 +620,7 @@ const InformeTurno = (() => {
     }
 
     state.currentReportId = Number(reportId);
+    activarBotonPDF();
     state.currentReportStatus = result.informe.estado || '';
     state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
 
@@ -720,13 +732,35 @@ const InformeTurno = (() => {
     }
 
     const datosGenerales = buildDatosGenerales(estadoFinal);
+    
+    // Validar siempre campos críticos básicos si finalizamos
     if (estadoFinal === 'Finalizado') {
-      const required = ['fecha', 'turno', 'faena', 'equipo', 'operador_rut'];
-      for (const field of required) {
-        if (!datosGenerales[field]) {
-          alert('Complete los campos obligatorios antes de finalizar el turno.');
-          return;
+      const requiredFields = [
+        { key: 'fecha', name: 'Fecha del Informe', id: 'input-fecha' },
+        { key: 'turno', name: 'Turno', id: 'input-turno' },
+        { key: 'faena', name: 'Faena / C. Costo', id: 'input-faena' },
+        { key: 'equipo', name: 'Equipo', id: 'input-equipo' },
+        { key: 'operador_rut', name: 'Operador', id: 'input-operador' },
+        { key: 'horometro_inicial', name: 'Horóm. Inicial', id: 'input-horometro-inicial' },
+        { key: 'horometro_final', name: 'Horóm. Final', id: 'input-horometro-final' },
+      ];
+
+      const faltantes = [];
+
+      // Limpiar errores previos
+      document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+
+      for (const field of requiredFields) {
+        if (!datosGenerales[field.key]) {
+          faltantes.push(`&bull; ${field.name}`);
+          const inputEl = document.getElementById(field.id);
+          if (inputEl) inputEl.classList.add('input-error');
         }
+      }
+
+      if (faltantes.length > 0) {
+        showErrorModal(`Por favor complete los siguientes campos obligatorios para finalizar:<br><br>${faltantes.join('<br>')}`);
+        return;
       }
     }
 
@@ -757,7 +791,7 @@ const InformeTurno = (() => {
       result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        alert(`❌ Error al guardar: ${result.error || 'Error desconocido'}`);
+        showErrorModal(`Error al guardar: ${result.error || 'Error desconocido'}`);
         return;
       }
     } finally {
@@ -766,6 +800,7 @@ const InformeTurno = (() => {
 
     if (!state.currentReportId && result.id_informe) {
       state.currentReportId = Number(result.id_informe);
+      activarBotonPDF();
       const params = new URLSearchParams(window.location.search);
       params.set('id', String(result.id_informe));
       window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
@@ -982,7 +1017,8 @@ const InformeTurno = (() => {
         .find(([, contentId]) => contentId === idTab)?.[0];
 
       if (tabKey) activateTab(tabKey);
-    }
+    },
+    showErrorModal
   };
 })();
 

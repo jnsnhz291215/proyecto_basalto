@@ -213,6 +213,20 @@
   window.hasAdminPermission = hasAdminPermission;
   window.hasCargoPermission = hasCargoPermission;
 
+  function checkPagePermission(permissionKey) {
+    if (!hasAdminPermission(permissionKey)) {
+      console.log(`[AUTH_GUARD] Acceso denegado - Falta permiso: ${permissionKey}`);
+      // Usa el mismo modal de access denied si existe, sino un alert
+      if (typeof window.showAccessDeniedModal === 'function') {
+         window.showAccessDeniedModal('Acceso Restringido', 'No tienes los permisos necesarios para ver esta página.');
+      } else {
+         alert('Acceso denegado. No tienes permiso para ver esta sección.');
+      }
+      window.location.href = '/index.html';
+    }
+  }
+  window.checkPagePermission = checkPagePermission;
+
   // ============================================
   // 3. ACTUALIZAR INTERFAZ: Mostrar nombre y ocultar elementos
   // ============================================
@@ -489,24 +503,6 @@
     return isSuperAdmin;
   };
 
-  // Función global para obtener datos de sesión
-  window.getSession = function() {
-    return {
-      role: userRole,
-      rut: userRut,
-      name: userName,
-      isSuperAdmin: isSuperAdmin,
-      permisos: userPermisos,
-      permisosCargo: cargoPermisos,
-      permisosTotales: {
-        admin: Array.from(permisosAdminNormalizados),
-        cargo: Array.from(permisosCargoNormalizados)
-      }
-    };
-  };
-
-})();
-  // Función global para obtener datos de sesión
   window.getSession = function() {
     return {
       role: userRole,

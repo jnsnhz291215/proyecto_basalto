@@ -35,6 +35,12 @@ const informesRoutes = require('./routes/informes');
 app.use('/api', informesRoutes);
 
 // ============================================
+// RUTAS DE ESTADÍSTICAS Y DASHBOARD
+// ============================================
+const statsRoutes = require('./routes/stats');
+app.use('/api', statsRoutes);
+
+// ============================================
 // RUTAS DE GESTIÓN DE ADMINISTRADORES
 // ============================================
 const adminManagementRoutes = require('./routes/admin_management');

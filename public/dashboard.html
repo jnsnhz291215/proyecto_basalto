@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard KPIs - Basalto Drilling</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/navbar_core.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/route-guard.js"></script>
+    <script src="auth_guard.js"></script>
+</head>
+<body>
+    <div id="shared-menu-placeholder"></div>
+    <script>
+        fetch('menu.html').then(r => r.text()).then(html => {
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = html;
+          document.body.insertBefore(wrapper, document.body.firstChild);
+          
+          const btn = wrapper.querySelector('#nav-toggle');
+          const items = wrapper.querySelector('#nav-items');
+          if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
+          try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
+          
+          try {
+              const userToggle = wrapper.querySelector('.user-toggle');
+              const userMenu = wrapper.querySelector('.user-menu');
+              if (userToggle && userMenu) {
+                  userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
+                  document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
+              }
+              const logoutBtn = wrapper.querySelector('.user-menu .danger');
+              if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
+              const s = localStorage.getItem('usuarioActivo');
+              if (s) {
+                  const u = JSON.parse(s);
+                  const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
+              }
+          } catch(e){}
+          try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
+        }).catch(err => console.error('No se pudo cargar el menú:', err));
+    </script>
+    <script src="navbar.js"></script>
+
+    <main class="page-container dashboard-container">
+        <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <h1 class="page-title"><i class="fa-solid fa-chart-line"></i> Dashboard KPIs Mensuales</h1>
+                <p class="page-subtitle">Indicadores clave de rendimiento operativo</p>
+            </div>
+            <div class="header-actions">
+                <select id="select-anio" class="modern-input" style="width: 150px; font-weight: bold;">
+                    <!-- Se llenará vía JS -->
+                </select>
+                <button id="btn-refresh-kpi" class="btn btn-primary" title="Actualizar datos">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tarjetas de Resumen -->
+        <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
+            <div class="card stat-card" style="padding: 24px; border-left: 4px solid #0056b3; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <div style="color: #64748b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Avance Anual Acumulado</div>
+                <div style="font-size: 32px; font-weight: 700; color: #1e293b; margin: 8px 0;" id="kpi-avance-anual">0</div>
+                <div style="color: #64748b; font-size: 13px;">Metros perforados en total (YTD)</div>
+            </div>
+            
+            <div class="card stat-card" style="padding: 24px; border-left: 4px solid #10b981; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <div style="color: #64748b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Mejor Grupo del Mes</div>
+                <div style="font-size: 32px; font-weight: 700; color: #1e293b; margin: 8px 0;" id="kpi-mejor-grupo">-</div>
+                <div style="color: #64748b; font-size: 13px;" id="kpi-mejor-metros">0 metros</div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 32px;">
+            <div class="card chart-card" style="background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px;">
+                <h3 style="margin-top: 0; margin-bottom: 20px; color: #334155; font-size: 18px;">Rendimiento: Metros Perforados</h3>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="chartMetros"></canvas>
+                </div>
+            </div>
+
+            <div class="card chart-card" style="background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px;">
+                <h3 style="margin-top: 0; margin-bottom: 20px; color: #334155; font-size: 18px;">Eficiencia Insumos (Lts de Petróleo / Mts Perforado)</h3>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="chartEficiencia"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla opcional de estado mecánico (si el espacio lo permite) -->
+        <div class="card" style="background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px; margin-top: 32px;">
+            <h3 style="margin-top: 0; margin-bottom: 20px; color: #334155; font-size: 18px;">Disponibilidad Mecánica (Aproximación por Reportes)</h3>
+            <div class="table-responsive">
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8fafc; text-align: left; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 12px;">Mes</th>
+                            <th style="padding: 12px;">Informes Finalizados</th>
+                            <th style="padding: 12px;">Horas Totales Reportadas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-disponibilidad">
+                        <!-- Llenado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

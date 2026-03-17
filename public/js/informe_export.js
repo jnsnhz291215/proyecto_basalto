@@ -9,7 +9,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnReabrir) {
         btnReabrir.addEventListener('click', reabrirTurno);
     }
+    
+    setupModalAdvertencia();
 });
+
+function setupModalAdvertencia() {
+    const modal = document.getElementById('modal-advertencia-guardado');
+    const btnEntendido = document.getElementById('btn-adv-entendido');
+    const btnGuardarAhora = document.getElementById('btn-adv-guardar-ahora');
+    
+    if (!modal) return;
+
+    if (btnEntendido) {
+        btnEntendido.addEventListener('click', () => {
+            modal.style.display = 'none';
+            if (typeof document.body.style.overflow !== 'undefined') {
+                document.body.style.overflow = '';
+            }
+        });
+    }
+
+    if (btnGuardarAhora) {
+        btnGuardarAhora.addEventListener('click', async () => {
+            modal.style.display = 'none';
+            if (typeof document.body.style.overflow !== 'undefined') {
+                document.body.style.overflow = '';
+            }
+            
+            // Simular clic en el botón nativo de Guardar Borrador para aprovechar su lógica (spinners, loaders, validaciones de informe.js)
+            const btnBorrador = document.getElementById('btn-guardar-borrador');
+            if (btnBorrador) {
+                btnBorrador.click();
+            } else {
+                // Fallback si no existe el boton en el dom (poco probable)
+                if (typeof persistInforme === 'function') {
+                    await persistInforme('Borrador');
+                }
+            }
+        });
+    }
+}
 
 async function reabrirTurno() {
     if (!state.currentReportId) return;
@@ -44,7 +83,13 @@ async function generarPDF() {
     // Para el botón de informe.html
     const id = typeof state !== 'undefined' ? state.currentReportId : null;
     if (!id) {
-        alert('Debes guardar el informe primero antes de generar el PDF.');
+        const modal = document.getElementById('modal-advertencia-guardado');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Bloquear scroll usando tactica similar a common.js / bootstrap
+        } else {
+            alert('Debes guardar el informe primero antes de generar el PDF.');
+        }
         return;
     }
     

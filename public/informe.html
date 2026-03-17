@@ -329,7 +329,7 @@
 
         <!-- BOTONES DE ACCIÓN FINALES -->
         <div class="action-bar">
-            <button id="btn-descargar-pdf" class="btn btn-primary" type="button" style="background: #e2e8f0; color: #1e293b; border-color: #cbd5e1; margin-right: auto;">
+            <button id="btn-descargar-pdf" class="btn btn-primary" type="button" disabled title="Primero debes guardar los cambios" style="background: #e2e8f0; color: #1e293b; border-color: #cbd5e1; margin-right: auto; cursor: not-allowed; opacity: 0.6;">
                 <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Descargar PDF
             </button>
             <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
@@ -394,6 +394,27 @@
           </div>
           <p id="modal-error-message" style="color: #4b5563; font-size: 14px; line-height: 1.5; margin-bottom: 24px;"></p>
           <button id="btn-error-ok" class="btn btn-primary" style="width: 100%; justify-content: center;">Entendido</button>
+      </div>
+  </div>
+
+  <!-- MODAL: Advertencia Guardado (PDF) -->
+  <div id="modal-advertencia-guardado" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2300; align-items: center; justify-content: center;">
+      <div class="modal-content" style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: #ea580c;">
+              <div style="width: 40px; height: 40px; background: #ffedd5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                  <i class="fa-solid fa-triangle-exclamation" style="font-size: 20px;"></i>
+              </div>
+              <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Informe no registrado</h3>
+          </div>
+          <p style="color: #4b5563; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+              Para generar el documento PDF, los datos deben estar guardados en el servidor. Por favor, guarda el borrador o finaliza el turno antes de exportar.
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <button id="btn-adv-entendido" class="btn" style="background: #e5e7eb; color: #374151; font-weight: 600;">Entendido</button>
+              <button id="btn-adv-guardar-ahora" class="btn" style="background: #ea580c; color: white; border: none; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-floppy-disk"></i> Guardar ahora
+              </button>
+          </div>
       </div>
   </div>
 
