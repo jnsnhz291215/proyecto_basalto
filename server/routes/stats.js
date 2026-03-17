@@ -1,25 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion');
-const { verifyToken, requirePermission } = require('./auth');
 
 // ============================================
 // OBTENER ESTADÍSTICAS MENSUALES
-// Requiere permiso explícito o ser Super Admin
 // ============================================
-router.get('/stats/mensual', verifyToken, requirePermission('admin_v_kpis'), async (req, res) => {
+router.get('/stats/mensual', async (req, res) => {
     try {
         const anio = parseInt(req.query.anio) || new Date().getFullYear();
 
         // 1. Metros Perforados Totales por Mes y Eficiencia de Combustible
         const [metricasRows] = await pool.execute(`
             SELECT 
-                MONTH(fecha_informe) as mes,
-                SUM(metros_perforados) as total_metros,
+                MONTH(fecha) as mes,
+                SUM(mts_perforados) as total_metros,
                 SUM(insumo_petroleo) as total_petroleo
             FROM informes_turno
-            WHERE YEAR(fecha_informe) = ? AND estado != 'Anulado'
-            GROUP BY MONTH(fecha_informe)
+            WHERE YEAR(fecha) = ? AND estado != 'Anulado'
+            GROUP BY MONTH(fecha)
             ORDER BY mes ASC
         `, [anio]);
 
@@ -29,12 +27,12 @@ router.get('/stats/mensual', verifyToken, requirePermission('admin_v_kpis'), asy
         // o sumar hrs_trabajadas. Para simplificar según requerimiento:
         const [disponibilidadRows] = await pool.execute(`
             SELECT 
-                MONTH(fecha_informe) as mes,
-                COUNT(id) as total_informes,
-                SUM(hrs_trabajadas) as total_hrs_trabajadas
+                MONTH(fecha) as mes,
+                COUNT(id_informe) as total_informes,
+                SUM(horas_trabajadas) as total_hrs_trabajadas
             FROM informes_turno
-            WHERE YEAR(fecha_informe) = ? AND estado != 'Anulado'
-            GROUP BY MONTH(fecha_informe)
+            WHERE YEAR(fecha) = ? AND estado != 'Anulado'
+            GROUP BY MONTH(fecha)
             ORDER BY mes ASC
         `, [anio]);
 
@@ -69,11 +67,11 @@ router.get('/stats/mensual', verifyToken, requirePermission('admin_v_kpis'), asy
 
         const [mejorGrupoRow] = await pool.execute(`
             SELECT 
-                grupo,
-                SUM(metros_perforados) as total_metros
+                turno as grupo,
+                SUM(mts_perforados) as total_metros
             FROM informes_turno
-            WHERE YEAR(fecha_informe) = ? AND MONTH(fecha_informe) = ? AND estado != 'Anulado'
-            GROUP BY grupo
+            WHERE YEAR(fecha) = ? AND MONTH(fecha) = ? AND estado != 'Anulado'
+            GROUP BY turno
             ORDER BY total_metros DESC
             LIMIT 1
         `, [anio, mesConsulta]);

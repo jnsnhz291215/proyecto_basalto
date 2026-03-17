@@ -551,7 +551,7 @@ const InformeTurno = (() => {
           <td><input type="number" class="input-compact" name="perf_hasta[]" value="${escapeAttribute(row.hasta ?? row.hasta_mts ?? '')}"></td>
           <td><input type="number" class="input-compact" name="perf_metros[]" value="${escapeAttribute(row.metros_perforados ?? '')}"></td>
           <td><input type="number" class="input-compact" name="perf_recuper[]" value="${escapeAttribute(row.recuperacion ?? '')}"></td>
-          <td><input type="text" class="input-compact" name="perf_tipo[]" value="${escapeAttribute(row.tipo_roca || row.tipo_rocka || '')}"></td>
+          <td><input type="text" class="input-compact" name="perf_tipo[]" value="${escapeAttribute(row.tipo_roca || '')}"></td>
           <td><input type="text" class="input-compact" name="perf_dureza[]" value="${escapeAttribute(row.dureza || '')}"></td>
           <td style="text-align:center;"><button class="btn-delete" type="button"><i class="fa-solid fa-trash"></i></button></td>
         </tr>
@@ -564,7 +564,7 @@ const InformeTurno = (() => {
     rows.forEach((row) => {
       appendRow('tabla-herramientas', `
         <tr>
-          <td><input type="text" class="input-compact" name="herr_tipo_elemente[]" value="${escapeAttribute(row.tipo_elemente || '')}"></td>
+          <td><input type="text" class="input-compact" name="herr_tipo_elemento[]" value="${escapeAttribute(row.tipo_elemento || '')}"></td>
           <td><input type="text" class="input-compact" name="herr_diametro[]" value="${escapeAttribute(row.diametro || '')}"></td>
           <td><input type="text" class="input-compact" name="herr_numero_serie[]" value="${escapeAttribute(row.numero_serie || '')}"></td>
           <td><input type="number" class="input-compact" name="herr_desde_mts[]" step="0.1" value="${escapeAttribute(row.desde_mts ?? '')}"></td>
@@ -668,7 +668,7 @@ const InformeTurno = (() => {
 
     const herramientas = [];
     document.querySelectorAll('#tabla-herramientas tr').forEach((fila) => {
-      const tipoElemente = fila.querySelector('[name="herr_tipo_elemente[]"]')?.value || '';
+      const tipoElemento = fila.querySelector('[name="herr_tipo_elemento[]"]')?.value || '';
       const diametro = fila.querySelector('[name="herr_diametro[]"]')?.value || '';
       const numeroSerie = fila.querySelector('[name="herr_numero_serie[]"]')?.value || '';
       const desdeMts = parseFloat(fila.querySelector('[name="herr_desde_mts[]"]')?.value);
@@ -676,7 +676,7 @@ const InformeTurno = (() => {
       const detalleExtra = fila.querySelector('[name="herr_detalle_extra[]"]')?.value || '';
       if (tipoElemente || numeroSerie || Number.isFinite(desdeMts) || Number.isFinite(hastaMts) || detalleExtra) {
         herramientas.push({
-          tipo_elemente: tipoElemente,
+          tipo_elemento: tipoElemento,
           diametro,
           numero_serie: numeroSerie,
           desde_mts: Number.isFinite(desdeMts) ? desdeMts : null,
@@ -857,7 +857,7 @@ const InformeTurno = (() => {
       e.preventDefault();
       appendRow('tabla-herramientas', `
         <tr>
-          <td><input type="text" class="input-compact" name="herr_tipo_elemente[]"></td>
+          <td><input type="text" class="input-compact" name="herr_tipo_elemento[]"></td>
           <td><input type="text" class="input-compact" name="herr_diametro[]"></td>
           <td><input type="text" class="input-compact" name="herr_numero_serie[]"></td>
           <td><input type="number" class="input-compact" name="herr_desde_mts[]" step="0.1"></td>

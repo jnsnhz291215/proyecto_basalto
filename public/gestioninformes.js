@@ -304,7 +304,7 @@ async function cargarDetallesInforme(idInforme) {
       html += '<tbody>';
       detalles.herramientas.forEach(herr => {
         html += `<tr>
-          <td>${herr.tipo_elemente || '-'}</td>
+          <td>${herr.tipo_elemento || '-'}</td>
           <td>${herr.diametro || '-'}</td>
           <td>${herr.numero_serie || '-'}</td>
           <td>${herr.desde_mts || '-'}</td>
@@ -327,7 +327,7 @@ async function cargarDetallesInforme(idInforme) {
           <td>${perf.hasta_mts || '-'}</td>
           <td>${perf.mts_perforados || '-'}</td>
           <td>${perf.recuperacion || '-'}</td>
-          <td>${perf.tipo_rocka || '-'}</td>
+          <td>${perf.tipo_roca || '-'}</td>
           <td>${perf.dureza || '-'}</td>
         </tr>`;
       });
