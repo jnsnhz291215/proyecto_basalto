@@ -41,167 +41,241 @@ async function reabrirTurno() {
 }
 
 async function generarPDF() {
+    // Para el botón de informe.html
+    const id = typeof state !== 'undefined' ? state.currentReportId : null;
+    if (!id) {
+        alert('Debes guardar el informe primero antes de generar el PDF.');
+        return;
+    }
+    
     const btnPdfMain = document.getElementById('btn-descargar-pdf');
     const btnPdfSuccess = document.getElementById('btn-success-pdf');
     if (btnPdfMain) btnPdfMain.classList.add('btn-loading');
     if (btnPdfSuccess) btnPdfSuccess.classList.add('btn-loading');
+    
+    try {
+        await exportarInformeAPDF(id);
+    } catch (e) {
+        console.error('Generar PDF error', e);
+    } finally {
+        if (btnPdfMain) btnPdfMain.classList.remove('btn-loading');
+        if (btnPdfSuccess) btnPdfSuccess.classList.remove('btn-loading');
+    }
+}
+
+// Generador Universal y On-Demand
+async function exportarInformeAPDF(idInforme) {
+    if (!idInforme) {
+        throw new Error("No hay ID de informe válido");
+    }
 
     try {
-        // 1. Fetch audit state
+        // 1. Fetch de datos completos
+        const res = await fetch(`/api/informes/${idInforme}/detalles`);
+        if (!res.ok) throw new Error('Error al cargar datos del informe desde la base de datos.');
+        const { informe, actividades, herramientas, perforaciones } = await res.json();
+
+        // 2. Revisar logs para marca de auditoría
         let auditDateStr = null;
-        if (state.currentReportId) {
-            const res = await fetch('/api/logs');
-            if (res.ok) {
-                const logs = await res.json();
-                const logForDoc = logs.find(l => l.detalle && l.detalle.includes(`ID_${state.currentReportId}`));
-                if (logForDoc) {
-                    const dt = new Date(logForDoc.fecha);
-                    auditDateStr = dt.toLocaleDateString('es-CL');
-                }
+        const resLogs = await fetch('/api/logs');
+        if (resLogs.ok) {
+            const logs = await resLogs.json();
+            const logForDoc = logs.find(l => l.detalle && l.detalle.includes(`ID_${idInforme}`));
+            if (logForDoc) {
+                const dt = new Date(logForDoc.fecha);
+                auditDateStr = dt.toLocaleDateString('es-CL') + ' ' + dt.toLocaleTimeString('es-CL', { hour: '2-digit', minute:'2-digit' });
             }
         }
 
-        // 2. Clone the container for clean PDF print
-        const originalContainer = document.querySelector('.informe-container');
-        const container = originalContainer.cloneNode(true);
-
-        // Hide unwanted elements
-        container.querySelectorAll('.status-banner').forEach(el => el.style.display = 'none');
-        container.querySelectorAll('.action-bar').forEach(el => el.style.display = 'none');
-        container.querySelectorAll('.tabs-header').forEach(el => el.style.display = 'none');
-        container.querySelectorAll('button').forEach(el => el.style.display = 'none');
-        
-        // Show all tabs vertically
-        container.querySelectorAll('.tab-content').forEach(el => {
-            el.style.display = 'block';
-            el.style.opacity = '1';
-            el.classList.add('active');
-        });
-
-        // Convert form elements to span texts
-        container.querySelectorAll('input, select, textarea').forEach(el => {
-            let val = el.value || '';
-            if (el.tagName === 'SELECT') {
-                const opt = el.options[el.selectedIndex];
-                val = opt ? opt.text : val;
-                if (val.startsWith('—') && val.endsWith('—')) val = ''; // hide placeholder like text
-            }
-            const span = document.createElement('span');
-            span.textContent = val || '-';
-            span.style.padding = '4px 8px';
-            span.style.display = 'inline-block';
-            span.style.fontWeight = '600';
-            span.style.color = '#1f2937';
-            span.style.borderBottom = '1px dashed #cbd5e1';
-            span.style.minWidth = '40px';
-            if (el.tagName === 'TEXTAREA') {
-                span.style.whiteSpace = 'pre-wrap';
-                span.style.display = 'block';
-                span.style.border = '1px solid #e2e8f0';
-                span.style.padding = '10px';
-                span.style.borderRadius = '6px';
-                span.style.backgroundColor = '#f8fafc';
-            }
-            el.parentNode.replaceChild(span, el);
-        });
-
-        // Insert Logo
-        const headerSection = container.querySelector('.header-section');
-        if (headerSection) {
-            const logoHtml = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #4f46e5;">
-                <div>
-                    <h1 style="color: #4f46e5; margin: 0; font-size: 24px; letter-spacing: 1px;">BASALTO DRILLING</h1>
-                    <p style="margin: 0; color: #6b7280; font-size: 14px;">Servicios de Perforación de Alta Precisión</p>
-                </div>
-                <div style="text-align: right;">
-                    <h2 style="margin: 0; font-size: 18px; color: #1f2937;">Informe Oficial de Turno</h2>
-                    <p style="margin: 0; font-size: 14px; font-weight: bold; color: #4b5563;">
-                        Folio: ${document.getElementById('edit-numero-informe') ? document.getElementById('edit-numero-informe').value : (state.currentReportId ? 'ID-' + state.currentReportId : 'Borrador')}
-                    </p>
-                </div>
-            </div>`;
-            headerSection.insertAdjacentHTML('afterbegin', logoHtml);
+        // 3. Obtener nombres de trabajadores si están disponibles en la caché (opcional)
+        // intentamos mapear rut a nombre pero como esto debe ser on-demand, mostramos el rut si no.
+        let operadorLabel = informe.operador_rut || '-';
+        if (typeof trabajadores !== 'undefined' && trabajadores.length > 0) {
+            const ts = trabajadores.find(t => t.RUT === operadorLabel);
+            if (ts) operadorLabel = `${ts.nombres} ${ts.apellido_paterno} ${ts.apellido_materno || ''}`.trim();
         }
 
-        // Insert Signatures box
-        const signaturesHtml = `
-        <div style="margin-top: 50px; display: flex; justify-content: space-around; break-inside: avoid;">
-            <div style="text-align: center; width: 40%;">
-                <div style="border-bottom: 1px solid #1f2937; margin-bottom: 8px; height: 60px;"></div>
-                <p style="margin: 0; font-weight: 600; font-size: 14px; color: #374151;">Responsable de Turno</p>
-            </div>
-            <div style="text-align: center; width: 40%;">
-                <div style="border-bottom: 1px solid #1f2937; margin-bottom: 8px; height: 60px;"></div>
-                <p style="margin: 0; font-weight: 600; font-size: 14px; color: #374151;">Supervisor / Admin</p>
-            </div>
-        </div>`;
-        container.insertAdjacentHTML('beforeend', signaturesHtml);
-
-        // If audit applied
-        if (auditDateStr) {
-            const footerHtml = `
-            <div style="margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #6b7280;">
-                <em>Documento validado mediante auditoría interna el ${auditDateStr}</em>
-            </div>`;
-            container.insertAdjacentHTML('beforeend', footerHtml);
-        }
-
-        // Adjust empty tables cleanup
-        container.querySelectorAll('tbody').forEach(tbody => {
-           if (tbody.children.length === 0) {
-               const tr = document.createElement('tr');
-               const tdCount = tbody.parentNode.querySelectorAll('th').length;
-               tr.innerHTML = `<td colspan="${tdCount}" style="text-align:center;color:#9ca3af;font-style:italic;">No hay registros</td>`;
-               tbody.appendChild(tr);
-           } 
-        });
-
-        // Delete empty Action columns from tables
-        container.querySelectorAll('th').forEach(th => {
-            if (th.textContent.trim() === '') {
-                const idx = Array.from(th.parentNode.children).indexOf(th);
-                const table = th.closest('table');
-                table.querySelectorAll('tr').forEach(tr => {
-                    if (tr.children[idx]) tr.children[idx].style.display = 'none';
-                });
-            }
-        });
-
-        // Build a wrapper
+        // --- CONSTRUCTOR DEL DOM INDUSTRIAL ---
         const wrapper = document.createElement('div');
-        wrapper.appendChild(container);
-        wrapper.style.padding = '30px';
         wrapper.style.backgroundColor = '#ffffff';
         wrapper.style.color = '#000000';
-        wrapper.style.width = '800px';
+        wrapper.style.width = '210mm'; // Ancho estricto A4
+        wrapper.style.padding = '10mm';
+        wrapper.style.fontFamily = 'Helvetica, Arial, sans-serif';
+        wrapper.style.fontSize = '12px';
+        wrapper.style.lineHeight = '1.4';
 
+        const borderStyle = '1px solid #000000';
+        const headerBg = '#f2f2f2';
+
+        const safeStr = (val) => val == null || val === '' ? '-' : String(val);
+
+        // A. Encabezado
+        const headerHtml = `
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle};">
+                <tr>
+                    <td style="width: 25%; padding: 10px; border: ${borderStyle}; text-align: center;">
+                        <h1 style="margin: 0; font-size: 16px; font-weight: bold; color: #000;">BASALTO DRILLING</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 9px;">Servicios Perforación</p>
+                    </td>
+                    <td style="width: 50%; padding: 10px; border: ${borderStyle}; text-align: center; vertical-align: middle;">
+                        <h2 style="margin: 0; font-size: 16px; font-weight: bold;">REPORTE DIARIO DE PERFORACIÓN</h2>
+                    </td>
+                    <td style="width: 25%; padding: 10px; border: ${borderStyle};">
+                        <div style="font-weight: bold; margin-bottom: 5px;">FOLIO: <span style="color: #dc2626;">${safeStr(informe.numero_informe)}</span></div>
+                        <div style="font-weight: bold;">FECHA: <span style="font-weight: normal;">${safeStr(informe.fecha).split('T')[0]}</span></div>
+                    </td>
+                </tr>
+            </table>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
+                <tr style="background-color: ${headerBg}; font-weight: bold;">
+                    <td style="padding: 5px; border: ${borderStyle};">Turno</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Faena / C. Costo</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Lugar / Sector</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Equipo</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.turno)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.faena)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.lugar)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.equipo)}</td>
+                </tr>
+            </table>
+        `;
+
+        // B. Cuerpo Técnico
+        const techHtml = `
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
+                <tr style="background-color: ${headerBg}; font-weight: bold;">
+                    <td style="padding: 5px; border: ${borderStyle};">Pozo N°</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Diámetro</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Inclinación</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Prof. Inicial</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Prof. Final</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Mts Perforados</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.pozo_numero)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.diametro)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.inclinacion)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.profundidad_inicial)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.profundidad_final)}</td>
+                    <td style="padding: 5px; border: ${borderStyle}; font-weight: bold;">${safeStr(informe.mts_perforados)}</td>
+                </tr>
+            </table>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
+                <tr style="background-color: ${headerBg}; font-weight: bold;">
+                    <td style="padding: 5px; border: ${borderStyle};">Pull Down (lbs)</td>
+                    <td style="padding: 5px; border: ${borderStyle};">RPM</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Horómetro Inicial</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Horómetro Final</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Petróleo (Gal)</td>
+                    <td style="padding: 5px; border: ${borderStyle};">Lubricantes (Ltr)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.pull_down)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.rpm)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.horometro_inicial)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.horometro_final)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.insumo_petroleo)}</td>
+                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.insumo_lubricantes)}</td>
+                </tr>
+            </table>
+        `;
+
+        // C. Bitácora de Actividades
+        let actsRows = '';
+        if (actividades && actividades.length > 0) {
+            actividades.forEach(a => {
+                actsRows += `<tr>
+                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hora_desde).substring(0,5)}</td>
+                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hora_hasta).substring(0,5)}</td>
+                    <td style="padding: 4px; border: ${borderStyle};">${safeStr(a.detalle)}</td>
+                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hrs_bd)}</td>
+                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hrs_cliente)}</td>
+                </tr>`;
+            });
+        } else {
+            actsRows = `<tr><td colspan="5" style="padding: 10px; border: ${borderStyle}; text-align: center; color: #666; font-style: italic;">Sin actividades registradas</td></tr>`;
+        }
+
+        const logHtml = `
+            <div style="font-weight: bold; background-color: ${headerBg}; border: ${borderStyle}; border-bottom: none; padding: 5px; font-size: 12px; margin-top: 20px;">
+                BITÁCORA DE ACTIVIDADES
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: ${borderStyle}; font-size: 10px;">
+                <tr style="background-color: ${headerBg}; font-weight: bold; text-align: center;">
+                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Desde</td>
+                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hasta</td>
+                    <td style="padding: 5px; border: ${borderStyle}; width: 60%; text-align: left;">Descripción de la Tarea</td>
+                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hrs BD</td>
+                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hrs Cli</td>
+                </tr>
+                ${actsRows}
+            </table>
+        `;
+        
+        // Observaciones
+        let obsHtml = '';
+        if (informe.observaciones) {
+            obsHtml = `
+            <div style="font-weight: bold; margin-bottom: 5px; font-size: 11px;">OBSERVACIONES / NOVEDADES:</div>
+            <div style="border: ${borderStyle}; min-height: 40px; padding: 8px; font-size: 11px; white-space: pre-wrap; margin-bottom: 25px;">${safeStr(informe.observaciones)}</div>
+            `;
+        } else {
+            obsHtml = `<div style="height: 40px;"></div>`;
+        }
+
+        // D. Footer (Firmas y Auditoría)
+        let auditNote = '';
+        if (auditDateStr || (informe.is_audit_edit && informe.is_audit_edit == 1)) {
+            const dateStr = auditDateStr || 'Sin Fecha';
+            auditNote = `
+                <div style="margin-top: 15px; font-size: 10px; text-align: center; font-style: italic; font-weight: bold;">
+                    📍 Documento interceptado y validado mediante auditoría interna el ${dateStr}.
+                </div>
+            `;
+        }
+
+        const sigsHtml = `
+            <div style="display: flex; justify-content: space-between; margin-top: 40px; text-align: center; font-size: 11px;">
+                <div style="width: 40%;">
+                    <div style="border-bottom: 1px solid #000; height: 50px; margin-bottom: 5px;"></div>
+                    <div style="font-weight: bold;">FIRMA RESPONSABLE</div>
+                    <div>${operadorLabel}</div>
+                </div>
+                <div style="width: 40%;">
+                    <div style="border-bottom: 1px solid #000; height: 50px; margin-bottom: 5px;"></div>
+                    <div style="font-weight: bold;">SUPERVISOR / ADMIN</div>
+                    <div>Aprobación V°B°</div>
+                </div>
+            </div>
+            ${auditNote}
+        `;
+
+        wrapper.innerHTML = headerHtml + techHtml + logHtml + obsHtml + sigsHtml;
+
+        // Montar y disparar html2pdf
         document.body.appendChild(wrapper);
-
-        // Hide main layout momentarily to apply global styles that PDF needs without interfering with main screen
         wrapper.style.position = 'absolute';
         wrapper.style.left = '-9999px';
         wrapper.style.top = '0';
 
         const opt = {
-            margin:       10,
-            filename:     `Informe_${state.currentReportId || 'Nuevo'}.pdf`,
+            margin:       10, // mm
+            filename:     `Reporte_IT_${safeStr(informe.numero_informe)}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
         await html2pdf().set(opt).from(wrapper).save();
-
         document.body.removeChild(wrapper);
 
     } catch (err) {
-        console.error('Error generando PDF:', err);
-        alert('Ocurrió un error al generar el PDF.');
-    } finally {
-        const btnPdfMain = document.getElementById('btn-descargar-pdf');
-        const btnPdfSuccess = document.getElementById('btn-success-pdf');
-        if (btnPdfMain) btnPdfMain.classList.remove('btn-loading');
-        if (btnPdfSuccess) btnPdfSuccess.classList.remove('btn-loading');
+        console.error('Error generando PDF bajo demanda:', err);
+        throw err;
     }
 }

@@ -168,6 +168,9 @@ function crearAccordionItem(informe, index) {
 
   const accionesHTML = puedeGestionar
     ? `
+      <button class="btn-pdf" id="btn-gest-pdf-${informe.id_informe}" style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onclick="gestionarExportarPDF(${informe.id_informe})">
+        <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> PDF
+      </button>
       <button class="btn-editar" onclick="editarInforme(${informe.id_informe})">
         <i class="fa-solid fa-edit"></i> Editar
       </button>
@@ -179,7 +182,12 @@ function crearAccordionItem(informe, index) {
             <i class="fa-solid fa-trash-restore"></i> Restaurar
            </button>`}
     `
-    : '<span style="font-size:12px;color:#64748b;font-weight:600;">Modo lectura</span>';
+    : `
+      <button class="btn-pdf" id="btn-gest-pdf-${informe.id_informe}" style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onclick="gestionarExportarPDF(${informe.id_informe})">
+        <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> PDF
+      </button>
+      <span style="font-size:12px;color:#64748b;font-weight:600;display:inline-flex;align-items:center;margin-left:8px;">Modo lectura</span>
+    `;
 
   const hardDeleteHTML = !(informe.estado === 'activo' || informe.estado === 1) && puedeHardDelete
     ? `<button class="btn-hard-delete" onclick="confirmarHardDelete(${informe.id_informe})">
@@ -222,6 +230,27 @@ function crearAccordionItem(informe, index) {
   });
 
   return div;
+}
+
+// ============================================
+// EXPORTAR A PDF (DESDE GESTIÓN)
+// ============================================
+async function gestionarExportarPDF(idInforme) {
+  const btn = document.getElementById(`btn-gest-pdf-${idInforme}`);
+  if (btn) btn.classList.add('btn-loading');
+  
+  try {
+      if (typeof exportarInformeAPDF === 'function') {
+          await exportarInformeAPDF(idInforme);
+      } else {
+          alert('Función de exportación no cargada correctamente. Recargue la página.');
+      }
+  } catch (error) {
+      console.error('[GESTION PDF] Error:', error);
+      alert('Hubo un problema al generar el PDF.');
+  } finally {
+      if (btn) btn.classList.remove('btn-loading');
+  }
 }
 
 // ============================================
