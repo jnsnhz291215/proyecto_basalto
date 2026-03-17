@@ -2,6 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion.js');
 
+// Control de doble envío (Rate Limiting en memoria)
+const recentRequests = new Map();
+
+function isDuplicateRequest(req, informeId = 'new') {
+  const rut = req.headers['rut_solicitante'] || req.headers['x-admin-rut'] || req.body?.rut_solicitante || 'unknown_user';
+  const key = `${rut}_${informeId}`;
+  
+  if (recentRequests.has(key)) {
+    return true; // Duplicate request found
+  }
+  
+  recentRequests.set(key, true);
+  setTimeout(() => recentRequests.delete(key), 2000); // Block for 2 seconds
+  return false;
+}
+
 function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
@@ -176,6 +192,10 @@ router.get('/informes/por-turno', async (req, res) => {
  * Crear un nuevo informe de turno
  */
 router.post('/informes', async (req, res) => {
+  if (isDuplicateRequest(req, 'new')) {
+    return res.status(429).json({ error: 'Petición en proceso. Intente nuevamente en unos segundos.' });
+  }
+
   let connection;
   try {
     const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = req.body;
@@ -365,9 +385,14 @@ router.get('/informes/:id/detalles', async (req, res) => {
  * Actualizar un informe (puede ser edición completa o cambio de estado)
  */
 router.put('/informes/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  if (isDuplicateRequest(req, id)) {
+    return res.status(429).json({ error: 'Petición en proceso. Intente nuevamente en unos segundos.' });
+  }
+
   let connection;
   try {
-    const { id } = req.params;
     const datosActualizados = req.body;
 
     if (datosActualizados?.datosGenerales) {

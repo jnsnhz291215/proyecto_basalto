@@ -236,18 +236,29 @@ app.post('/admin-login', async (req, res) => {
 // ENDPOINTS: LOGS DE AUDITORÍA
 // ============================================
 
-// GET /api/logs - Obtener logs de auditoría
-app.get('/api/logs', async (req, res) => {
+// GET /api/admin-logs - Obtener logs de auditoría
+app.get('/api/admin-logs', async (req, res) => {
   try {
-    const { admin_rut } = req.query;
+    const { search } = req.query;
+    const rutSolicitante = req.headers['rut_solicitante'] || req.headers['x-admin-rut'];
+    
+    if (rutSolicitante) {
+      const validacion = await verificarSuperAdminPorRut(rutSolicitante);
+      if (!validacion.ok) {
+        return res.status(validacion.status).json({ error: validacion.message });
+      }
+    } else {
+      return res.status(401).json({ error: 'Falta identificación para acceder a auditoría.' });
+    }
     
     let query = 'SELECT * FROM admin_logs';
     let params = [];
     
-    // Filtrar por admin específico si se proporciona
-    if (admin_rut) {
-      query += ' WHERE admin_rut = ?';
-      params.push(admin_rut);
+    // Filtrar por admin específico o detalle (folio)
+    if (search) {
+      query += ' WHERE admin_rut LIKE ? OR detalle LIKE ?';
+      const searchLike = `%${search}%`;
+      params.push(searchLike, searchLike);
     }
     
     query += ' ORDER BY fecha DESC LIMIT 100';

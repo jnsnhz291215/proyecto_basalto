@@ -820,8 +820,16 @@
       </div>
     </div>
 
-    <!-- Admins Table -->
-    <div class="admins-table-container">
+    <!-- Tabs Container -->
+    <div class="tabs-container" style="display: flex; gap: 20px; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; padding-bottom: 0;">
+      <button class="tab-btn active" style="background: none; border: none; padding: 10px 16px; font-weight: 600; font-size: 14px; cursor: pointer; color: #7c3aed; border-bottom: 2px solid #7c3aed; transition: all 0.2s;" data-target="tab-admins">Administradores</button>
+      <button class="tab-btn" style="background: none; border: none; padding: 10px 16px; font-weight: 600; font-size: 14px; cursor: pointer; color: #6b7280; border-bottom: 2px solid transparent; transition: all 0.2s;" data-target="tab-audit">Historial de Auditoría</button>
+    </div>
+
+    <!-- Tab Admins -->
+    <div id="tab-admins" class="tab-content active" style="display: block;">
+      <!-- Admins Table -->
+      <div class="admins-table-container">
       <div class="table-header">
         <h3>Administradores del Sistema</h3>
         <span id="adminCount" style="color: #6b7280; font-size: 14px; font-weight: 600;"></span>
@@ -853,6 +861,48 @@
         </tbody>
       </table>
     </div>
+    </div> <!-- End Tab Admins -->
+
+    <!-- Tab Audit -->
+    <div id="tab-audit" class="tab-content" style="display: none;">
+      <div class="admins-table-container">
+        <div class="table-header">
+          <h3>Historial de Auditoría</h3>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="inputAuditSearch" class="form-input" placeholder="Buscar RUT o Folio..." style="padding: 6px 12px; font-size: 13px; max-width: 200px;">
+            <button id="btnRefreshAudit" class="action-btn" style="padding: 6px 12px; font-size: 13px;">
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </div>
+        </div>
+        
+        <div id="auditLoadingState" class="loading-state" style="display: none;">
+          <div class="loading-spinner"></div>
+          <p>Cargando registros de auditoría...</p>
+        </div>
+
+        <div id="auditEmptyState" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <p>No hay registros de auditoría</p>
+        </div>
+
+        <table id="auditTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>Fecha/Hora</th>
+              <th>Administrador (RUT)</th>
+              <th>Acción Realizada</th>
+              <th>RUT Afectado / Folio / Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div> <!-- End Tab Audit -->
+
   </div>
 
   <!-- Modal de Permisos -->
@@ -995,5 +1045,6 @@
   <script src="auth_guard.js"></script>
   <script src="navbar.js"></script>
   <script src="js/gestionadmins.js"></script>
+  <script src="js/audit_viewer.js"></script>
 </body>
 </html>

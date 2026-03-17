@@ -337,6 +337,40 @@ body {
 	box-shadow: none;
 }
 
+/* Spinner Loading States */
+.btn-loading {
+	position: relative;
+	pointer-events: none;
+	opacity: 0.8;
+}
+
+.btn-loading > * {
+	visibility: hidden;
+}
+
+.btn-loading::after {
+	content: '\f1ce';
+	font-family: 'Font Awesome 6 Free';
+	font-weight: 900;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	visibility: visible;
+	animation: spin 1s linear infinite;
+	font-size: 1.1rem;
+}
+
+.btn-loading.audit-spinner::after {
+	color: #9333ea; /* Purple for audit */
+}
+
+@keyframes spin {
+	100% {
+		transform: translate(-50%, -50%) rotate(360deg);
+	}
+}
+
 /* Estilo para botón eliminar en filas */
 .btn-delete {
 	background-color: #fee2e2;

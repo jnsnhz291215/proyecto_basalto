@@ -173,6 +173,18 @@ const InformeTurno = (() => {
     banner.textContent = message;
   }
 
+  function setLoading(btnId, isLoading, isAudit = false) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (isLoading) {
+      btn.classList.add('btn-loading');
+      if (isAudit) btn.classList.add('audit-spinner');
+    } else {
+      btn.classList.remove('btn-loading');
+      btn.classList.remove('audit-spinner');
+    }
+  }
+
   function updateStatusBanner() {
     if (state.documentBlocked) {
       const status = state.currentReportStatus || 'DOCUMENTO BLOQUEADO';
@@ -227,6 +239,7 @@ const InformeTurno = (() => {
   function applyActionBarState() {
     const btnGuardar = document.getElementById('btn-guardar-borrador');
     const btnFinalizar = document.getElementById('btn-finalizar-turno');
+    const btnReabrir = document.getElementById('btn-reabrir-turno');
 
     if (btnGuardar) {
       if (state.documentBlocked || !state.canWriteAnySection) btnGuardar.setAttribute('disabled', 'disabled');
@@ -234,8 +247,19 @@ const InformeTurno = (() => {
     }
 
     if (btnFinalizar) {
-      if (state.documentBlocked || !state.canCloseTurno) btnFinalizar.setAttribute('disabled', 'disabled');
-      else btnFinalizar.removeAttribute('disabled');
+      if (state.documentBlocked || !state.canCloseTurno) {
+        btnFinalizar.setAttribute('disabled', 'disabled');
+      } else {
+        btnFinalizar.removeAttribute('disabled');
+      }
+    }
+
+    if (btnReabrir) {
+      if (state.documentBlocked && state.isSuperAdmin && state.auditModeEnabled) {
+        btnReabrir.style.display = 'inline-flex';
+      } else {
+        btnReabrir.style.display = 'none';
+      }
     }
   }
 
@@ -718,16 +742,26 @@ const InformeTurno = (() => {
 
     const method = state.currentReportId ? 'PUT' : 'POST';
     const url = state.currentReportId ? `/api/informes/${state.currentReportId}` : '/api/informes';
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const result = await response.json().catch(() => ({}));
+    
+    const btnId = estadoFinal === 'Finalizado' ? 'btn-confirm-finalizar' : 'btn-guardar-borrador';
+    setLoading(btnId, true, state.auditModeEnabled && estadoFinal !== 'Finalizado');
 
-    if (!response.ok) {
-      alert(`❌ Error al guardar: ${result.error || 'Error desconocido'}`);
-      return;
+    let response;
+    let result;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(`❌ Error al guardar: ${result.error || 'Error desconocido'}`);
+        return;
+      }
+    } finally {
+      setLoading(btnId, false);
     }
 
     if (!state.currentReportId && result.id_informe) {
@@ -741,8 +775,15 @@ const InformeTurno = (() => {
     state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
     applyPermissionMatrix();
 
-    const folioMessage = result.folio ? ` Folio: ${result.folio}` : '';
-    alert(`✅ ${result.message || 'Informe guardado correctamente'}.${folioMessage}`.trim());
+    if (state.auditModeEnabled) {
+      showSuccessModal('Auditoría', 'Cambios de auditoría guardados y registrados en la bitácora.', false);
+    } else if (estadoFinal === 'Finalizado') {
+      showSuccessModal('Turno Finalizado', 'Turno Finalizado con Éxito', true);
+    } else {
+      showSuccessModal('Borrador', 'Borrador guardado correctamente', false);
+      // Auto cerramos después de unos segundos
+      setTimeout(hideSuccessModal, 2500);
+    }
   }
 
   function addRowHandlers() {
@@ -806,7 +847,7 @@ const InformeTurno = (() => {
   function bindActions() {
     document.getElementById('btn-guardar-borrador')?.addEventListener('click', async (e) => {
       e.preventDefault();
-      if (!state.canWriteAnySection && !state.isSuperAdmin) {
+      if (!state.canWriteAnySection && !state.isSuperAdmin && !state.auditModeEnabled) {
         alert('No tiene permisos de escritura para guardar cambios en este informe.');
         return;
       }
@@ -819,9 +860,81 @@ const InformeTurno = (() => {
         alert('No tiene permisos para cerrar turno.');
         return;
       }
-      const ok = confirm('¿Finalizar y bloquear turno? Esta acción no se puede deshacer.');
-      if (ok) await persistInforme('Finalizado');
+      showFinalizeModal();
     });
+
+    // Modales de Confirmación y Éxito
+    const btnCancelFinalizar = document.getElementById('btn-cancel-finalizar');
+    const btnConfirmFinalizar = document.getElementById('btn-confirm-finalizar');
+    const btnSuccessOk = document.getElementById('btn-success-ok');
+    const btnSuccessPdf = document.getElementById('btn-success-pdf');
+    const btnErrorOk = document.getElementById('btn-error-ok');
+
+    if (btnCancelFinalizar) btnCancelFinalizar.addEventListener('click', hideFinalizeModal);
+    if (btnConfirmFinalizar) {
+      btnConfirmFinalizar.addEventListener('click', async () => {
+        hideFinalizeModal();
+        await persistInforme('Finalizado');
+      });
+    }
+    if (btnSuccessOk) btnSuccessOk.addEventListener('click', hideSuccessModal);
+    if (btnSuccessPdf) {
+      btnSuccessPdf.addEventListener('click', () => {
+        hideSuccessModal();
+        if (typeof generarPDF === 'function') generarPDF();
+      });
+    }
+    if (btnErrorOk) btnErrorOk.addEventListener('click', hideErrorModal);
+  }
+
+  // --- Helpers Modales ---
+  function showFinalizeModal() {
+    const missing = [];
+    if (!document.getElementById('input-horometro-inicial').value) missing.push('Horómetro Inicial');
+    if (!document.getElementById('input-horometro-final').value) missing.push('Horómetro Final');
+    
+    const mts = document.getElementById('input-mts-perforados').value;
+    if (mts === '' || mts === null || mts === undefined) missing.push('Metros Perforados');
+
+    if (missing.length > 0) {
+      showErrorModal(`No se puede finalizar. Faltan datos obligatorios: ${missing.join(', ')}`);
+      return;
+    }
+
+    document.getElementById('modal-confirm-finalizar').style.display = 'flex';
+    if (window.bloquearScroll) window.bloquearScroll();
+  }
+
+  function hideFinalizeModal() {
+    document.getElementById('modal-confirm-finalizar').style.display = 'none';
+    if (window.desbloquearScroll) window.desbloquearScroll();
+  }
+
+  function showErrorModal(msg) {
+    document.getElementById('modal-error-message').textContent = msg;
+    document.getElementById('modal-error').style.display = 'flex';
+    if (window.bloquearScroll) window.bloquearScroll();
+  }
+
+  function hideErrorModal() {
+    document.getElementById('modal-error').style.display = 'none';
+    if (window.desbloquearScroll) window.desbloquearScroll();
+  }
+
+  function showSuccessModal(title, message, showPdfBtn = false) {
+    const modal = document.getElementById('modal-success');
+    if (!modal) return;
+    document.getElementById('modal-success-title').textContent = title;
+    document.getElementById('modal-success-message').textContent = message;
+    document.getElementById('btn-success-pdf').style.display = showPdfBtn ? 'inline-flex' : 'none';
+    modal.style.display = 'flex';
+    if (window.bloquearScroll) window.bloquearScroll();
+  }
+
+  function hideSuccessModal() {
+    const modal = document.getElementById('modal-success');
+    if (modal) modal.style.display = 'none';
+    if (window.desbloquearScroll) window.desbloquearScroll();
   }
 
   async function init() {
