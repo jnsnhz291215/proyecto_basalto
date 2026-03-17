@@ -27,11 +27,11 @@ router.get('/trabajadores', async (req, res) => {
         c.id_cargo,
         c.nombre_cargo,
         p.id_permiso,
-        p.nombre_permiso
+        p.descripcion AS nombre_permiso
       FROM cargos c
       LEFT JOIN cargo_permisos cp ON cp.id_cargo = c.id_cargo
       LEFT JOIN permisos p ON p.id_permiso = cp.id_permiso
-      ORDER BY c.nombre_cargo ASC, p.nombre_permiso ASC
+      ORDER BY c.nombre_cargo ASC, p.descripcion ASC
     `);
 
     const permisosPorCargo = new Map();
