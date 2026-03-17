@@ -86,6 +86,18 @@
     const apellidoM = adminData?.apellido_materno || '';
     const fullName = (nombres + ' ' + apellidoP + ' ' + apellidoM).trim() || userName || userRut;
 
+    // Generar e inyectar Iniciales en Avatar
+    const inicialNombre = (nombres.charAt(0) || fullName.charAt(0) || 'A').toUpperCase();
+    const inicialApellido = (apellidoP.charAt(0) || 'D').toUpperCase();
+    const avatarContainer = document.querySelector('.avatar-circle');
+    if (avatarContainer) {
+      avatarContainer.innerHTML = `<span style="font-size:32px;font-weight:700;color:#ffffff;font-family:'Inter', sans-serif;">${inicialNombre}${inicialApellido}</span>`;
+      avatarContainer.style.backgroundColor = '#1e3a8a'; /* Basalto Primary Color */
+      avatarContainer.style.display = 'flex';
+      avatarContainer.style.alignItems = 'center';
+      avatarContainer.style.justifyContent = 'center';
+    }
+
     perfilNombre.textContent = fullName;
     perfilRut.textContent = adminData?.rut || userRut;
     perfilEmail.textContent = adminData?.email || '---';
@@ -93,12 +105,18 @@
     perfilCargo.textContent = 'Administrador';
     perfilGrupo.textContent = 'Administrador';
     
-    // Ocultar campos no aplicables
-    if (perfilFechaNacimiento && perfilFechaNacimiento.parentElement) {
-      perfilFechaNacimiento.parentElement.style.display = 'none';
+    // Ocultar campos vacíos o no aplicables
+    if (perfilTelefono && perfilTelefono.parentElement && perfilTelefono.parentElement.parentElement) {
+      perfilTelefono.parentElement.parentElement.style.display = 'none';
     }
-    if (perfilCiudad && perfilCiudad.parentElement) {
-      perfilCiudad.parentElement.style.display = 'none';
+    if (perfilEmail && perfilEmail.textContent === '---' && perfilEmail.parentElement && perfilEmail.parentElement.parentElement) {
+      perfilEmail.parentElement.parentElement.style.display = 'none';
+    }
+    if (perfilFechaNacimiento && perfilFechaNacimiento.parentElement && perfilFechaNacimiento.parentElement.parentElement) {
+      perfilFechaNacimiento.parentElement.parentElement.style.display = 'none';
+    }
+    if (perfilCiudad && perfilCiudad.parentElement && perfilCiudad.parentElement.parentElement) {
+      perfilCiudad.parentElement.parentElement.style.display = 'none';
     }
 
     // Estilos del badge de admin
@@ -163,13 +181,33 @@
       perfilGrupo.style.backgroundColor = '';
       perfilGrupo.style.color = '';
 
-      // Mostrar todos los campos
-      if (perfilFechaNacimiento && perfilFechaNacimiento.parentElement) {
-        perfilFechaNacimiento.parentElement.style.display = '';
+      // Generar e inyectar Iniciales en Avatar Trabajador
+      const inicialNombre = String(perfil.nombres || userName || 'T').trim().charAt(0).toUpperCase();
+      const inicialApellido = String(perfil.apellido_paterno || perfil.apellidos || userName || 'R').trim().split(' ')[0].charAt(0).toUpperCase();
+      const avatarContainer = document.querySelector('.avatar-circle');
+      if (avatarContainer) {
+        avatarContainer.innerHTML = `<span style="font-size:32px;font-weight:700;color:#ffffff;font-family:'Inter', sans-serif;">${inicialNombre}${inicialApellido}</span>`;
+        avatarContainer.style.backgroundColor = '#1e3a8a';
+        avatarContainer.style.display = 'flex';
+        avatarContainer.style.alignItems = 'center';
+        avatarContainer.style.justifyContent = 'center';
       }
-      if (perfilCiudad && perfilCiudad.parentElement) {
-        perfilCiudad.parentElement.style.display = '';
-      }
+
+      // Ocultar contenedores vacíos dinámicamente
+      const hideIfEmpty = (element, content) => {
+        if (!element || !element.parentElement || !element.parentElement.parentElement) return;
+        const parentContainer = element.parentElement.parentElement;
+        if (!content || content === '---' || content.trim() === '') {
+          parentContainer.style.display = 'none';
+        } else {
+          parentContainer.style.display = 'block';
+        }
+      };
+
+      hideIfEmpty(perfilTelefono, perfil.telefono);
+      hideIfEmpty(perfilEmail, perfil.email);
+      hideIfEmpty(perfilFechaNacimiento, perfil.fecha_nacimiento);
+      hideIfEmpty(perfilCiudad, perfil.ciudad);
 
       perfilCard.style.display = 'block';
       

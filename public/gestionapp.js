@@ -2224,7 +2224,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          alert('✅ Configuración de ciclos actualizada correctamente');
+          const resultModal = document.getElementById('modal-result');
+          if (resultModal) {
+            document.getElementById('result-title').textContent = 'Éxito';
+            document.getElementById('result-msg').innerHTML = '✅ Ciclo actualizado correctamente';
+            resultModal.style.display = 'flex';
+            document.getElementById('result-ok').onclick = () => { resultModal.style.display = 'none'; };
+          } else {
+            alert('✅ Ciclo actualizado correctamente');
+          }
+
           cerrarModalConfig();
 
           await cargarConfigCiclos();

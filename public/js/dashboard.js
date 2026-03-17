@@ -57,10 +57,22 @@ async function cargarDatos(anio) {
 
         const data = await response.json();
         
-        actualizarTarjetas(data.resumen);
-        actualizarGraficoMetros(data.grafico_metros);
-        actualizarGraficoEficiencia(data.grafico_eficiencia);
-        actualizarTablaDisponibilidad(data.disponibilidad);
+        const emptyState = document.getElementById('empty-state-kpis');
+        const dashboardContent = document.getElementById('dashboard-content');
+        
+        // Verifica si hay algun dato significativo. Si no, muestra el empty state.
+        if (!data || !data.resumen || (data.resumen.avance_anual === 0 && data.resumen.mejor_grupo_metros === 0)) {
+            if (emptyState) emptyState.style.display = 'block';
+            if (dashboardContent) dashboardContent.style.display = 'none';
+        } else {
+            if (emptyState) emptyState.style.display = 'none';
+            if (dashboardContent) dashboardContent.style.display = 'block';
+            
+            actualizarTarjetas(data.resumen);
+            actualizarGraficoMetros(data.grafico_metros);
+            actualizarGraficoEficiencia(data.grafico_eficiencia);
+            actualizarTablaDisponibilidad(data.disponibilidad);
+        }
         
     } catch (error) {
         console.error("Error cargando KPIs:", error);

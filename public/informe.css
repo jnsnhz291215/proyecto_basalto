@@ -7,8 +7,9 @@ body {
 	margin: 0 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	gap: 32px; /* Increased spacing between sections from 20px to 32px */
 	padding-bottom: 50px;
+	font-size: 1.05rem; /* Increased base font size by ~3px */
 }
 
 .status-banner {
@@ -158,16 +159,16 @@ body {
 }
 
 .input-group label {
-	font-size: 0.85rem;
+	font-size: 0.95rem; /* Increased from 0.85rem */
 	font-weight: 600;
 	color: #374151;
 }
 
 .input-group input, .input-group select, .input-group textarea {
-	padding: 8px 12px;
+	padding: 10px 14px; /* Slightly more padding */
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 0.95rem;
+	font-size: 1.05rem; /* Increased from 0.95rem */
 	font-family: inherit;
 }
 
@@ -178,10 +179,10 @@ body {
 }
 
 .modern-input {
-	padding: 10px 12px;
+	padding: 12px 14px; /* Adjusted padding to match larger text */
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 0.95rem;
+	font-size: 1.05rem; /* Increased from 0.95rem */
 	font-family: inherit;
 	transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -402,10 +403,14 @@ body {
 }
 
 .header-section {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-	gap: 15px;
 	margin-bottom: 10px;
+}
+
+.header-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    align-items: flex-end; /* Nivelar inputs en la parte superior */
 }
 
 /* RESPONSIVE */

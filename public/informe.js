@@ -880,6 +880,15 @@ const InformeTurno = (() => {
   }
 
   function bindActions() {
+    document.getElementById('input-turno')?.addEventListener('change', async (e) => {
+      const selectedGroup = e.target.value;
+      if (selectedGroup) {
+        await populatePersonalSelects([selectedGroup.replace('Grupo ', '')]);
+      } else {
+        await populatePersonalSelects([]);
+      }
+    });
+
     document.getElementById('btn-guardar-borrador')?.addEventListener('click', async (e) => {
       e.preventDefault();
       if (!state.canWriteAnySection && !state.isSuperAdmin && !state.auditModeEnabled) {

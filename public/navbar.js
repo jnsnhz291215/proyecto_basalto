@@ -85,6 +85,22 @@
 
     const valor = localStorage.getItem('user_super_admin');
     console.log('[NAVBAR] Valor detectado:', valor);
+    
+    // KPIs Dashboard Check
+    const permisosStr = localStorage.getItem('user_permisos');
+    const hasKpiPerms = valor === '1' || (permisosStr && permisosStr.includes('admin_v_kpis'));
+    const dashboardMenuItem = menu.querySelector('#nav-dashboard');
+    if (dashboardMenuItem) {
+      dashboardMenuItem.style.display = hasKpiPerms ? 'block' : 'none';
+      const kpiLink = dashboardMenuItem.querySelector('a');
+      if (kpiLink) {
+        if (window.location.pathname.endsWith('dashboard.html')) {
+          kpiLink.classList.add('active');
+        } else {
+          kpiLink.classList.remove('active');
+        }
+      }
+    }
 
     const forceVisible = valor === '1' || isGestionAdminsPage();
     const dividerLi = ensureAdminDivider(menu);
