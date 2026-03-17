@@ -13,11 +13,6 @@
           Gestionar
         </a>
         <ul class="dropdown-menu" aria-labelledby="navbarDropdownGestionar">
-          <li id="nav-dashboard" style="display: none;">
-            <a class="dropdown-item" href="dashboard.html">
-              <i class="fa-solid fa-chart-line"></i> Dashboard KPIs
-            </a>
-          </li>
           <li>
             <a class="dropdown-item" href="gestionar.html">
               <i class="fa-solid fa-users"></i> Trabajadores
@@ -46,12 +41,23 @@
               <i class="fa-solid fa-shield-alt"></i> Administradores
             </a>
           </li>
+          <li id="nav-dashboard" style="display: none;">
+            <a class="dropdown-item" href="dashboard.html" style="color: #6366f1; font-weight: 500;">
+              <i class="fa-solid fa-chart-pie"></i> Reporte KPIs
+            </a>
+          </li>
         </ul>
       </li>
       <li id="nav-informe" class="nav-item"><a href="informe.html">Informe de turno</a></li>
       <li id="nav-viajes" class="nav-item"><a href="viajes.html">Viajes</a></li>
     </ul>
-    <div class="nav-right" id="usuario-container">
+    <div class="nav-right" id="usuario-container" style="display: flex; align-items: center; gap: 15px;">
+      
+      <!-- Theme Toggle Button -->
+      <button id="theme-toggle" class="btn btn-icon" title="Cambiar Tema" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#4b5563;">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+
       <button id="nav-login-btn" class="btn btn-login-nav" onclick="abrirLoginModal()" style="display:none;"><i class="fa-solid fa-user"></i> Iniciar Sesión</button>
       <div class="dropdown" id="user-dropdown" style="display:none;">
         <button class="btn btn-secondary dropdown-toggle" type="button" id="user_toggle_btn" aria-expanded="false" aria-haspopup="true">

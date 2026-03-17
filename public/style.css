@@ -1257,3 +1257,167 @@ body.overflow-hidden {
 }
 }
 
+/* ============================================
+   DARK THEME (Modo Noche)
+   ============================================ */
+body.dark-theme {
+  background-color: #121212 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-theme .top-menu,
+body.dark-theme .nav-items,
+body.dark-theme .nav-right,
+body.dark-theme .dropdown-menu {
+  background-color: #1a1a1a !important;
+  border-color: #333333 !important;
+}
+
+body.dark-theme .main-content,
+body.dark-theme .calendar-container,
+body.dark-theme .calendar-wrapper,
+body.dark-theme .card-section,
+body.dark-theme .card,
+body.dark-theme .modal-content,
+body.dark-theme .confirm-modal-content,
+body.dark-theme .profile-card,
+body.dark-theme .login-card {
+  background-color: #1a1a1a !important;
+  border-color: #333333 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-theme h1, body.dark-theme h2, body.dark-theme h3,
+body.dark-theme .calendar-header h1,
+body.dark-theme .login-title,
+body.dark-theme .profile-name,
+body.dark-theme .data-item .value {
+  color: #f3f4f6 !important;
+}
+
+body.dark-theme label,
+body.dark-theme .form-group label,
+body.dark-theme .input-group label,
+body.dark-theme .data-item label,
+body.dark-theme .login-subtitle,
+body.dark-theme .profile-role {
+  color: #9ca3af !important;
+}
+
+body.dark-theme .modern-input,
+body.dark-theme .input-compact,
+body.dark-theme .form-group input,
+body.dark-theme .form-group select,
+body.dark-theme .input-group input,
+body.dark-theme .input-group select,
+body.dark-theme .input-group textarea {
+  background-color: #262626 !important;
+  border-color: #404040 !important;
+  color: #f3f4f6 !important;
+}
+
+body.dark-theme .modern-input:focus,
+body.dark-theme .input-compact:focus,
+body.dark-theme .form-group input:focus,
+body.dark-theme .form-group select:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* Modales y Tablas */
+body.dark-theme .day-cell, 
+body.dark-theme .calendar-day {
+  background-color: #262626 !important;
+  border-color: #404040 !important;
+}
+
+body.dark-theme .day-cell.inside-month .day-number {
+  color: #e5e7eb !important;
+}
+
+body.dark-theme .day-left {
+  border-color: #404040 !important;
+}
+
+body.dark-theme .weekdays div {
+  color: #9ca3af !important;
+}
+
+body.dark-theme .dropdown-item {
+  color: #e5e7eb !important;
+}
+
+body.dark-theme .dropdown-item:hover {
+  background-color: #262626 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .activity-table th, 
+body.dark-theme tr[style*="background: #f8fafc;"] {
+  background-color: #262626 !important;
+  color: #e5e7eb !important;
+  border-bottom-color: #404040 !important;
+}
+
+body.dark-theme .activity-table td,
+body.dark-theme tr[style*="borderBottom"] {
+  border-bottom-color: #404040 !important;
+}
+
+body.dark-theme .status-banner {
+  background-color: #262626 !important;
+  border-color: #404040 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-theme .btn-secondary,
+body.dark-theme .btn-cancel,
+body.dark-theme .btn-secondary-outline {
+  background-color: #262626 !important;
+  color: #e5e7eb !important;
+  border-color: #404040 !important;
+}
+
+body.dark-theme .btn-secondary:hover,
+body.dark-theme .btn-cancel:hover,
+body.dark-theme .btn-secondary-outline:hover {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .tabs-header {
+  background-color: #1a1a1a !important;
+  border-color: #333333 !important;
+}
+
+body.dark-theme .tab-btn {
+  background-color: #1a1a1a !important;
+  color: #9ca3af !important;
+}
+
+body.dark-theme .tab-btn:hover {
+  background-color: #262626 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-theme .tab-btn.active {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: #a78bfa !important;
+  border-bottom-color: #a78bfa !important;
+}
+
+/* Scrollbars para modo oscuro (Webkit) */
+body.dark-theme ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+body.dark-theme ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+body.dark-theme ::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 5px;
+}
+body.dark-theme ::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
