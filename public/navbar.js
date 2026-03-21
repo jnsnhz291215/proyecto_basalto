@@ -91,6 +91,7 @@
     const hasKpiPerms = valor === '1' || (permisosStr && permisosStr.includes('admin_v_kpis'));
     const dashboardMenuItem = menu.querySelector('#nav-dashboard');
     if (dashboardMenuItem) {
+      menu.appendChild(dashboardMenuItem);
       dashboardMenuItem.style.display = hasKpiPerms ? 'block' : 'none';
       const kpiLink = dashboardMenuItem.querySelector('a');
       if (kpiLink) {

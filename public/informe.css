@@ -9,7 +9,7 @@ body {
 	flex-direction: column;
 	gap: 32px; /* Increased spacing between sections from 20px to 32px */
 	padding-bottom: 50px;
-	font-size: 1.05rem; /* Increased base font size by ~3px */
+	font-size: 1.25rem; /* Increased base font size by another 3px */
 }
 
 .status-banner {
@@ -168,7 +168,7 @@ body {
 	padding: 10px 14px; /* Slightly more padding */
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 1.05rem; /* Increased from 0.95rem */
+	font-size: 1.25rem; /* Increased from 0.95rem */
 	font-family: inherit;
 }
 
@@ -182,7 +182,7 @@ body {
 	padding: 12px 14px; /* Adjusted padding to match larger text */
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 1.05rem; /* Increased from 0.95rem */
+	font-size: 1.25rem; /* Increased from 0.95rem */
 	font-family: inherit;
 	transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -407,10 +407,15 @@ body {
 }
 
 .header-fields-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 15px;
     align-items: flex-end; /* Nivelar inputs en la parte superior */
+}
+.header-fields-grid > .input-group {
+    flex: 0 1 180px;
+    min-width: 150px;
 }
 
 /* RESPONSIVE */
@@ -515,7 +520,7 @@ color: #7c3aed;
 font-size: 1.2rem;
 }
 
-.header-fields-grid {
+.header-fields-grid-compact {
 display: grid;
 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 gap: 12px;

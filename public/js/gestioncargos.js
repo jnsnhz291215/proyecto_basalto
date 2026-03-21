@@ -189,6 +189,13 @@
     const selectedSet = new Set((cargo?.id_permisos || []).map(Number));
     el.cargoNombre.value = cargo?.nombre_cargo || '';
     renderSectionMatrix(selectedSet);
+    
+    const kpiPermiso = state.permisos.find(p => p.clave_permiso === 'admin_v_kpis');
+    const checkKpis = document.getElementById('checkAdminKpis');
+    if (kpiPermiso && checkKpis) {
+      checkKpis.value = kpiPermiso.id_permiso;
+      checkKpis.checked = selectedSet.has(Number(kpiPermiso.id_permiso));
+    }
   }
 
   function openModal(cargoId = null) {
