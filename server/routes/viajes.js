@@ -511,13 +511,7 @@ router.delete('/viajes/:id', async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // Eliminar tramos primero
-    await connection.execute(
-      'DELETE FROM viajes_tramos WHERE id_viaje = ?',
-      [id]
-    );
-
-    // Eliminar viaje
+    // Eliminar viaje (la DB se encarga del cascade en viajes_tramos)
     const [result] = await connection.execute(
       'DELETE FROM viajes WHERE id_viaje = ?',
       [id]

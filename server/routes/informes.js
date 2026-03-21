@@ -688,23 +688,7 @@ router.delete('/informes/:id', async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // Eliminar tablas relacionadas primero (para evitar errores de foreign key)
-    await connection.execute(
-      `DELETE FROM actividades_turno WHERE id_informe = ?`,
-      [id]
-    );
-
-    await connection.execute(
-      `DELETE FROM herramientas_turno WHERE id_informe = ?`,
-      [id]
-    );
-
-    await connection.execute(
-      `DELETE FROM perforaciones_turno WHERE id_informe = ?`,
-      [id]
-    );
-
-    // Eliminar informe principal
+    // Eliminar informe principal (la DB maneja actividades, herramientas y perforaciones por cascade)
     await connection.execute(
       `DELETE FROM informes_turno WHERE id_informe = ?`,
       [id]
