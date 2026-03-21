@@ -334,7 +334,89 @@ router.get('/informes/:id/detalles', async (req, res) => {
     const { id } = req.params;
 
     connection = await pool.getConnection();
+// ============================================
+// ENDPOINT DE EMERGENCIA: GUARDADO TEMPORAL
+// ============================================
+router.post('/informes/temporal', async (req, res) => {
+  let connection;
+  try {
+    const { id_informe, datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = req.body;
+    if (!id_informe) return res.status(400).json({ error: 'Se requiere id_informe' });
 
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `UPDATE informes_turno SET
+        fecha = ?, turno = ?, horas_trabajadas = ?, faena = ?, lugar = ?, equipo = ?,
+        operador_rut = ?, ayudante_1 = ?, ayudante_2 = ?, pozo_numero = ?, sector = ?,
+        diametro = ?, inclinacion = ?, profundidad_inicial = ?, profundidad_final = ?,
+        mts_perforados = ?, pull_down = ?, rpm = ?, horometro_inicial = ?, horometro_final = ?,
+        horometro_hrs = ?, insumo_petroleo = ?, insumo_lubricantes = ?, observaciones = ?, estado = ?
+      WHERE id_informe = ?`,
+      [
+        datosGenerales.fecha || null, datosGenerales.turno || null, datosGenerales.horas_trabajadas || null,
+        datosGenerales.faena || null, datosGenerales.lugar || null, datosGenerales.equipo || null,
+        datosGenerales.operador_rut || null, datosGenerales.ayudante_1 || null, datosGenerales.ayudante_2 || null,
+        datosGenerales.pozo_numero || null, datosGenerales.sector || null, datosGenerales.diametro || null,
+        datosGenerales.inclinacion || null, datosGenerales.profundidad_inicial || null, datosGenerales.profundidad_final || null,
+        datosGenerales.mts_perforados || null, datosGenerales.pull_down || null, datosGenerales.rpm || null,
+        datosGenerales.horometro_inicial || null, datosGenerales.horometro_final || null, datosGenerales.horometro_hrs || null,
+        datosGenerales.insumo_petroleo || null, datosGenerales.insumo_lubricantes || null, datosGenerales.observaciones || null,
+        'Borrador', id_informe
+      ]
+    );
+
+    await connection.execute('DELETE FROM actividades_turno WHERE id_informe = ?', [id_informe]);
+    await connection.execute('DELETE FROM herramientas_turno WHERE id_informe = ?', [id_informe]);
+    await connection.execute('DELETE FROM perforaciones_turno WHERE id_informe = ?', [id_informe]);
+
+    for (const act of actividades) {
+      await connection.execute(
+        'INSERT INTO actividades_turno (id_informe, hora_desde, hora_hasta, detalle, hrs_bd, hrs_cliente) VALUES (?, ?, ?, ?, ?, ?)',
+        [id_informe, act.hora_desde || null, act.hora_hasta || null, act.detalle || null, act.hrs_bd || null, act.hrs_cliente || null]
+      );
+    }
+    for (const herr of herramientas) {
+      await connection.execute(
+        'INSERT INTO herramientas_turno (id_informe, tipo_elemento, diametro, numero_serie, desde_mts, hasta_mts, detalle_extra) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id_informe, herr.tipo_elemento || null, herr.diametro || null, herr.numero_serie || null, herr.desde_mts || null, herr.hasta_mts || null, herr.detalle_extra || null]
+      );
+    }
+    for (const perf of perforaciones) {
+      await connection.execute(
+        'INSERT INTO perforaciones_turno (id_informe, desde_mts, hasta_mts, mts_perforados, recuperacion, tipo_roca, dureza) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id_informe, perf.desde || null, perf.hasta || null, perf.metros_perforados || null, perf.recuperacion || null, perf.tipo_roca || null, perf.dureza || null]
+      );
+    }
+
+    await connection.commit();
+    res.json({ success: true, message: 'Guardado temporal exitoso' });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('[ERROR] /temporal:', error);
+    res.status(500).json({ error: 'Error en guardado temporal' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ============================================
+// ENDPOINT DE EMERGENCIA: FINALIZAR TURNO
+// ============================================
+router.post('/informes/finalizar-auto', async (req, res) => {
+  try {
+    const { id_informe } = req.body;
+    if (!id_informe) return res.status(400).json({ error: 'Se requiere id_informe' });
+    await pool.execute("UPDATE informes_turno SET estado = 'Finalizado' WHERE id_informe = ?", [id_informe]);
+    res.json({ success: true, message: 'Turno cerrado y bloqueado automáticamente por el sistema.' });
+  } catch (error) {
+    console.error('[ERROR] /finalizar-auto:', error);
+    res.status(500).json({ error: 'Error al finalizar turno forzadamente' });
+  }
+});
+
+// Endpoint /guardar eliminado (guardado en JSON ya no se usa)
     // Obtener informe principal
     const [informes] = await connection.execute(
       `SELECT * FROM informes_turno WHERE id_informe = ?`,

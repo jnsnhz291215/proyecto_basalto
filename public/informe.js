@@ -658,6 +658,61 @@ const InformeTurno = (() => {
     state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
 
     populateInforme(result.informe, result.actividades, result.perforaciones, result.herramientas);
+
+    if (result.informe.creado_el && !state.documentBlocked) {
+      iniciarTemporizadorCierre(result.informe.creado_el);
+    }
+  }
+
+  let informeCerrado = false;
+
+  function iniciarTemporizadorCierre(fechaApertura) {
+      const finTurno = new Date(new Date(fechaApertura).getTime() + 12 * 60 * 60 * 1000);
+      
+      const interval = setInterval(async () => {
+          const ahora = new Date();
+          const difMinutos = (finTurno - ahora) / 1000 / 60;
+
+          if (difMinutos <= 10 && difMinutos > 5) {
+              setStatusBanner('warning', '⚠️ Quedan menos de 10 min para el cierre automático del turno.');
+          }
+
+          if (difMinutos <= 5 && difMinutos > 0 && !informeCerrado) {
+              clearInterval(interval);
+              console.log('🚀 Iniciando secuencia de guardado y cierre forzado...');
+              await ejecutarCierreEmergencia();
+          }
+      }, 60000);
+  }
+
+  async function ejecutarCierreEmergencia() {
+      try {
+          if (!state.currentReportId) return;
+          
+          const datosGenerales = buildDatosGenerales('Borrador');
+          const listas = collectTableData();
+          const payload = { datosGenerales, ...listas, id_informe: state.currentReportId };
+
+          await fetch('/api/informes/temporal', { 
+             method: 'POST', 
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(payload) 
+          });
+
+          const res = await fetch('/api/informes/finalizar-auto', { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id_informe: state.currentReportId }) 
+          });
+
+          if (res.ok) {
+              informeCerrado = true;
+              alert('⏰ Turno finalizado: El informe se ha guardado y bloqueado automáticamente.');
+              window.location.reload(); 
+          }
+      } catch (err) {
+          console.error('Error en cierre forzado:', err);
+      }
   }
 
   function collectTableData() {
