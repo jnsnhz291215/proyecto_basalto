@@ -2,11 +2,11 @@
   'use strict';
 
   const SECTION_KEYS = [
-    { key: 'antecedentes', label: 'Antecedentes' },
-    { key: 'operacion', label: 'Operación' },
-    { key: 'materiales', label: 'Materiales' },
-    { key: 'actividades', label: 'Actividades' },
-    { key: 'cierre', label: 'Cierre' }
+    { key: 'antecedentes', label: 'Antecedentes', r: 22, w: 12 },
+    { key: 'operacion', label: 'Operación', r: 23, w: 13 },
+    { key: 'materiales', label: 'Materiales', r: 24, w: 14 },
+    { key: 'actividades', label: 'Actividades', r: 26, w: 27 },
+    { key: 'cierre', label: 'Cierre', r: 25, w: 15 }
   ];
 
   const ACCESS_LEVELS = [
@@ -167,12 +167,12 @@
       const radios = document.createElement('div');
       radios.className = 'section-permission-options';
 
-      const selectedLevel = ACCESS_LEVELS.find((level) => {
-        const permissionKey = getSectionPermissionKey(section.key, level.key);
-        if (!permissionKey) return false;
-        const permiso = state.permisos.find((item) => item.clave_permiso === permissionKey);
-        return permiso ? selectedSet.has(Number(permiso.id_permiso)) : false;
-      })?.key || 'none';
+      let selectedLevel = 'none';
+      if (selectedSet.has(section.w)) {
+        selectedLevel = 'w';
+      } else if (selectedSet.has(section.r)) {
+        selectedLevel = 'r';
+      }
 
       ACCESS_LEVELS.forEach((level) => {
         const radioId = `section-${section.key}-${level.key}`;
@@ -232,11 +232,9 @@
     SECTION_KEYS.forEach((section) => {
       const selected = document.querySelector(`input[name="section_${section.key}"]:checked`);
       const level = selected?.value || 'none';
-      const permissionKey = getSectionPermissionKey(section.key, level);
-      if (!permissionKey) return;
-
-      const permiso = state.permisos.find((item) => item.clave_permiso === permissionKey);
-      if (permiso) ids.add(Number(permiso.id_permiso));
+      
+      if (level === 'r') ids.add(section.r);
+      if (level === 'w') ids.add(section.w);
     });
 
     return Array.from(ids);

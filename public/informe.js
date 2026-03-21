@@ -23,12 +23,21 @@ const InformeTurno = (() => {
   const BLOCKED_STATUSES = new Set(['cerrado', 'validado', 'finalizado']);
   const CLOSE_TURNO_PERMISSION_ALIASES = ['cerrar_turno', 'finalizar_turno', 'inf_cerrar_turno'];
 
+  const SECTION_ID_MAP = {
+    antecedentes: { r: 22, w: 12 },
+    operacion: { r: 23, w: 13 },
+    materiales: { r: 24, w: 14 },
+    actividades: { r: 26, w: 27 },
+    cierre: { r: 25, w: 15 }
+  };
+
   const state = {
     role: '',
     userRut: '',
     userName: '',
     cargoName: '',
     permisosCargo: [],
+    permisosIds: [],
     isSuperAdmin: false,
     currentReportId: null,
     currentReportStatus: '',
@@ -104,8 +113,12 @@ const InformeTurno = (() => {
   }
 
   function sectionAccess(sectionKey) {
-    if (hasCargoPermission(`inf_seccion_${sectionKey}_w`)) return 'w';
-    if (hasCargoPermission(`inf_seccion_${sectionKey}_r`)) return 'r';
+    if (state.isSuperAdmin) return 'w';
+    const map = SECTION_ID_MAP[sectionKey];
+    if (!map) return 'none';
+    const ids = new Set(state.permisosIds || []);
+    if (ids.has(map.w)) return 'w';
+    if (ids.has(map.r)) return 'r';
     return 'none';
   }
 
@@ -234,15 +247,35 @@ const InformeTurno = (() => {
   }
 
   function setSectionVisibility(sectionKey, visible) {
-    sectionPanels(sectionKey).forEach((panel) => setElementVisible(panel, visible));
+    sectionPanels(sectionKey).forEach((panel) => {
+      setElementVisible(panel, visible);
+      if (visible) {
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
   }
 
   function setSectionReadOnly(sectionKey, readOnly) {
     sectionPanels(sectionKey).forEach((panel) => {
       panel.classList.toggle('is-readonly', readOnly);
       panel.querySelectorAll('input, select, textarea, button').forEach((node) => {
-        if (readOnly) node.setAttribute('disabled', 'disabled');
-        else node.removeAttribute('disabled');
+        if (readOnly) {
+          node.setAttribute('disabled', 'disabled');
+          if (node.tagName !== 'BUTTON') node.setAttribute('readonly', 'readonly');
+          if (node.tagName === 'BUTTON' && (node.className.includes('btn-add') || node.className.includes('btn-delete') || node.id.includes('btnAgregar'))) {
+            node.classList.add('hidden');
+            node.style.display = 'none';
+          }
+        } else {
+          node.removeAttribute('disabled');
+          node.removeAttribute('readonly');
+          if (node.tagName === 'BUTTON' && (node.className.includes('btn-add') || node.className.includes('btn-delete') || node.id.includes('btnAgregar'))) {
+            node.classList.remove('hidden');
+            node.style.display = '';
+          }
+        }
       });
     });
   }
@@ -507,7 +540,7 @@ const InformeTurno = (() => {
     });
 
     state.canWriteAnySection = state.isSuperAdmin || SECTION_KEYS.some((sectionKey) => sectionWritable(sectionKey));
-    state.canCloseTurno = state.isSuperAdmin || CLOSE_TURNO_PERMISSION_ALIASES.some((key) => hasCargoPermission(key));
+    state.canCloseTurno = state.isSuperAdmin || new Set(state.permisosIds || []).has(15);
     state.hasVisibleSections = TAB_KEYS.some((tabKey) => isElementVisible(getTabButton(tabKey)));
 
     applyResponsableRules();
@@ -981,12 +1014,30 @@ const InformeTurno = (() => {
     if (window.desbloquearScroll) window.desbloquearScroll();
   }
 
+  async function loadCargoPermisosIds() {
+    state.permisosIds = [];
+    if (!state.cargoName || state.isSuperAdmin) return;
+    try {
+      const res = await fetch('/api/cargos');
+      if (!res.ok) return;
+      const cargos = await res.json();
+      const miCargo = cargos.find(c => String(c.nombre_cargo).toLowerCase() === String(state.cargoName).toLowerCase());
+      if (miCargo && miCargo.id_permisos) {
+        state.permisosIds = miCargo.id_permisos.map(Number);
+      }
+    } catch (e) {
+      console.error('Error cargando permisos IDs', e);
+    }
+  }
+
   async function init() {
     refreshSessionContext();
     syncAuditModeFromURL();
     updateAuditModeBanner();
     addRowHandlers();
     bindActions();
+    
+    await loadCargoPermisosIds();
 
     if (state.auditModeEnabled) {
       await initAuditContext();
