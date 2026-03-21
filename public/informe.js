@@ -284,6 +284,7 @@ const InformeTurno = (() => {
     const btnGuardar = document.getElementById('btn-guardar-borrador');
     const btnFinalizar = document.getElementById('btn-finalizar-turno');
     const btnReabrir = document.getElementById('btn-reabrir-turno');
+    const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
 
     if (btnGuardar) {
       if (state.documentBlocked || !state.canWriteAnySection) btnGuardar.setAttribute('disabled', 'disabled');
@@ -303,6 +304,14 @@ const InformeTurno = (() => {
         btnReabrir.style.display = 'inline-flex';
       } else {
         btnReabrir.style.display = 'none';
+      }
+    }
+
+    if (btnEnviarCorreo) {
+      if (normalizeStatus(state.currentReportStatus) === 'finalizado' || normalizeStatus(state.currentReportStatus) === 'cerrado' || normalizeStatus(state.currentReportStatus) === 'validado') {
+        btnEnviarCorreo.style.display = 'inline-flex';
+      } else {
+        btnEnviarCorreo.style.display = 'none';
       }
     }
   }
@@ -994,6 +1003,75 @@ const InformeTurno = (() => {
       }
       showFinalizeModal();
     });
+
+    // Modal Enviar Correo
+    const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
+    const modalCorreo = document.getElementById('modal-enviar-correo');
+    const btnCloseCorreo = document.getElementById('btn-close-correo');
+    const btnCancelCorreo = document.getElementById('btn-cancel-correo');
+    const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
+    const inputCorreo = document.getElementById('input-correo-destino');
+    const errorCorreo = document.getElementById('error-correo');
+
+    if (btnEnviarCorreo) {
+      btnEnviarCorreo.addEventListener('click', () => {
+        if (!modalCorreo) return;
+        modalCorreo.style.display = 'flex';
+        if (inputCorreo) inputCorreo.value = '';
+        if (errorCorreo) errorCorreo.style.display = 'none';
+        if (window.bloquearScroll) window.bloquearScroll();
+      });
+    }
+
+    const closeCorreoModal = () => {
+      if (modalCorreo) modalCorreo.style.display = 'none';
+      if (window.desbloquearScroll) window.desbloquearScroll();
+    };
+
+    if (btnCloseCorreo) btnCloseCorreo.addEventListener('click', closeCorreoModal);
+    if (btnCancelCorreo) btnCancelCorreo.addEventListener('click', closeCorreoModal);
+
+    if (btnConfirmCorreo) {
+      btnConfirmCorreo.addEventListener('click', async () => {
+        const email = inputCorreo.value.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (!email || !emailRegex.test(email)) {
+          errorCorreo.style.display = 'block';
+          return;
+        }
+
+        errorCorreo.style.display = 'none';
+        
+        const originalContent = btnConfirmCorreo.innerHTML;
+        btnConfirmCorreo.disabled = true;
+        btnConfirmCorreo.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando y Enviando...';
+        btnCancelCorreo.disabled = true;
+        btnCloseCorreo.disabled = true;
+        inputCorreo.disabled = true;
+
+        try {
+          const res = await fetch('/api/informes/enviar-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_informe: state.currentReportId, email })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error al enviar');
+          
+          closeCorreoModal();
+          showSuccessModal('Correo Enviado', `El informe ha sido enviado exitosamente a ${email}`, false);
+        } catch (err) {
+          showErrorModal(err.message || 'Error al enviar el correo.');
+        } finally {
+          btnConfirmCorreo.disabled = false;
+          btnConfirmCorreo.innerHTML = originalContent;
+          btnCancelCorreo.disabled = false;
+          btnCloseCorreo.disabled = false;
+          inputCorreo.disabled = false;
+        }
+      });
+    }
 
     // Modales de Confirmación y Éxito
     const btnCancelFinalizar = document.getElementById('btn-cancel-finalizar');

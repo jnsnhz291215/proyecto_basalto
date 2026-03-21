@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion.js');
+const puppeteer = require('puppeteer');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 // Control de doble envío (Rate Limiting en memoria)
 const recentRequests = new Map();
@@ -715,6 +720,102 @@ router.delete('/informes/:id', async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar el informe', detalle: error.message });
   } finally {
     if (connection) connection.release();
+  }
+});
+
+// ============================================
+// ENDPOINT: ENVIAR EMAIL DE INFORME
+// ============================================
+router.post('/informes/enviar-email', async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const { id_informe, email } = req.body;
+    if (!id_informe || !email) {
+      return res.status(400).json({ error: 'Se requiere id_informe y email' });
+    }
+
+    // 1. Backend Check
+    const [rows] = await pool.execute('SELECT estado, fecha, turno FROM informes_turno WHERE id_informe = ? LIMIT 1', [id_informe]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Informe no encontrado' });
+    }
+    
+    const informe = rows[0];
+    if (!estadoFueCerrado(informe.estado)) {
+      return res.status(403).json({ error: 'No se puede exportar un informe que no esté cerrado' });
+    }
+
+    const fechaFormateada = informe.fecha ? new Date(informe.fecha).toISOString().split('T')[0] : 'S/F';
+    const turnoGrupo = informe.turno || 'S/G';
+
+    // 2. Motor de impresión
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Inyectar contexto local de sistema para bypassear auth
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem('user_role', 'admin');
+      localStorage.setItem('user_rut', 'system');
+      localStorage.setItem('user_super_admin', '1');
+    });
+
+    const port = process.env.PORT || 3000;
+    const internalUrl = `http://localhost:${port}/informe.html?id=${id_informe}`;
+    
+    await page.goto(internalUrl, { waitUntil: 'networkidle0' });
+
+    tempPdfPath = path.join(os.tmpdir(), `informe_${id_informe}_${Date.now()}.pdf`);
+    
+    const pdfBuffer = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true,
+      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    });
+    
+    await browser.close();
+
+    fs.writeFileSync(tempPdfPath, pdfBuffer);
+
+    // 3. Envío de Correo (Nodemailer)
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      port: process.env.SMTP_PORT || 587,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const subject = `Informe de Turno - Basalto Drilling - ${fechaFormateada} - Grupo ${turnoGrupo}`;
+    
+    const mailOptions = {
+      from: process.env.MAIL_FROM || '"Basalto Drilling" <no-reply@basalto.app>',
+      to: email,
+      subject: subject,
+      text: `Estimado usuario,\n\nSe adjunta a este correo el reporte oficial del Informe de Turno correspondiente a la fecha ${fechaFormateada} para el Grupo ${turnoGrupo}.\n\nSaludos,\nSistema Basalto Drilling`,
+      attachments: [
+        {
+          filename: `Informe_Turno_${fechaFormateada}_${turnoGrupo}.pdf`,
+          path: tempPdfPath
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // 4. Limpieza temporal
+    fs.unlinkSync(tempPdfPath);
+    tempPdfPath = null;
+
+    res.json({ success: true, message: 'Correo enviado correctamente' });
+  } catch (error) {
+    if (tempPdfPath && fs.existsSync(tempPdfPath)) {
+      try { fs.unlinkSync(tempPdfPath); } catch(e) {}
+    }
+    console.error('[ERROR] /enviar-email:', error);
+    res.status(500).json({ error: error.message || 'Error al exportar y enviar el correo' });
   }
 });
 

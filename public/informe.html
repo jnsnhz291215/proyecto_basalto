@@ -329,7 +329,10 @@
 
         <!-- BOTONES DE ACCIÓN FINALES -->
         <div class="action-bar">
-            <button id="btn-descargar-pdf" class="btn btn-primary" type="button" disabled title="Primero debes guardar los cambios" style="background: #e2e8f0; color: #1e293b; border-color: #cbd5e1; margin-right: auto; cursor: not-allowed; opacity: 0.6;">
+            <button id="btn-enviar-correo" class="btn btn-primary" type="button" style="display: none; background: #3b82f6; color: white; border-color: #2563eb; margin-right: auto;">
+                📧 Enviar por Correo
+            </button>
+            <button id="btn-descargar-pdf" class="btn btn-primary" type="button" disabled title="Primero debes guardar los cambios" style="background: #e2e8f0; color: #1e293b; border-color: #cbd5e1; margin-right: 10px; cursor: not-allowed; opacity: 0.6;">
                 <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Descargar PDF
             </button>
             <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
@@ -413,6 +416,30 @@
               <button id="btn-adv-entendido" class="btn" style="background: #e5e7eb; color: #374151; font-weight: 600;">Entendido</button>
               <button id="btn-adv-guardar-ahora" class="btn" style="background: #ea580c; color: white; border: none; font-weight: 600; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
                   <i class="fa-solid fa-floppy-disk"></i> Guardar ahora
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- MODAL: Enviar por Correo -->
+  <div id="modal-enviar-correo" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2400; align-items: center; justify-content: center;">
+      <div class="modal-content" style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;"><i class="fa-regular fa-envelope"></i> Enviar Informe por Correo</h3>
+              <button id="btn-close-correo" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+          </div>
+          <p style="color: #4b5563; font-size: 14px; margin-bottom: 20px;">
+              El informe se exportará a PDF y se enviará como archivo adjunto.
+          </p>
+          <div class="input-group" style="margin-bottom: 24px;">
+              <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: #334155;">Correo de Destino</label>
+              <input type="email" id="input-correo-destino" placeholder="ejemplo@empresa.com" class="modern-input" style="width: 100%; box-sizing: border-box;">
+              <span id="error-correo" style="color: #ef4444; font-size: 12px; display: none; margin-top: 4px;">Ingresa un correo electrónico válido.</span>
+          </div>
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <button id="btn-cancel-correo" class="btn" style="background: #e5e7eb; color: #374151; font-weight: 600;">Cancelar</button>
+              <button id="btn-confirm-correo" class="btn btn-primary" style="font-weight: 600;">
+                  <i class="fa-solid fa-paper-plane"></i> Enviar Ahora
               </button>
           </div>
       </div>
