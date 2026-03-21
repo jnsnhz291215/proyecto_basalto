@@ -771,7 +771,7 @@ async function ocultarViaje(idViaje) {
 }
 
 // ============================================
-// ELIMINAR VIAJE
+// ELIMINAR VIAJE (VIA COMPONENTE UNIVERSAL)
 // ============================================
 window.confirmarEliminarViaje = function(idViaje) {
   if (!isSuperAdminSession()) {
@@ -782,13 +782,15 @@ window.confirmarEliminarViaje = function(idViaje) {
   const viaje = viajes.find(v => v.id_viaje === idViaje);
   if (!viaje) return;
   
-  document.getElementById('confirm-title').textContent = 'Eliminar Viaje';
-  document.getElementById('confirm-message').textContent = 
-    `¿Está seguro de eliminar el viaje de ${viaje.nombres} ${viaje.apellidos}? Esta acción no se puede deshacer.`;
-  
-  document.getElementById('confirm-ok').onclick = () => eliminarViaje(idViaje);
-  
-  openManagedModal(el.modalConfirm);
+  if (window.basaltoSecurity && window.basaltoSecurity.requireHardDelete) {
+    window.basaltoSecurity.requireHardDelete({
+      title: "Eliminar Viaje Físicamente",
+      message: `¿Está seguro de eliminar el viaje de ${viaje.nombres} ${viaje.apellidos}? Esta acción borrará todos sus tramos y no se puede deshacer.`,
+      onConfirm: () => eliminarViaje(idViaje)
+    });
+  } else {
+    mostrarError('Error interno: Componente de seguridad no disponible.');
+  }
 };
 
 async function eliminarViaje(idViaje) {
@@ -799,8 +801,10 @@ async function eliminarViaje(idViaje) {
 
     closeManagedModal(el.modalConfirm);
     
+    const rutSolicitante = localStorage.getItem('user_rut') || '';
     const response = await fetch(`/api/viajes/${idViaje}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'rut_solicitante': rutSolicitante }
     });
     
     if (!response.ok) {

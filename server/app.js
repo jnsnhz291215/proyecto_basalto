@@ -889,70 +889,48 @@ app.put("/api/trabajadores/:rut/estado", async (req, res) => {
 
 // Endpoint para eliminar trabajador por RUT
 const handleEliminarTrabajador = async (req, res) => {
+  const rut = req.body.rut;
+  if (!rut) {
+    return res.status(400).json({ error: "El RUT es obligatorio" });
+  }
+
+  // Validación Doble Factor: Solo Super Admin
+  const rutSolicitante = req.body.admin_rut || req.headers['rut_solicitante'] || req.query.rut_solicitante;
+  const rutLimpio = String(rutSolicitante || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+
+  if (!rutLimpio) {
+    return res.status(401).json({ error: 'Se requiere rut_solicitante para eliminación física' });
+  }
+
   try {
-    const { rut, admin_rut, admin_password } = req.body;
-    
-    if (!rut || typeof rut !== 'string' || rut.trim() === '') {
-      return res.status(400).json({ error: "Se requiere el RUT del trabajador" });
-    }
-    
-    const validacionSuperAdmin = await verificarSuperAdminPorRut(admin_rut || req.headers['rut_solicitante'] || req.query?.rut_solicitante);
-    if (!validacionSuperAdmin.ok) {
-      return res.status(validacionSuperAdmin.status).json({ error: validacionSuperAdmin.message });
-    }
+    const [rows] = await pool.execute(
+      'SELECT es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+      [rutLimpio]
+    );
 
-    // Si se proporciona contraseña de admin, validarla
-    if (admin_password) {
-      // Validar que el admin existe y la contraseña es correcta
-      const rutNorm = String(admin_rut).replace(/[.\-\s]/g, '').trim();
-      const sql = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
-      
-      try {
-        const [rows] = await pool.execute(sql, [rutNorm]);
-        if (!rows || rows.length === 0) {
-          console.log(`[HARD DELETE FAIL] rut_worker=${rut} admin_rut=${rutNorm} reason=admin_not_found`);
-          return res.status(401).json({ error: 'Credenciales de administrador inválidas' });
-        }
-        
-        const user = rows[0];
-        if (String(user.password || '') !== String(admin_password)) {
-          console.log(`[HARD DELETE FAIL] rut_worker=${rut} admin_rut=${rutNorm} reason=bad_password`);
-          return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
-        }
+    if (!rows || rows.length === 0) return res.status(401).json({ error: 'Administrador solicitante no encontrado' });
+    if (Number(rows[0].activo) === 0) return res.status(403).json({ error: 'Cuenta solicitante inactiva' });
+    if (Number(rows[0].es_super_admin) !== 1) return res.status(403).json({ error: 'Solo un Superadministrador puede realizar eliminación física' });
+  } catch(e) {
+    console.error('Error al verificar permisos db:', e);
+    return res.status(500).json({ error: 'Error al verificar permisos de seguridad' });
+  }
 
-        if (Number(user.es_super_admin) !== 1) {
-          return res.status(403).json({ error: 'Solo un Superadministrador puede realizar eliminación física' });
-        }
-        
-        // Contraseña válida - proceder con eliminación
-        console.log(`[HARD DELETE AUTHORIZED] rut_worker=${rut} admin_rut=${rutNorm}`);
-      } catch (qe) {
-        console.error('Error validando credenciales de admin:', qe);
-        return res.status(500).json({ error: 'Error al validar credenciales' });
-      }
-    }
+  try {
+    await eliminarTrabajador(rut.trim());
     
-    try {
-      await eliminarTrabajador(rut.trim());
-      
-      // Registrar log de auditoría
-      if (admin_rut) {
-        await registrarLog(admin_rut, 'ELIMINAR_TRABAJADOR', `Se eliminó DEFINITIVAMENTE el trabajador con RUT: ${rut.trim()}`);
-      }
-      
-      const trabajadoresDespues = await obtenerTrabajadores();
-      ultimoEstado = trabajadoresDespues;
-      res.json({ success: true, trabajadores: trabajadoresDespues, message: "Trabajador eliminado definitivamente" });
-    } catch (e) {
-      if (e && e.code === 'RUT_NOT_FOUND') {
-        return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
-      }
-      console.error('Error en eliminarTrabajador:', e);
-      return res.status(500).json({ error: 'Error al eliminar trabajador' });
+    // Registrar log de auditoría
+    const admin_rut = req.body.admin_rut || 'SYSTEM';
+    await registrarLog(admin_rut, 'ELIMINAR_TRABAJADOR', `Se eliminó DEFINITIVAMENTE el trabajador con RUT: ${rut.trim()}`);
+    
+    // La recarga de la lista sucede en el frontend, así que no necesitamos enviar toda la lista
+    res.json({ success: true, message: "Trabajador eliminado definitivamente" });
+  } catch (e) {
+    if (e && e.code === 'RUT_NOT_FOUND') {
+      return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
     }
-  } catch (error) {
-    console.error("Error al eliminar trabajador:", error);
-    res.status(500).json({ error: "Error al eliminar trabajador" });
+    console.error('Error en eliminarTrabajador:', e);
+    return res.status(500).json({ error: 'Error al eliminar trabajador' });
   }
 };
 

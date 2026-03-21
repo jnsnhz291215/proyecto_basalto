@@ -1034,7 +1034,7 @@
     <div class="modal-content modal-card" style="max-width: 480px;">
       <div class="modal-header">
         <h3 class="modal-title">
-          <i class="fa-solid fa-trash highlight-icon" style="color: #dc2626;"></i> Eliminar Definitivamente
+          <i class="fa-solid fa-trash highlight-icon" style="color: #dc2626;"></i> Eliminar Trabajador
         </h3>
       </div>
 
@@ -1042,9 +1042,9 @@
         <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid #dc2626; margin-bottom: 16px;">
           <i class="fa-solid fa-circle-exclamation" style="color: #dc2626; margin-top: 2px;"></i>
           <div>
-            <p style="margin: 0; font-weight: 700; color: #7f1d1d; font-size: 14px;">⚠️ ADVERTENCIA</p>
+            <p style="margin: 0; font-weight: 700; color: #7f1d1d; font-size: 14px;">¿Estás seguro de eliminar a este trabajador?</p>
             <p style="margin: 6px 0 0 0; font-size: 13px; color: #991b1b; line-height: 1.5;">
-              Esta acción <strong>NO se puede deshacer</strong> y borrará <strong>TODO el registro</strong> del trabajador incluyendo su historial de turnos, excepciones, y logs.
+              Esta acción borrará permanentemente su cuenta de usuario y todos sus viajes registrados. Los informes de turno se conservarán, pero sin el nombre del operador.
             </p>
           </div>
         </div>
@@ -1054,22 +1054,19 @@
           <p id="eliminar-nombre-trabajador" style="margin: 0; font-size: 15px; font-weight: 600; color: #1f2937;">—</p>
         </div>
 
-        <div class="form-group">
-          <label for="eliminar-password">Contraseña de Administrador</label>
-          <div class="input-wrapper">
-            <i class="fa-solid fa-key input-icon"></i>
-            <input type="password" id="eliminar-password" placeholder="••••••••" class="modern-input" autocomplete="off" required>
-          </div>
-          <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">
-            Se requiere tu contraseña para confirmar la eliminación definitiva
-          </small>
-        </div>
+        <!-- NUEVO CHECKBOX -->
+        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-top: 16px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+          <input type="checkbox" id="eliminar-checkbox-confirm" style="margin-top: 4px; width: 16px; height: 16px; accent-color: #dc2626; cursor: pointer;">
+          <span style="font-size: 14px; color: #374151; line-height: 1.4; font-weight: 500;">
+            Entiendo que esta acción es permanente y no se puede revertir
+          </span>
+        </label>
       </div>
 
       <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
         <button type="button" id="cancel-eliminar" class="btn-cancel">Cancelar</button>
-        <button type="button" id="confirm-eliminar" class="btn btn-danger">
-          <i class="fa-solid fa-trash"></i> Eliminar Definitivamente
+        <button type="button" id="confirm-eliminar" class="btn btn-danger" disabled style="opacity: 0.5; cursor: not-allowed; transition: all 0.3s ease;">
+          <i class="fa-solid fa-trash"></i> Sí, eliminar
         </button>
       </div>
     </div>

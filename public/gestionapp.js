@@ -458,11 +458,21 @@ function render() {
     btnEliminar.type = 'button';
     btnEliminar.innerHTML = '<i class="fa-solid fa-trash"></i> Eliminar';
     btnEliminar.addEventListener('click', () => abrirModalEliminar(t.RUT, nombreCompleto));
-    if (!canDeleteWorker) {
+    
+    // Verificación de SuperAdmin para borrado físico 
+    let isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+    try {
+      if (!isSuperAdmin) {
+        const uA = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+        isSuperAdmin = !!(uA.es_super_admin) || !!(uA.isSuperAdmin) || !!(uA.isAdmin);
+      }
+    } catch(e) {}
+
+    if (!isSuperAdmin) {
       btnEliminar.disabled = true;
       btnEliminar.style.opacity = '0.5';
       btnEliminar.style.cursor = 'not-allowed';
-      btnEliminar.title = 'No tiene permisos para eliminar trabajadores';
+      btnEliminar.title = 'Permiso insuficiente. Solo Super Administradores pueden eliminar físicamente.';
     }
 
     actions.appendChild(btnEditar);
@@ -680,35 +690,33 @@ function abrirModalOcultar(rut, nombreTrabajador, esReactivarFlag) {
   }
 }
 
-// MODAL ELIMINAR DEFINITIVAMENTE
+// MODAL ELIMINAR DEFINITIVAMENTE (VÍA COMPONENTE UNIVERSAL)
 function abrirModalEliminar(rut, nombreTrabajador) {
-  rutParaBorrar = rut;
-  
-  const modal = document.getElementById('modal-eliminar');
-  if (modal) {
-    const nombre = document.getElementById('eliminar-nombre-trabajador');
-    const passwordInput = document.getElementById('eliminar-password');
-    
-    if (nombre) nombre.textContent = nombreTrabajador;
-    if (passwordInput) {
-      passwordInput.value = '';
-      passwordInput.focus();
-    }
-    
-    openManagedModal(modal);
+  if (window.basaltoSecurity && window.basaltoSecurity.requireHardDelete) {
+    window.basaltoSecurity.requireHardDelete({
+      title: "Eliminar Trabajador Definitivamente",
+      message: `¿Estás seguro de eliminar físicamente la cuenta de "${nombreTrabajador}"? Toda su información se perderá. Esta acción no se puede deshacer.`,
+      onConfirm: () => ejecutarBorrarDefinitivo(rut)
+    });
+  } else {
+    showResult('Error', 'No se pudo cargar el componente de seguridad', true);
   }
 }
 
-async function ejecutarBorrarDefinitivo(rut, password) {
+async function ejecutarBorrarDefinitivo(rut) {
   try {
     const adminRut = localStorage.getItem('userRUT');
+    let rutSolicitante = localStorage.getItem('user_rut') || adminRut;
+    try {
+      const dbInfo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+      if (dbInfo.rut) rutSolicitante = dbInfo.rut;
+    } catch(e){}
     
     const r = await fetch(`/api/trabajadores/${encodeURIComponent(rut)}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'rut_solicitante': rutSolicitante },
       body: JSON.stringify({ 
         rut: rut,
-        admin_password: password,
         admin_rut: adminRut
       })
     });
@@ -716,11 +724,8 @@ async function ejecutarBorrarDefinitivo(rut, password) {
     const data = await r.json().catch(() => ({}));
     
     if (r.ok && data.success) {
-      trabajadores = data.trabajadores || [];
-      render();
-      showResult('Éxito', 'Trabajador ELIMINADO DEFINITIVAMENTE del sistema');
-    } else if (r.status === 401) {
-      showResult('Error', 'Contraseña incorrecta. Acción cancelada.', true);
+      await cargar();
+      showResult('Éxito', 'Trabajador eliminado correctamente.');
     } else if (r.status === 404) {
       showResult('Error', data.error || 'Error: El RUT no existe', true);
     } else if (r.status === 400) {
@@ -1585,49 +1590,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Event listeners para modal eliminar
-  const cancelEliminar = document.getElementById('cancel-eliminar');
-  if (cancelEliminar) {
-    cancelEliminar.addEventListener('click', () => {
-      rutParaBorrar = null;
-      const passwordInput = document.getElementById('eliminar-password');
-      if (passwordInput) passwordInput.value = '';
-      closeManagedModal(el.modalEliminar);
-    });
-  }
-
-  const confirmEliminar = document.getElementById('confirm-eliminar');
-  if (confirmEliminar) {
-    confirmEliminar.addEventListener('click', () => {
-      const passwordInput = document.getElementById('eliminar-password');
-      const password = passwordInput ? passwordInput.value : '';
-      
-      if (rutParaBorrar && password) {
-        ejecutarBorrarDefinitivo(rutParaBorrar, password);
-        closeManagedModal(el.modalEliminar);
-      } else if (!password) {
-        // Mostrar error
-        if (passwordInput) {
-          passwordInput.classList.add('input-error');
-          setTimeout(() => {
-            passwordInput.classList.remove('input-error');
-          }, 2000);
-        }
-      }
-    });
-  }
-
-  // Cerrar modal eliminar al hacer click fuera
-  if (el.modalEliminar) {
-    el.modalEliminar.addEventListener('click', (ev) => {
-      if (ev.target === el.modalEliminar) {
-        rutParaBorrar = null;
-        const passwordInput = document.getElementById('eliminar-password');
-        if (passwordInput) passwordInput.value = '';
-        closeManagedModal(el.modalEliminar);
-      }
-    });
-  }
+  // (Los event listeners del modal eliminar antiguo han sido removidos 
+  // ya que ahora se utiliza window.basaltoSecurity.requireHardDelete)
 
   if (el.resultOk) {
     el.resultOk.addEventListener('click', () => {

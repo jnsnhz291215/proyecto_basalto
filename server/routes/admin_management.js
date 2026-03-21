@@ -455,4 +455,57 @@ router.post('/admins/estado', verificarSuperAdmin, async (req, res) => {
   }
 });
 
+// ============================================
+// DELETE /api/admins/:rut - Eliminar administrador físicamente
+// ============================================
+router.delete('/admins/:rut', verificarSuperAdmin, async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const rutParaEliminar = limpiarRUT(req.params.rut);
+    const body = req.body || {};
+    const query = req.query || {};
+    const headers = req.headers || {};
+    const rutSolicitante = limpiarRUT(body.rut_solicitante || query.rut_solicitante || headers['rut_solicitante']);
+
+    if (!rutParaEliminar) {
+      return res.status(400).json({ success: false, message: 'Se requiere el RUT del administrador a eliminar' });
+    }
+
+    if (rutParaEliminar === rutSolicitante) {
+      return res.status(400).json({ success: false, message: 'No puede eliminar su propia cuenta administrativamente' });
+    }
+
+    // Verificar existencia previa
+    const sqlCheck = 'SELECT rut, es_super_admin FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+    const [adminRows] = await connection.execute(sqlCheck, [rutParaEliminar]);
+
+    if (!adminRows || adminRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
+    }
+
+    if (Number(adminRows[0].es_super_admin) === 1) {
+      return res.status(403).json({ success: false, message: 'No se puede eliminar la cuenta de un Super Administrador' });
+    }
+
+    await connection.beginTransaction();
+
+    const sqlDeletePermisos = 'DELETE FROM admin_permisos WHERE rut_admin = ?';
+    await connection.execute(sqlDeletePermisos, [adminRows[0].rut]);
+
+    const sqlDeleteAdmin = 'DELETE FROM admin_users WHERE rut = ?';
+    await connection.execute(sqlDeleteAdmin, [adminRows[0].rut]);
+
+    await connection.commit();
+
+    console.log(`[ADMIN_MGMT] Administrador ELIMINADO FISICAMENTE: ${rutParaEliminar} por ${rutSolicitante}`);
+    res.json({ success: true, message: 'Administrador eliminado definitivamente' });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('[ADMIN_MGMT] Error en DELETE /admins/:rut:', error);
+    res.status(500).json({ success: false, message: 'Error interno al intentar eliminar al administrador' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;

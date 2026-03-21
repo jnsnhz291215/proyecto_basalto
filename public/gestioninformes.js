@@ -455,15 +455,35 @@ function confirmarHardDelete(idInforme) {
     return;
   }
 
-  accionPendiente = {
-    tipo: 'hard-delete',
-    idInforme: idInforme
-  };
-  
-  document.getElementById('modal-confirmar-titulo').textContent = 'Eliminar Permanentemente';
-  document.getElementById('modal-confirmar-mensaje').textContent = '⚠️ Esta acción es IRREVERSIBLE. ¿Estás seguro de que deseas eliminar permanentemente este informe?';
-  
-  el.modalConfirmar.show();
+  const informe = informes.find(i => i.id_informe === idInforme);
+  const numeroStr = informe ? (informe.numero_informe || idInforme) : idInforme;
+
+  if (window.basaltoSecurity && window.basaltoSecurity.requireHardDelete) {
+    window.basaltoSecurity.requireHardDelete({
+      title: "Eliminar Informe Físicamente",
+      message: `⚠️ Esta acción es IRREVERSIBLE. ¿Estás seguro de que deseas eliminar permanentemente el informe #${numeroStr}? Todos sus registros, actividades y perforaciones serán borrados.`,
+      onConfirm: async () => {
+        try {
+          await hardDeleteInforme(idInforme);
+          await cargarInformes();
+        } catch(e) {
+          console.error(e);
+          mostrarError(e.message || 'Error al eliminar informe');
+        }
+      }
+    });
+  } else {
+    // Fallback if component fails to load
+    accionPendiente = {
+      tipo: 'hard-delete',
+      idInforme: idInforme
+    };
+    
+    document.getElementById('modal-confirmar-titulo').textContent = 'Eliminar Permanentemente';
+    document.getElementById('modal-confirmar-mensaje').textContent = '⚠️ Esta acción es IRREVERSIBLE. ¿Estás seguro de que deseas eliminar permanentemente este informe?';
+    
+    el.modalConfirmar.show();
+  }
 }
 
 function confirmarRestaurar(idInforme) {
@@ -526,8 +546,10 @@ async function hardDeleteInforme(idInforme) {
     throw new Error('Solo un Super Administrador puede eliminar informes permanentemente');
   }
 
+  const rutSolicitante = localStorage.getItem('user_rut') || '';
   const response = await fetch(`/api/informes/${idInforme}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'rut_solicitante': rutSolicitante }
   });
   
   if (!response.ok) throw new Error('Error al eliminar permanentemente');

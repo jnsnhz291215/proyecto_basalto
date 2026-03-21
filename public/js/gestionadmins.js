@@ -432,6 +432,11 @@
             <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
               <i class="fas fa-key"></i>
             </button>
+            ${isSuperAdmin && admin.rut !== userRut && !admin.es_super_admin ? `
+            <button class="btn-icon btn-hard-delete" data-rut="${admin.rut}" title="Eliminar definitivamente" style="color: #dc2626; margin-left: 8px;">
+              <i class="fas fa-trash"></i>
+            </button>
+            ` : ''}
           </div>
         </td>
       `;
@@ -444,6 +449,32 @@
         }
         openPermisosModal(admin.rut, admin.nombre_completo, admin.permisos);
       });
+
+      // Agregar event listener al botón de delete físico
+      const btnDelete = row.querySelector('.btn-hard-delete');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', () => {
+          if (window.basaltoSecurity && window.basaltoSecurity.requireHardDelete) {
+            window.basaltoSecurity.requireHardDelete({
+              title: "Eliminar Administrador",
+              message: `¿Está seguro de eliminar físicamente la cuenta de "${admin.nombre_completo}"? Esta acción no se puede deshacer y borrará sus permisos.`,
+              onConfirm: async () => {
+                try {
+                  const response = await fetch(`/api/admins/${admin.rut}`, {
+                    method: 'DELETE',
+                    headers: buildRequestHeaders()
+                  });
+                  const result = await parseApiResponse(response, "Error al eliminar administrador", "Eliminar Administrador");
+                  showNotification(result.message, 'success');
+                  await loadAdmins();
+                } catch (error) {
+                  showNotification(error.message || 'No se pudo eliminar el administrador', 'error');
+                }
+              }
+            });
+          }
+        });
+      }
 
       const estadoSwitch = row.querySelector('.admin-estado-switch');
       if (estadoSwitch) {

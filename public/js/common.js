@@ -182,3 +182,135 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ============================================
+// UNIVERSAL SECURITY: DOBLE FACTOR HUMANO
+// ============================================
+window.basaltoSecurity = {
+  requireHardDelete: function(options) {
+    const { 
+      title = "Eliminar Definitivamente", 
+      message = "Esta acción borrará el registro de forma permanente.", 
+      onConfirm 
+    } = options;
+    
+    // Remover modal existente si quedó pegado
+    const existing = document.getElementById('universal-hard-delete-modal');
+    if (existing) existing.remove();
+
+    // Inyectar HTML
+    const modalHtml = `
+      <div id="universal-hard-delete-modal" class="modal">
+        <div class="modal-content modal-card" style="max-width: 480px;">
+          <div class="modal-header">
+            <h3 class="modal-title">
+              <i class="fa-solid fa-trash highlight-icon" style="color: #dc2626;"></i> ${title}
+            </h3>
+          </div>
+
+          <div class="modal-body">
+            <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid #dc2626; margin-bottom: 16px;">
+              <i class="fa-solid fa-circle-exclamation" style="color: #dc2626; margin-top: 2px;"></i>
+              <div>
+                <p style="margin: 0; font-weight: 700; color: #7f1d1d; font-size: 14px;">⚠️ ADVERTENCIA</p>
+                <p style="margin: 6px 0 0 0; font-size: 13px; color: #991b1b; line-height: 1.5;">${message}</p>
+              </div>
+            </div>
+
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-top: 16px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+              <input type="checkbox" id="universal-delete-checkbox" style="margin-top: 4px; width: 16px; height: 16px; accent-color: #dc2626; cursor: pointer;">
+              <span style="font-size: 14px; color: #374151; line-height: 1.4; font-weight: 500;">
+                Entiendo que esta acción es permanente, borrará registros relacionados y NO se puede revertir
+              </span>
+            </label>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" id="universal-delete-cancel" class="btn-cancel">Cancelar</button>
+            <button type="button" id="universal-delete-confirm" class="btn btn-danger" disabled style="opacity: 0.5; cursor: not-allowed; transition: all 0.3s ease;">
+              <i class="fa-solid fa-trash"></i> Confirmar Eliminación
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = document.getElementById('universal-hard-delete-modal');
+    const btnConfirm = document.getElementById('universal-delete-confirm');
+    const btnCancel = document.getElementById('universal-delete-cancel');
+    const checkbox = document.getElementById('universal-delete-checkbox');
+    let timer = null;
+
+    function resetModalState() {
+      if (timer) clearInterval(timer);
+      checkbox.checked = false;
+      btnConfirm.disabled = true;
+      btnConfirm.style.opacity = '0.5';
+      btnConfirm.style.cursor = 'not-allowed';
+      btnConfirm.innerHTML = '<i class="fa-solid fa-trash"></i> Confirmar Eliminación';
+    }
+
+    function closeModal() {
+      resetModalState();
+      if (window.basaltoModal && typeof window.basaltoModal.close === 'function') {
+        window.basaltoModal.close(modal);
+      } else {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden', 'modal-open');
+      }
+      setTimeout(() => modal.remove(), 300);
+    }
+
+    checkbox.addEventListener('change', (e) => {
+      if (timer) clearInterval(timer);
+      
+      if (e.target.checked) {
+        let timeLeft = 5;
+        btnConfirm.disabled = true;
+        btnConfirm.style.opacity = '0.8';
+        btnConfirm.style.cursor = 'wait';
+        btnConfirm.innerHTML = `<i class="fa-solid fa-hourglass-start"></i> Confirmar eliminación (${timeLeft}s)...`;
+        
+        timer = setInterval(() => {
+          timeLeft--;
+          if (timeLeft > 0) {
+            btnConfirm.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Confirmar eliminación (${timeLeft}s)...`;
+          } else {
+            clearInterval(timer);
+            btnConfirm.disabled = false;
+            btnConfirm.style.opacity = '1';
+            btnConfirm.style.cursor = 'pointer';
+            btnConfirm.innerHTML = '<i class="fa-solid fa-trash"></i> Confirmar Eliminación Permanente';
+          }
+        }, 1000);
+      } else {
+        resetModalState();
+      }
+    });
+
+    btnCancel.addEventListener('click', closeModal);
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) closeModal();
+    });
+
+    btnConfirm.addEventListener('click', async () => {
+      if (!btnConfirm.disabled) {
+        closeModal();
+        if (typeof onConfirm === 'function') {
+          await onConfirm();
+        }
+      }
+    });
+
+    // Abrir modal
+    if (window.basaltoModal && typeof window.basaltoModal.open === 'function') {
+      window.basaltoModal.open(modal);
+    } else {
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden', 'modal-open');
+    }
+  }
+};
