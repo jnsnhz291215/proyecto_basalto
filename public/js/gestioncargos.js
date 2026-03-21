@@ -127,7 +127,13 @@
       const row = document.createElement('tr');
       const permisos = cargo.permisos || [];
       const chips = permisos.length
-        ? permisos.map((permiso) => `<span class="chip operacion">${humanizeKey(permiso.clave_permiso || permiso.nombre_permiso)}</span>`).join('')
+        ? permisos.map((permiso) => {
+            const isKpi = Number(permiso.id_permiso) === 21 || permiso.clave_permiso === 'admin_v_kpis';
+            if (isKpi) {
+              return `<span class="chip operacion" style="font-weight: 800; background: #dcfce7; color: #15803d;">Admin V Kpis</span>`;
+            }
+            return `<span class="chip gestion">${humanizeKey(permiso.clave_permiso || permiso.nombre_permiso)}</span>`;
+          }).join('')
         : '<span style="color:#6b7280">Sin permisos</span>';
 
       row.innerHTML = `
@@ -190,11 +196,12 @@
     el.cargoNombre.value = cargo?.nombre_cargo || '';
     renderSectionMatrix(selectedSet);
     
-    const kpiPermiso = state.permisos.find(p => p.clave_permiso === 'admin_v_kpis');
+    const kpiPermiso = state.permisos.find(p => p.clave_permiso === 'admin_v_kpis' || Number(p.id_permiso) === 21);
     const checkKpis = document.getElementById('checkAdminKpis');
-    if (kpiPermiso && checkKpis) {
-      checkKpis.value = kpiPermiso.id_permiso;
-      checkKpis.checked = selectedSet.has(Number(kpiPermiso.id_permiso));
+    if (checkKpis) {
+      const kpiId = kpiPermiso ? Number(kpiPermiso.id_permiso) : 21;
+      checkKpis.value = kpiId;
+      checkKpis.checked = selectedSet.has(21) || selectedSet.has(kpiId);
     }
   }
 
