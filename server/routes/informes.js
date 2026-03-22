@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { isWorkerOnShiftToday } = require('../helpers/shiftValidation');
 
 // Control de doble envío (Rate Limiting en memoria)
 const recentRequests = new Map();
@@ -206,6 +207,16 @@ router.post('/informes', async (req, res) => {
     const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = req.body;
     if (!datosGenerales) {
       return res.status(400).json({ error: 'Se requieren datosGenerales' });
+    }
+
+    const operadorRut = datosGenerales.operador_rut;
+    if (!operadorRut) {
+      return res.status(400).json({ error: 'Se requiere el RUT del operador para crear el informe.' });
+    }
+
+    const isOnShift = await isWorkerOnShiftToday(operadorRut);
+    if (!isOnShift) {
+      return res.status(403).json({ error: 'Este usuario no se encuentra en turno operativo el día de hoy. No es posible crear el informe.' });
     }
 
     connection = await pool.getConnection();

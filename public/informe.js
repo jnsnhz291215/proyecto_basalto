@@ -1167,6 +1167,36 @@ const InformeTurno = (() => {
     refreshSessionContext();
     syncAuditModeFromURL();
     updateAuditModeBanner();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditing = !!urlParams.get('id');
+
+    // MÓDULO DE SEGURIDAD: Validación de Turno Operativo
+    if (!state.isSuperAdmin && !state.auditModeEnabled && !isEditing) {
+      try {
+        const shiftRes = await fetch(`/api/turnos/check-hoy/${state.userRut}`);
+        if (shiftRes.ok) {
+          const shiftData = await shiftRes.json();
+          if (!shiftData.onShift) {
+            const mainContainer = document.querySelector('main');
+            if (mainContainer) {
+              mainContainer.innerHTML = `
+                <div style="max-width: 600px; margin: 80px auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #e74c3c;">
+                  <i class="fa-solid fa-lock" style="font-size: 3.5rem; color: #e74c3c; margin-bottom: 20px;"></i>
+                  <h2 style="color: #2c3e50; font-family: 'Inter', sans-serif; font-size: 1.8rem; margin-bottom: 15px;">Acceso Restringido</h2>
+                  <p style="color: #555; font-size: 1.15rem; line-height: 1.6; font-weight: 500;">Este usuario no se encuentra en turno operativo el día de hoy. No es posible crear el informe.</p>
+                  <a href="/index.html" style="display: inline-block; margin-top: 30px; padding: 12px 30px; background: #2c3e50; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">Volver al Inicio</a>
+                </div>
+              `;
+            }
+            return; // Bloquea completamente la inicialización del Informe
+          }
+        }
+      } catch (e) {
+        console.error('[SHIFT VALIDATION] Fetch error:', e);
+      }
+    }
+
     addRowHandlers();
     bindActions();
     
@@ -1180,7 +1210,6 @@ const InformeTurno = (() => {
     }
 
     // Cargar informe si ?id= presente
-    const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('id')) {
       try {
         await loadExistingReportIfNeeded();

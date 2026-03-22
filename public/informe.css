@@ -7,9 +7,9 @@ body {
 	margin: 0 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 32px; /* Increased spacing between sections from 20px to 32px */
+	gap: 20px; /* Reduced from 32px */
 	padding-bottom: 50px;
-	font-size: 1.25rem; /* Increased base font size by another 3px */
+	font-size: 1rem; /* Reduced from 1.25rem (~20% decrease) */
 }
 
 .status-banner {
@@ -110,7 +110,7 @@ body {
 .card-section {
 	background: white;
 	border-radius: 8px;
-	padding: 20px;
+	padding: 15px; /* Reduced from 20px */
 	border: 1px solid #e5e7eb;
 	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
@@ -121,11 +121,11 @@ body {
 }
 
 .section-title {
-	font-size: 0.9rem;
+	font-size: 0.85rem; /* Reduced from 0.9rem */
 	text-transform: uppercase;
 	color: #6b7280;
 	font-weight: 700;
-	margin-bottom: 15px;
+	margin-bottom: 10px; /* Reduced from 15px */
 	border-bottom: 1px solid #f3f4f6;
 	padding-bottom: 5px;
 }
@@ -133,19 +133,19 @@ body {
 .grid-2-col {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 20px;
+	gap: 15px; /* Reduced from 20px */
 }
 
 .materiales-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-	gap: 20px;
+	gap: 15px; /* Reduced from 20px */
 }
 
 .form-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-	gap: 15px;
+	gap: 10px; /* Reduced from 15px */
 }
 
 .full-width {
@@ -159,16 +159,16 @@ body {
 }
 
 .input-group label {
-	font-size: 0.95rem; /* Increased from 0.85rem */
-	font-weight: 600;
+	font-size: 0.85rem; /* Reduced from 0.95rem */
+	font-weight: 500; /* Reduced from 600 */
 	color: #374151;
 }
 
 .input-group input, .input-group select, .input-group textarea {
-	padding: 10px 14px; /* Slightly more padding */
+	padding: 8px 12px; /* Reduced padding */
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 1.25rem; /* Increased from 0.95rem */
+	font-size: 0.95rem; /* Reduced from 1.25rem */
 	font-family: inherit;
 }
 
@@ -179,10 +179,10 @@ body {
 }
 
 .modern-input {
-	padding: 12px 14px; /* Adjusted padding to match larger text */
+	padding: 8px 12px;
 	border: 1px solid #d1d5db;
 	border-radius: 6px;
-	font-size: 1.25rem; /* Increased from 0.95rem */
+	font-size: 0.95rem;
 	font-family: inherit;
 	transition: border-color 0.2s, box-shadow 0.2s;
 }
