@@ -506,8 +506,12 @@ const InformeTurno = (() => {
           state.userGrupo = shiftData.grupo || null;
           state.userShiftStatus = shiftData.estado || null;
           updateShiftStatusBadge(shiftData);
+        } else {
+          console.warn('[INFORME][SHIFT_API] /api/estado-turno respondió con status:', resp.status);
         }
-      } catch (_) { /* silencioso */ }
+      } catch (error) {
+        console.warn('[INFORME][SHIFT_API] Error consultando /api/estado-turno:', error?.message || error);
+      }
     }
 
     // 3. Grupos activos para esta fecha
@@ -519,8 +523,12 @@ const InformeTurno = (() => {
         if (resp.ok) {
           const data = await resp.json();
           activeGroups = data.grupos || [];
+        } else {
+          console.warn('[INFORME][SHIFT_API] /api/turnos/grupos-activos respondió con status:', resp.status);
         }
-      } catch (_) { /* silencioso */ }
+      } catch (error) {
+        console.warn('[INFORME][SHIFT_API] Error consultando /api/turnos/grupos-activos:', error?.message || error);
+      }
     }
 
     // 4. Poblar dropdown de turno con grupos activos

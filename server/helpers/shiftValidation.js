@@ -152,4 +152,8 @@ async function isWorkerOnShiftToday(worker_rut) {
   }
 }
 
-module.exports = { isWorkerOnShiftToday };
+module.exports = {
+  isWorkerOnShiftToday,
+  isGrupoOnShift,
+  obtenerGruposDelDia
+};
