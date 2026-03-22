@@ -534,6 +534,7 @@
         const usuarioActivo = JSON.parse(sessionData);
         if (!usuarioActivo.grupo) return;
         
+        console.warn('[DEBUG_GUARD] Validando sesión para:', JSON.parse(localStorage.getItem('usuarioActivo')));
         const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(usuarioActivo.grupo);
         
         if (!isEnTurno) {

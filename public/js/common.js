@@ -427,15 +427,17 @@ window.basaltoSecurity = {
      }
      if (gruposHoy.semanales && gruposHoy.semanales.includes(g)) isDiaHoy = true;
 
+     let resultadoFinal = false;
+
      // Escenario Día: Permitir reportes durante luz (ej. desde 07:00 am hasta las 20:30 pm)
      if (isDiaHoy) {
-       if (timeValue >= 6.0 && timeValue <= 20.5) return true; 
+       if (timeValue >= 6.0 && timeValue <= 20.5) resultadoFinal = true; 
      }
 
      // Escenario Noche HOY (inicia típicamente a las 20:00)
-     if (isNocheHoy) {
+     if (!resultadoFinal && isNocheHoy) {
        // Escenario A: Es el día calendario de su turno y son más de las 19:00 hrs
-       if (timeValue >= 19.0) return true; 
+       if (timeValue >= 19.0) resultadoFinal = true; 
      }
 
      // Chequear turnos de la NOCHE DE AYER (Escenario traslape madrugada)
@@ -447,12 +449,16 @@ window.basaltoSecurity = {
      if (gruposAyer.pista1 && gruposAyer.pista1.tarde === g) isNocheAyer = true;
      if (gruposAyer.pista2 && gruposAyer.pista2.tarde === g) isNocheAyer = true;
 
-     if (isNocheAyer) {
+     if (!resultadoFinal && isNocheAyer) {
        // Escenario B: Día siguiente a su turno y son menos de las 08:30 AM
-       if (timeValue <= 8.5) return true;
+       if (timeValue <= 8.5) resultadoFinal = true;
      }
 
-     return false;
+     console.log('[SHIFT_MATH] Hora actual:', h + ':' + m);
+     console.log('[SHIFT_MATH] ID Grupo recibido:', idGrupo);
+     console.log('[SHIFT_MATH] ¿Está en ventana de gracia?:', resultadoFinal);
+
+     return resultadoFinal;
   }
 
   window.basaltoShiftUtils = {
