@@ -60,21 +60,54 @@ function obtenerGruposDelDia(fecha) {
   return { pista1, pista2, semanales };
 }
 
-// Comprueba si un grupo en particular está de turno en la fecha dada
-function isGrupoOnShift(idGrupo, fecha = new Date()) {
-   const gruposActivos = obtenerGruposDelDia(fecha);
+// Comprueba si un grupo está de turno, contemplando ventanas de horas (gracia)
+function isGrupoOnShift(idGrupo, fechaParam) {
    const g = String(idGrupo || '').toUpperCase().trim();
    if (!g) return false;
 
-   if (gruposActivos.pista1) {
-     if (gruposActivos.pista1.manana === g || gruposActivos.pista1.tarde === g || gruposActivos.pista1.doble === g) return true;
+   const now = fechaParam ? new Date(fechaParam) : new Date();
+   const h = now.getHours();
+   const m = now.getMinutes();
+   const timeValue = h + (m / 60); // Decimal (ej: 8.5 = 08:30)
+   
+   const gruposHoy = obtenerGruposDelDia(now);
+   let isDiaHoy = false;
+   let isNocheHoy = false;
+
+   if (gruposHoy.pista1) {
+     if (gruposHoy.pista1.manana === g || gruposHoy.pista1.doble === g) isDiaHoy = true;
+     if (gruposHoy.pista1.tarde === g) isNocheHoy = true;
+   }
+   if (gruposHoy.pista2) {
+     if (gruposHoy.pista2.manana === g || gruposHoy.pista2.doble === g) isDiaHoy = true;
+     if (gruposHoy.pista2.tarde === g) isNocheHoy = true;
+   }
+   if (gruposHoy.semanales && gruposHoy.semanales.includes(g)) isDiaHoy = true;
+
+   // Escenario Día: Permitir reportes durante luz (ej. desde 07:00 am hasta las 20:30 pm)
+   if (isDiaHoy) {
+     if (timeValue >= 6.0 && timeValue <= 20.5) return true; 
    }
 
-   if (gruposActivos.pista2) {
-     if (gruposActivos.pista2.manana === g || gruposActivos.pista2.tarde === g || gruposActivos.pista2.doble === g) return true;
+   // Escenario Noche HOY (inicia típicamente a las 20:00)
+   if (isNocheHoy) {
+     // Escenario A: Día calendario de su turno, desde 19:00 hrs
+     if (timeValue >= 19.0) return true; 
    }
 
-   if (gruposActivos.semanales && gruposActivos.semanales.includes(g)) return true;
+   // Chequear turnos de la NOCHE DE AYER (Escenario traslape madrugada)
+   const ayer = new Date(now);
+   ayer.setDate(ayer.getDate() - 1);
+   const gruposAyer = obtenerGruposDelDia(ayer);
+   
+   let isNocheAyer = false;
+   if (gruposAyer.pista1 && gruposAyer.pista1.tarde === g) isNocheAyer = true;
+   if (gruposAyer.pista2 && gruposAyer.pista2.tarde === g) isNocheAyer = true;
+
+   if (isNocheAyer) {
+     // Escenario B: Día siguiente a su turno, menos de las 08:30 AM
+     if (timeValue <= 8.5) return true;
+   }
 
    return false;
 }
