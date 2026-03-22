@@ -147,7 +147,7 @@ app.post('/login', async (req, res) => {
     const usuarioTrim = String(usuario || '').replace(/\s+/g, '');
     const found = trabajadores.find(t => {
       const nombres = (t.nombres || '').split(/\s+/).filter(Boolean);
-      const apellidos = (t.apellidos || '').split(/\s+/).filter(Boolean);
+      const apellidos = ((t.apellido_paterno || '') + ' ' + (t.apellido_materno || '')).split(/\s+/).filter(Boolean);
       const firstName = nombres.length ? nombres[0] : '';
       const firstApellido = apellidos.length ? apellidos[0] : '';
       const expected = capitalizeWord(firstName) + capitalizeWord(firstApellido);
