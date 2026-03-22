@@ -616,8 +616,8 @@ const handleAgregarTrabajador = async (req, res) => {
     let apellido_materno = '';
     if (apellidosRaw) {
       const parts = apellidosRaw.split(/\s+/);
-      apellido_paterno = parts.shift() || '';
-      apellido_materno = parts.join(' ') || '';
+      apellido_paterno = parts.shift() || 'N/A';
+      apellido_materno = parts.join(' ') || 'N/A';
     }
 
     // Normalizar capitalización: primera letra en mayúscula por palabra
@@ -657,11 +657,11 @@ const handleAgregarTrabajador = async (req, res) => {
       ]
     );
 
-    // INSERT 2: users (password inicial = RUT limpio)
+    // INSERT 2: users (usa el mismo RUT como foránea, password inicial = RUT limpio)
     await connection.execute(
       'INSERT INTO users (rut, nombres, apellido_paterno, apellido_materno, email, password) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = password',
       [
-        rutLimpio,
+        nuevoTrabajador.RUT,
         nombresNorm,
         apellidoPaternoNorm,
         apellidoMaternoNorm,
@@ -696,11 +696,11 @@ const handleAgregarTrabajador = async (req, res) => {
       }
     }
     console.error("Error al agregar trabajador:", error);
-    const resp = { error: "Error al agregar trabajador" };
-    if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
-      resp.detail = error && (error.message || String(error));
-    }
-    res.status(500).json(resp);
+    res.status(500).json({ 
+      error: error && error.message 
+        ? "Error en BD: " + error.message 
+        : "Error interno al intentar agregar el trabajador" 
+    });
   } finally {
     if (connection) connection.release();
   }
