@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { isWorkerOnShiftToday } = require('../helpers/shiftValidation');
+const { getWorkerShiftStatus, isWorkerOnShiftToday } = require('../helpers/shiftValidation');
 
 // Control de doble envío (Rate Limiting en memoria)
 const recentRequests = new Map();
@@ -214,8 +214,11 @@ router.post('/informes', async (req, res) => {
       return res.status(400).json({ error: 'Se requiere el RUT del operador para crear el informe.' });
     }
 
-    const isOnShift = await isWorkerOnShiftToday(operadorRut);
-    if (!isOnShift) {
+    const shiftStatus = await getWorkerShiftStatus(operadorRut, new Date());
+    if (!shiftStatus.exactActive) {
+      if (shiftStatus.inGrace) {
+        return res.status(403).json({ error: 'La ventana de gracia solo permite continuar borradores existentes. No es posible crear un informe nuevo.' });
+      }
       return res.status(403).json({ error: 'Este usuario no se encuentra en turno operativo el día de hoy. No es posible crear el informe.' });
     }
 

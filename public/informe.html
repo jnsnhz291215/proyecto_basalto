@@ -77,18 +77,17 @@
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>Informe de Turno</span>
                 </div>
-                <div id="shift-status-badge" class="shift-badge" hidden></div>
+                <div id="status-badge" class="shift-badge" hidden></div>
             </div>
             <div class="header-fields-grid" data-section-panel="antecedentes">
                 <div class="input-group">
                     <label>Fecha del Informe</label>
-                    <input type="date" id="input-fecha" class="modern-input">
+                    <input type="date" id="input-fecha" class="modern-input input-readonly" readonly aria-readonly="true">
                 </div>
                 <div class="input-group">
-                    <label>Grupo / Turno</label>
-                    <select id="input-turno" class="modern-input">
-                        <option value="" disabled selected>Detectando turno&hellip;</option>
-                    </select>
+                    <label>Grupo / Turno asignado</label>
+                    <input type="hidden" id="input-turno">
+                    <input type="text" id="input-turno-display" class="modern-input input-readonly" value="Detectando turno..." readonly aria-readonly="true">
                 </div>
                 <div class="input-group">
                     <label>Hrs. Trabajadas</label>

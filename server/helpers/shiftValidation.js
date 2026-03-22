@@ -13,6 +13,48 @@ INICIO_EFGH.setHours(0, 0, 0, 0);
 const MS_PER_DAY = 86400000;
 const DIAS_POR_BLOQUE = 14;
 const CICLO_COMPLETO = DIAS_POR_BLOQUE * 4;
+const HORA_INICIO_DIA = 8 * 60;
+const HORA_FIN_DIA = 20 * 60;
+const HORA_INICIO_NOCHE = 20 * 60;
+const HORA_FIN_NOCHE = 8 * 60;
+const VENTANA_PREVIA_DIA = 2 * 60;
+const VENTANA_PREVIA_NOCHE = 60;
+const VENTANA_GRACIA_MINUTOS = 30;
+
+function minutosDelDia(fecha) {
+  return fecha.getHours() * 60 + fecha.getMinutes();
+}
+
+function sumarMinutos(fecha, minutos) {
+  return new Date(fecha.getTime() + (minutos * 60 * 1000));
+}
+
+function inicioDelDia(fecha) {
+  const copia = new Date(fecha);
+  copia.setHours(0, 0, 0, 0);
+  return copia;
+}
+
+function segundosRestantes(hasta, ahora) {
+  return Math.max(0, Math.ceil((hasta.getTime() - ahora.getTime()) / 1000));
+}
+
+function isGrupoEnTurnoDiurno(grupo, gruposDelDia) {
+  if (!grupo || !gruposDelDia) return false;
+  return Boolean(
+    (gruposDelDia.pista1 && (gruposDelDia.pista1.manana === grupo || gruposDelDia.pista1.doble === grupo))
+    || (gruposDelDia.pista2 && (gruposDelDia.pista2.manana === grupo || gruposDelDia.pista2.doble === grupo))
+    || (Array.isArray(gruposDelDia.semanales) && gruposDelDia.semanales.includes(grupo))
+  );
+}
+
+function isGrupoEnTurnoNocturno(grupo, gruposDelDia) {
+  if (!grupo || !gruposDelDia) return false;
+  return Boolean(
+    (gruposDelDia.pista1 && gruposDelDia.pista1.tarde === grupo)
+    || (gruposDelDia.pista2 && gruposDelDia.pista2.tarde === grupo)
+  );
+}
 
 // Devuelve { pista1: {manana, tarde, doble}, pista2: {manana, tarde, doble}, semanales }
 function obtenerGruposDelDia(fecha) {
@@ -62,65 +104,151 @@ function obtenerGruposDelDia(fecha) {
 
 // Comprueba si un grupo está de turno, contemplando ventanas de horas (gracia)
 function isGrupoOnShift(idGrupo, fechaParam) {
-   const g = String(idGrupo || '').toUpperCase().trim();
-   if (!g) return false;
-
-   const now = fechaParam ? new Date(fechaParam) : new Date();
-   const h = now.getHours();
-   const m = now.getMinutes();
-   const timeValue = h + (m / 60); // Decimal (ej: 8.5 = 08:30)
-   
-   const gruposHoy = obtenerGruposDelDia(now);
-   let isDiaHoy = false;
-   let isNocheHoy = false;
-
-   if (gruposHoy.pista1) {
-     if (gruposHoy.pista1.manana === g || gruposHoy.pista1.doble === g) isDiaHoy = true;
-     if (gruposHoy.pista1.tarde === g) isNocheHoy = true;
-   }
-   if (gruposHoy.pista2) {
-     if (gruposHoy.pista2.manana === g || gruposHoy.pista2.doble === g) isDiaHoy = true;
-     if (gruposHoy.pista2.tarde === g) isNocheHoy = true;
-   }
-   if (gruposHoy.semanales && gruposHoy.semanales.includes(g)) isDiaHoy = true;
-
-   // Escenario Día: Permitir reportes durante luz (ej. desde 07:00 am hasta las 20:30 pm)
-   if (isDiaHoy) {
-     if (timeValue >= 6.0 && timeValue <= 20.5) return true; 
-   }
-
-   // Escenario Noche HOY (inicia típicamente a las 20:00)
-   if (isNocheHoy) {
-     // Escenario A: Día calendario de su turno, desde 19:00 hrs
-     if (timeValue >= 19.0) return true; 
-   }
-
-   // Chequear turnos de la NOCHE DE AYER (Escenario traslape madrugada)
-   const ayer = new Date(now);
-   ayer.setDate(ayer.getDate() - 1);
-   const gruposAyer = obtenerGruposDelDia(ayer);
-   
-   let isNocheAyer = false;
-   if (gruposAyer.pista1 && gruposAyer.pista1.tarde === g) isNocheAyer = true;
-   if (gruposAyer.pista2 && gruposAyer.pista2.tarde === g) isNocheAyer = true;
-
-   if (isNocheAyer) {
-     // Escenario B: Día siguiente a su turno, menos de las 08:30 AM
-     if (timeValue <= 8.5) return true;
-   }
-
-   return false;
+   const estado = getGrupoShiftStatus(idGrupo, fechaParam);
+   return estado.exactActive || estado.inGrace || estado.estado === 'proximo_turno';
 }
 
-/**
- * Checks if a worker is assigned a shift on the current date, algorithmically.
- * 
- * @param {string} worker_rut The exact RUT of the worker
- * @returns {Promise<boolean>} True if worker is on shift today, false otherwise
- */
-async function isWorkerOnShiftToday(worker_rut) {
+function getGrupoShiftStatus(idGrupo, fechaParam) {
+  const grupo = String(idGrupo || '').toUpperCase().trim();
+  const now = fechaParam ? new Date(fechaParam) : new Date();
+
+  if (!grupo) {
+    return {
+      grupo: null,
+      estado: 'sin_grupo',
+      exactActive: false,
+      inGrace: false,
+      secondsRemaining: 0,
+      shiftEndsAt: null,
+      graceEndsAt: null,
+      mensaje: 'Sin grupo asignado'
+    };
+  }
+
+  const hoy = inicioDelDia(now);
+  const ayer = sumarMinutos(hoy, -1440);
+  const gruposHoy = obtenerGruposDelDia(now);
+  const gruposAyer = obtenerGruposDelDia(ayer);
+  const minutosAhora = minutosDelDia(now);
+  const esDiurnoHoy = isGrupoEnTurnoDiurno(grupo, gruposHoy);
+  const esNocturnoHoy = isGrupoEnTurnoNocturno(grupo, gruposHoy);
+  const esNocturnoAyer = isGrupoEnTurnoNocturno(grupo, gruposAyer);
+  const finTurnoDia = sumarMinutos(hoy, HORA_FIN_DIA);
+  const finGraciaDia = sumarMinutos(finTurnoDia, VENTANA_GRACIA_MINUTOS);
+  const inicioTurnoNocheHoy = sumarMinutos(hoy, HORA_INICIO_NOCHE);
+  const inicioPreviaNocheHoy = sumarMinutos(inicioTurnoNocheHoy, -VENTANA_PREVIA_NOCHE);
+  const finTurnoNoche = sumarMinutos(hoy, HORA_FIN_NOCHE);
+  const finGraciaNoche = sumarMinutos(finTurnoNoche, VENTANA_GRACIA_MINUTOS);
+
+  if (esDiurnoHoy && minutosAhora >= HORA_INICIO_DIA && minutosAhora < HORA_FIN_DIA) {
+    return {
+      grupo,
+      estado: 'en_turno',
+      exactActive: true,
+      inGrace: false,
+      secondsRemaining: segundosRestantes(finTurnoDia, now),
+      shiftEndsAt: finTurnoDia.toISOString(),
+      graceEndsAt: finGraciaDia.toISOString(),
+      mensaje: `Turno activo - Grupo ${grupo}`
+    };
+  }
+
+  if (esDiurnoHoy && minutosAhora >= HORA_FIN_DIA && minutosAhora < (HORA_FIN_DIA + VENTANA_GRACIA_MINUTOS)) {
+    return {
+      grupo,
+      estado: 'en_gracia',
+      exactActive: false,
+      inGrace: true,
+      secondsRemaining: segundosRestantes(finGraciaDia, now),
+      shiftEndsAt: finTurnoDia.toISOString(),
+      graceEndsAt: finGraciaDia.toISOString(),
+      mensaje: `Ventana de gracia - Grupo ${grupo}`
+    };
+  }
+
+  if (esNocturnoHoy && minutosAhora >= HORA_INICIO_NOCHE) {
+    const finTurnoNocheManana = sumarMinutos(finTurnoNoche, 1440);
+    const finGraciaNocheManana = sumarMinutos(finGraciaNoche, 1440);
+    return {
+      grupo,
+      estado: 'en_turno',
+      exactActive: true,
+      inGrace: false,
+      secondsRemaining: segundosRestantes(finTurnoNocheManana, now),
+      shiftEndsAt: finTurnoNocheManana.toISOString(),
+      graceEndsAt: finGraciaNocheManana.toISOString(),
+      mensaje: `Turno activo - Grupo ${grupo}`
+    };
+  }
+
+  if (esNocturnoAyer && minutosAhora < HORA_FIN_NOCHE) {
+    return {
+      grupo,
+      estado: 'en_turno',
+      exactActive: true,
+      inGrace: false,
+      secondsRemaining: segundosRestantes(finTurnoNoche, now),
+      shiftEndsAt: finTurnoNoche.toISOString(),
+      graceEndsAt: finGraciaNoche.toISOString(),
+      mensaje: `Turno activo - Grupo ${grupo}`
+    };
+  }
+
+  if (esNocturnoAyer && minutosAhora >= HORA_FIN_NOCHE && minutosAhora < (HORA_FIN_NOCHE + VENTANA_GRACIA_MINUTOS)) {
+    return {
+      grupo,
+      estado: 'en_gracia',
+      exactActive: false,
+      inGrace: true,
+      secondsRemaining: segundosRestantes(finGraciaNoche, now),
+      shiftEndsAt: finTurnoNoche.toISOString(),
+      graceEndsAt: finGraciaNoche.toISOString(),
+      mensaje: `Ventana de gracia - Grupo ${grupo}`
+    };
+  }
+
+  if (esDiurnoHoy && minutosAhora >= (HORA_INICIO_DIA - VENTANA_PREVIA_DIA) && minutosAhora < HORA_INICIO_DIA) {
+    return {
+      grupo,
+      estado: 'proximo_turno',
+      exactActive: false,
+      inGrace: false,
+      secondsRemaining: segundosRestantes(sumarMinutos(hoy, HORA_INICIO_DIA), now),
+      shiftEndsAt: finTurnoDia.toISOString(),
+      graceEndsAt: finGraciaDia.toISOString(),
+      mensaje: `Próximo a turno - Grupo ${grupo}`
+    };
+  }
+
+  if (esNocturnoHoy && now >= inicioPreviaNocheHoy && now < inicioTurnoNocheHoy) {
+    const finTurnoNocheManana = sumarMinutos(finTurnoNoche, 1440);
+    const finGraciaNocheManana = sumarMinutos(finGraciaNoche, 1440);
+    return {
+      grupo,
+      estado: 'proximo_turno',
+      exactActive: false,
+      inGrace: false,
+      secondsRemaining: segundosRestantes(inicioTurnoNocheHoy, now),
+      shiftEndsAt: finTurnoNocheManana.toISOString(),
+      graceEndsAt: finGraciaNocheManana.toISOString(),
+      mensaje: `Próximo a turno - Grupo ${grupo}`
+    };
+  }
+
+  return {
+    grupo,
+    estado: 'en_descanso',
+    exactActive: false,
+    inGrace: false,
+    secondsRemaining: 0,
+    shiftEndsAt: null,
+    graceEndsAt: null,
+    mensaje: `Fuera de turno - Grupo ${grupo}`
+  };
+}
+
+async function getWorkerShiftStatus(worker_rut, fechaParam) {
   try {
-    // 1. Get the worker's group name from the database
     const [workerRows] = await pool.execute(
       `SELECT t.id_grupo, g.nombre_grupo
        FROM trabajadores t
@@ -131,21 +259,59 @@ async function isWorkerOnShiftToday(worker_rut) {
     );
 
     if (!workerRows || workerRows.length === 0) {
-      console.warn(`[SHIFT VALIDATION] Worker ${worker_rut} not found.`);
-      return false; 
+      return {
+        grupo: null,
+        estado: 'sin_datos',
+        exactActive: false,
+        inGrace: false,
+        secondsRemaining: 0,
+        shiftEndsAt: null,
+        graceEndsAt: null,
+        mensaje: 'Trabajador no encontrado'
+      };
     }
 
     const idGrupo = workerRows[0].id_grupo;
     if (!idGrupo) {
-      console.warn(`[SHIFT VALIDATION] Worker ${worker_rut} has no group assigned.`);
-      return false;
+      return {
+        grupo: null,
+        estado: 'sin_grupo',
+        exactActive: false,
+        inGrace: false,
+        secondsRemaining: 0,
+        shiftEndsAt: null,
+        graceEndsAt: null,
+        mensaje: 'Sin grupo asignado'
+      };
     }
 
-    // Use nombre_grupo (e.g. "C") for the algorithm, which compares group letters
     const nombreGrupo = workerRows[0].nombre_grupo || String(idGrupo);
+    return getGrupoShiftStatus(nombreGrupo, fechaParam);
+  } catch (error) {
+    console.error('[SHIFT VALIDATION] Error checking worker shift status:', error);
+    return {
+      grupo: null,
+      estado: 'sin_datos',
+      exactActive: false,
+      inGrace: false,
+      secondsRemaining: 0,
+      shiftEndsAt: null,
+      graceEndsAt: null,
+      mensaje: 'Error interno verificando el turno'
+    };
+  }
+}
 
-    // 2. Check if the group is scheduled for today mathematically
-    return isGrupoOnShift(nombreGrupo, new Date());
+/**
+ * Checks if a worker is assigned a shift on the current date, algorithmically.
+ * 
+ * @param {string} worker_rut The exact RUT of the worker
+ * @returns {Promise<boolean>} True if worker is on shift today, false otherwise
+ */
+async function isWorkerOnShiftToday(worker_rut) {
+  try {
+    const status = await getWorkerShiftStatus(worker_rut, new Date());
+    return status.exactActive || status.inGrace || status.estado === 'proximo_turno';
   } catch (error) {
     console.error('[SHIFT VALIDATION] Error checking shift:', error);
     return false; // Fail-safe: securely deny access on DB error
@@ -153,6 +319,8 @@ async function isWorkerOnShiftToday(worker_rut) {
 }
 
 module.exports = {
+  getGrupoShiftStatus,
+  getWorkerShiftStatus,
   isWorkerOnShiftToday,
   isGrupoOnShift,
   obtenerGruposDelDia

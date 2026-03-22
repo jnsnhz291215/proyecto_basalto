@@ -196,7 +196,20 @@ body {
 .input-readonly {
 	background-color: #f3f4f6;
 	color: #6b7280;
-	cursor: not-allowed;
+	cursor: default;
+	pointer-events: none;
+}
+
+#input-turno-display.input-readonly,
+#input-fecha.input-readonly {
+	border-style: solid;
+	box-shadow: none;
+}
+
+.shift-badge--grace {
+	background: #fff7ed;
+	color: #9a3412;
+	border: 1px solid #fdba74;
 }
 
 .textarea-large {

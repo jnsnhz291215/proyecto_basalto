@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion');
 const {
+  getWorkerShiftStatus,
   isWorkerOnShiftToday,
   isGrupoOnShift,
   obtenerGruposDelDia
@@ -97,46 +98,23 @@ router.get('/estado-turno/:rut', async (req, res) => {
       });
     }
 
-    const sql = `
-      SELECT t.id_grupo, g.nombre_grupo
-      FROM trabajadores t
-      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
-      WHERE UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '')) = UPPER(?)
-      LIMIT 1
-    `;
-
-    const [rows] = await pool.execute(sql, [rut]);
-    if (!rows || rows.length === 0) {
-      return res.json({
-        success: true,
-        estado: 'sin_datos',
-        grupo: null,
-        mensaje: 'Trabajador no encontrado'
-      });
-    }
-
-    const row = rows[0];
-    if (!row.id_grupo) {
-      return res.json({
-        success: true,
-        estado: 'sin_grupo',
-        grupo: null,
-        mensaje: 'Sin grupo asignado'
-      });
-    }
-
-    const grupo = String(row.nombre_grupo || row.id_grupo).trim().toUpperCase();
-    const onShift = isGrupoOnShift(grupo, new Date());
+    const shiftStatus = await getWorkerShiftStatus(rut, new Date());
+    const grupo = shiftStatus.grupo || null;
 
     return res.json({
       success: true,
       grupo,
-      estado: onShift ? 'en_turno' : 'en_descanso',
-      mensaje: onShift ? `Turno activo - Grupo ${grupo}` : `Fuera de turno - Grupo ${grupo}`,
+      estado: shiftStatus.estado,
+      mensaje: shiftStatus.mensaje,
+      exact_active: shiftStatus.exactActive,
+      in_grace: shiftStatus.inGrace,
+      seconds_remaining: shiftStatus.secondsRemaining,
+      shift_ends_at: shiftStatus.shiftEndsAt,
+      grace_ends_at: shiftStatus.graceEndsAt,
       turno_tipo: ['J', 'K'].includes(grupo) ? 'semanal' : 'rotativo',
-      dias_restantes: onShift ? 1 : null,
+      dias_restantes: shiftStatus.exactActive ? 1 : null,
       proxima_jornada: null,
-      horario: onShift ? '20:00 a 08:00 / 08:00 a 20:00' : null
+      horario: (shiftStatus.exactActive || shiftStatus.inGrace) ? '20:00 a 08:00 / 08:00 a 20:00' : null
     });
   } catch (error) {
     console.error('[API] Error consultando estado-turno:', error.message);

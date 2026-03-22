@@ -47,10 +47,45 @@ const InformeTurno = (() => {
     hasVisibleSections: false,
     userGrupo: null,
     userShiftStatus: null,
+    userShiftContext: null,
+    shiftBadgeTimerId: null,
     auditModeRequested: false,
     auditModeEnabled: false
   };
   window.state = state;
+
+  function getShiftStatusBadge() {
+    return document.getElementById('status-badge') || document.getElementById('shift-status-badge');
+  }
+
+  function normalizeGroupValue(value) {
+    return String(value || '').replace(/^grupo\s+/i, '').trim().toUpperCase();
+  }
+
+  function formatCountdown(totalSeconds) {
+    const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  function stopShiftBadgeTimer() {
+    if (!state.shiftBadgeTimerId) return;
+    window.clearInterval(state.shiftBadgeTimerId);
+    state.shiftBadgeTimerId = null;
+  }
+
+  function setLockedTurnoValue(grupo) {
+    const normalizedGroup = normalizeGroupValue(grupo);
+    const hiddenInput = document.getElementById('input-turno');
+    const displayInput = document.getElementById('input-turno-display');
+    if (hiddenInput) hiddenInput.value = normalizedGroup;
+    if (displayInput) displayInput.value = normalizedGroup ? `Grupo ${normalizedGroup}` : 'Sin grupo asignado';
+  }
+
+  function redirectToHome() {
+    window.location.href = '/index.html';
+  }
 
   function activarBotonPDF() {
     const btnPdf = document.getElementById('btn-descargar-pdf');
@@ -337,12 +372,40 @@ const InformeTurno = (() => {
   // ---- Shift Context -------------------------------------------------------
 
   function updateShiftStatusBadge(shiftData) {
-    const badge = document.getElementById('shift-status-badge');
+    const badge = getShiftStatusBadge();
     if (!badge) return;
+    stopShiftBadgeTimer();
+
+    const normalizedGroup = normalizeGroupValue(shiftData?.grupo || state.userGrupo);
+    const graceEndsAt = shiftData?.grace_ends_at || shiftData?.graceEndsAt || null;
+    const exactActive = Boolean(shiftData?.exact_active ?? shiftData?.exactActive);
+    const inGrace = Boolean(shiftData?.in_grace ?? shiftData?.inGrace);
+
+    if (inGrace && graceEndsAt) {
+      const renderCountdown = () => {
+        const remaining = Math.max(0, Math.ceil((new Date(graceEndsAt).getTime() - Date.now()) / 1000));
+        if (remaining <= 0) {
+          stopShiftBadgeTimer();
+          badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Fuera de Turno${normalizedGroup ? ` — Grupo ${escapeAttribute(normalizedGroup)}` : ''}`;
+          badge.className = 'shift-badge shift-badge--rest';
+          badge.hidden = false;
+          return;
+        }
+
+        badge.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Cierre de turno en: ${formatCountdown(remaining)}`;
+        badge.className = 'shift-badge shift-badge--grace';
+        badge.hidden = false;
+      };
+
+      renderCountdown();
+      state.shiftBadgeTimerId = window.setInterval(renderCountdown, 1000);
+      return;
+    }
+
     const msgs = {
-      en_turno:      `<i class="fa-solid fa-circle-check"></i> Turno Activo — Grupo ${shiftData.grupo || ''}`,
-      en_descanso:   `<i class="fa-solid fa-moon"></i> En Descanso — Grupo ${shiftData.grupo || ''}`,
-      proximo_turno: `<i class="fa-solid fa-clock"></i> Próximo a Turno — Grupo ${shiftData.grupo || ''}`,
+      en_turno:      `<i class="fa-solid fa-circle-check"></i> Turno Activo — Grupo ${escapeAttribute(normalizedGroup || '')}`,
+      en_descanso:   `<i class="fa-solid fa-moon"></i> En Descanso — Grupo ${escapeAttribute(normalizedGroup || '')}`,
+      proximo_turno: `<i class="fa-solid fa-clock"></i> Próximo a Turno — Grupo ${escapeAttribute(normalizedGroup || '')}`,
       sin_grupo:     `<i class="fa-solid fa-circle-question"></i> Sin Grupo Asignado`
     };
     const cls = {
@@ -351,36 +414,27 @@ const InformeTurno = (() => {
       proximo_turno: 'shift-badge--upcoming',
       sin_grupo:     'shift-badge--unknown'
     };
-    const estado = shiftData.estado || 'sin_grupo';
+    const estado = shiftData?.estado || (exactActive ? 'en_turno' : 'sin_grupo');
     badge.innerHTML = msgs[estado]
-      || `<i class="fa-solid fa-circle-question"></i> ${escapeAttribute(shiftData.mensaje || 'Estado desconocido')}`;
+      || `<i class="fa-solid fa-circle-question"></i> ${escapeAttribute(shiftData?.mensaje || 'Estado desconocido')}`;
     badge.className = `shift-badge ${cls[estado] || 'shift-badge--unknown'}`;
     badge.hidden = false;
   }
 
   function populateTurnoDropdown(activeGroups, userGrupo) {
-    const select = document.getElementById('input-turno');
-    if (!select) return;
-    const prevValue = select.value;
-    select.innerHTML = '';
-    const groups = activeGroups && activeGroups.length > 0 ? activeGroups : ['A', 'B', 'C', 'D'];
-    groups.forEach((g) => {
-      const opt = document.createElement('option');
-      opt.value = g;
-      opt.textContent = `Grupo ${g}`;
-      select.appendChild(opt);
-    });
-    if (userGrupo && groups.includes(userGrupo)) {
-      select.value = userGrupo;
-    } else if (prevValue && groups.includes(prevValue)) {
-      select.value = prevValue;
-    } else {
-      select.selectedIndex = 0;
-    }
+    const normalizedUserGroup = normalizeGroupValue(userGrupo);
+    const normalizedGroups = (activeGroups || []).map(normalizeGroupValue).filter(Boolean);
+    const lockedGroup = normalizedUserGroup || normalizedGroups.find((group) => group === normalizedUserGroup) || '';
+    setLockedTurnoValue(lockedGroup);
   }
 
   // Ensure a value exists as an option in a select (used when loading saved reports)
   function ensureSelectOption(selectId, value, label) {
+    if (selectId === 'input-turno') {
+      setLockedTurnoValue(value);
+      return;
+    }
+
     const select = document.getElementById(selectId);
     if (!select || !value) return;
     const v = String(value);
@@ -462,7 +516,7 @@ const InformeTurno = (() => {
   }
 
   async function initAuditContext() {
-    const shiftBadge = document.getElementById('shift-status-badge');
+    const shiftBadge = getShiftStatusBadge();
     if (shiftBadge) {
       shiftBadge.hidden = true;
     }
@@ -471,21 +525,35 @@ const InformeTurno = (() => {
     await populatePersonalSelects([], { auditMode: true });
   }
 
-  async function checkExistingInformeForShift(fecha, grupo) {
+  async function fetchExistingInformeForShift(fecha, grupo) {
     try {
       const url = `/api/informes/por-turno?fecha=${encodeURIComponent(fecha)}&grupo=${encodeURIComponent(grupo)}`;
       const resp = await fetch(url);
-      if (!resp.ok) return;
+      if (!resp.ok) return null;
       const data = await resp.json();
-      if (!data.existe || !data.id_informe) return;
+      if (!data.existe || !data.id_informe) return null;
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function openExistingInforme(reportId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('id', String(reportId));
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    await loadExistingReportIfNeeded();
+  }
+
+  async function checkExistingInformeForShift(fecha, grupo) {
+    try {
+      const data = await fetchExistingInformeForShift(fecha, grupo);
+      if (!data) return;
       const continuar = confirm(
         `Ya existe un Informe para el Grupo ${grupo} el ${fecha} (estado: ${data.estado || '—'}).\n¿Desea abrirlo?`
       );
       if (continuar) {
-        const params = new URLSearchParams(window.location.search);
-        params.set('id', String(data.id_informe));
-        window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-        await loadExistingReportIfNeeded();
+        await openExistingInforme(data.id_informe);
       }
     } catch (_) { /* silencioso */ }
   }
@@ -503,8 +571,10 @@ const InformeTurno = (() => {
         const resp = await fetch(`/api/estado-turno/${encodeURIComponent(state.userRut)}`);
         if (resp.ok) {
           const shiftData = await resp.json();
-          state.userGrupo = shiftData.grupo || null;
+          state.userGrupo = normalizeGroupValue(shiftData.grupo || state.userGrupo);
           state.userShiftStatus = shiftData.estado || null;
+          state.userShiftContext = shiftData;
+          setLockedTurnoValue(state.userGrupo);
           updateShiftStatusBadge(shiftData);
         } else {
           console.warn('[INFORME][SHIFT_API] /api/estado-turno respondió con status:', resp.status);
@@ -535,7 +605,7 @@ const InformeTurno = (() => {
     populateTurnoDropdown(activeGroups, state.userGrupo);
 
     // 5. Poblar selects de personal filtrado
-    await populatePersonalSelects(activeGroups);
+    await populatePersonalSelects(state.userGrupo ? [state.userGrupo] : activeGroups);
   }
 
   function applyPermissionMatrix() {
@@ -808,7 +878,7 @@ const InformeTurno = (() => {
     const operadorVal = document.getElementById('input-operador')?.value || '';
     return {
       fecha: document.getElementById('input-fecha')?.value || '',
-      turno: document.getElementById('input-turno')?.value || '',
+      turno: normalizeGroupValue(document.getElementById('input-turno')?.value || state.userGrupo || ''),
       horas_trabajadas: parseFloat(document.getElementById('input-horas-trabajadas')?.value) || null,
       faena: document.getElementById('input-faena')?.value || '',
       lugar: document.getElementById('input-lugar')?.value || '',
@@ -995,15 +1065,6 @@ const InformeTurno = (() => {
   }
 
   function bindActions() {
-    document.getElementById('input-turno')?.addEventListener('change', async (e) => {
-      const selectedGroup = e.target.value;
-      if (selectedGroup) {
-        await populatePersonalSelects([selectedGroup.replace('Grupo ', '')]);
-      } else {
-        await populatePersonalSelects([]);
-      }
-    });
-
     document.getElementById('btn-guardar-borrador')?.addEventListener('click', async (e) => {
       e.preventDefault();
       if (!state.canWriteAnySection && !state.isSuperAdmin && !state.auditModeEnabled) {
@@ -1189,29 +1250,6 @@ const InformeTurno = (() => {
     const urlParams = new URLSearchParams(window.location.search);
     const isEditing = !!urlParams.get('id');
 
-    // MÓDULO DE SEGURIDAD: Validación de Turno Operativo (Algorítmico Local)
-    if (!state.isSuperAdmin && !state.auditModeEnabled && !isEditing) {
-      try {
-        const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(state.userGrupo);
-        if (!isEnTurno) {
-          const mainContainer = document.querySelector('main');
-          if (mainContainer) {
-            mainContainer.innerHTML = `
-              <div style="max-width: 600px; margin: 80px auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #e74c3c;">
-                <i class="fa-solid fa-lock" style="font-size: 3.5rem; color: #e74c3c; margin-bottom: 20px;"></i>
-                <h2 style="color: #2c3e50; font-family: 'Inter', sans-serif; font-size: 1.8rem; margin-bottom: 15px;">Acceso Restringido</h2>
-                <p style="color: #555; font-size: 1.15rem; line-height: 1.6; font-weight: 500;">Este usuario no se encuentra en turno operativo el día de hoy. No es posible crear el informe.</p>
-                <a href="/index.html" style="display: inline-block; margin-top: 30px; padding: 12px 30px; background: #2c3e50; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">Volver al Inicio</a>
-              </div>
-            `;
-          }
-          return; // Bloquea completamente la inicialización del Informe
-        }
-      } catch (e) {
-        console.error('[SHIFT VALIDATION] Algorithmic execution error:', e);
-      }
-    }
-
     addRowHandlers();
     bindActions();
     
@@ -1224,15 +1262,43 @@ const InformeTurno = (() => {
       await initShiftContext();
     }
 
+    let reportAlreadyLoaded = false;
+    let existingShiftReport = null;
+
+    if (!state.isSuperAdmin && !state.auditModeEnabled && !isEditing) {
+      const fechaInput = document.getElementById('input-fecha');
+      const shiftContext = state.userShiftContext || {};
+      const fecha = fechaInput?.value || '';
+
+      if (fecha && state.userGrupo) {
+        existingShiftReport = await fetchExistingInformeForShift(fecha, state.userGrupo);
+      }
+
+      const existingDraft = existingShiftReport && normalizeStatus(existingShiftReport.estado) === 'borrador'
+        ? existingShiftReport
+        : null;
+      const exactActive = Boolean(shiftContext.exact_active ?? shiftContext.exactActive);
+      const inGrace = Boolean(shiftContext.in_grace ?? shiftContext.inGrace);
+
+      if (inGrace && existingDraft?.id_informe) {
+        await openExistingInforme(existingDraft.id_informe);
+        reportAlreadyLoaded = true;
+      } else if (!exactActive) {
+        redirectToHome();
+        return;
+      }
+    }
+
     // Cargar informe si ?id= presente
-    if (urlParams.get('id')) {
+    const currentParams = new URLSearchParams(window.location.search);
+    if (!reportAlreadyLoaded && currentParams.get('id')) {
       try {
         await loadExistingReportIfNeeded();
       } catch (error) {
         console.error('[INFORME] Error cargando informe existente:', error);
         setStatusBanner('warning', error.message || 'No se pudo cargar el informe solicitado.');
       }
-    } else if (!state.auditModeEnabled && state.userGrupo) {
+    } else if (!reportAlreadyLoaded && !state.auditModeEnabled && state.userGrupo) {
       // Sin id explícito: verificar si ya hay un informe abierto para este turno
       const fechaInput = document.getElementById('input-fecha');
       if (fechaInput?.value) {
