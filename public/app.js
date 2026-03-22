@@ -12,12 +12,50 @@ let currentYear = new Date().getFullYear();
 let today = new Date();
 today.setHours(0, 0, 0, 0);
 
-// Fechas de referencia para las 2 pistas
+// Fechas y Lógicas Globales
 const INICIO_CD = window.basaltoShiftUtils.INICIO_CD;
 const INICIO_EFGH = window.basaltoShiftUtils.INICIO_EFGH;
 const MS_PER_DAY = window.basaltoShiftUtils.MS_PER_DAY;
 const CICLO_COMPLETO = window.basaltoShiftUtils.CICLO_COMPLETO;
 const obtenerGruposDelDia = window.basaltoShiftUtils.obtenerGruposDelDia;
+
+const monthNames = window.basaltoShiftUtils.monthNames;
+const dayNames = window.basaltoShiftUtils.dayNames;
+const diasSemana = window.basaltoShiftUtils.diasSemana;
+const feriados2026 = window.basaltoShiftUtils.feriados2026;
+
+function openManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.open) {
+    window.basaltoModal.open(modalElement);
+    return;
+  }
+  modalElement.classList.add('show');
+  modalElement.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('overflow-hidden', 'modal-open');
+}
+
+function closeManagedModal(modalElement) {
+  if (!modalElement) return;
+  if (window.basaltoModal?.close) {
+    window.basaltoModal.close(modalElement);
+    return;
+  }
+  modalElement.classList.remove('show');
+  modalElement.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('overflow-hidden', 'modal-open');
+}
+
+function contarDiasConsecutivos(desde, hasta) {
+  let contador = 0;
+  const fechaActual = new Date(desde);
+  const fechaFin = new Date(hasta);
+  while (fechaActual <= fechaFin) {
+    contador++;
+    fechaActual.setDate(fechaActual.getDate() + 1);
+  }
+  return contador;
+}
 
 // Elementos DOM (se inicializan después de que el DOM esté listo)
 let monthYearEl, daysGridEl, prevMonthBtn, nextMonthBtn, btnHoy, fechaHoyEl;

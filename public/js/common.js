@@ -329,6 +329,34 @@ window.basaltoSecurity = {
   const DIAS_POR_BLOQUE = 14;
   const CICLO_COMPLETO = DIAS_POR_BLOQUE * 4;
 
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  
+  const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+  const feriados2026 = [
+    '2026-01-01', // Año Nuevo
+    '2026-04-18', // Viernes Santo
+    '2026-04-19', // Sábado Santo
+    '2026-05-01', // Día del Trabajador
+    '2026-06-29', // San Pedro y San Pablo
+    '2026-07-16', // Virgen del Carmen
+    '2026-08-15', // Asunción de la Virgen
+    '2026-09-18', // Independencia Nacional
+    '2026-09-19', // Día del Ejército
+    '2026-10-12', // Encuentro de Dos Mundos
+    '2026-10-31', // Día de las Iglesias Evangélicas y Protestantes
+    '2026-11-01', // Todos los Santos
+    '2026-12-08', // Inmaculada Concepción
+    '2026-12-25', // Navidad
+    '2026-12-31', // Fiestas Patrias (móvil puede variar)
+  ];
+
   // Devuelve { pista1: {manana, tarde, doble}, pista2: {manana, tarde, doble}, semanales }
   function obtenerGruposDelDia(fecha) {
     const fechaCopy = new Date(fecha);
@@ -400,6 +428,11 @@ window.basaltoSecurity = {
     INICIO_CD,
     INICIO_EFGH,
     CICLO_COMPLETO,
-    MS_PER_DAY
+    MS_PER_DAY,
+    monthNames,
+    shortMonths,
+    dayNames,
+    diasSemana,
+    feriados2026
   };
 })();
