@@ -140,6 +140,59 @@
     }
   }
 
+  function renderShiftIndicator() {
+    const nameEl = document.querySelector('.user-name');
+    if (!nameEl || !window.basaltoShiftUtils) return false;
+    
+    // Evitar over-rendering
+    if (nameEl.parentNode.querySelector('.shift-status-badge')) return true;
+
+    const usuarioActivoRaw = localStorage.getItem('usuarioActivo');
+    if (!usuarioActivoRaw) return false;
+    
+    try {
+      const usuario = JSON.parse(usuarioActivoRaw);
+      if (!usuario || !usuario.grupo) return false;
+      
+      const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(usuario.grupo);
+      
+      const badge = document.createElement('span');
+      badge.className = 'shift-status-badge';
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      badge.style.marginLeft = '8px';
+      badge.style.padding = '2px 8px';
+      badge.style.borderRadius = '12px';
+      badge.style.fontSize = '11px';
+      badge.style.fontWeight = '700';
+      badge.style.color = 'white';
+      
+      const dot = document.createElement('span');
+      dot.style.width = '6px';
+      dot.style.height = '6px';
+      dot.style.backgroundColor = 'white';
+      dot.style.borderRadius = '50%';
+      dot.style.display = 'inline-block';
+      dot.style.marginRight = '5px';
+      
+      badge.appendChild(dot);
+      
+      if (isEnTurno) {
+        badge.style.backgroundColor = '#10b981'; // Valid Green
+        badge.appendChild(document.createTextNode('EN TURNO'));
+      } else {
+        badge.style.backgroundColor = '#ef4444'; // Rest Red
+        badge.appendChild(document.createTextNode('DESCANSO'));
+      }
+      
+      nameEl.parentNode.insertBefore(badge, nameEl.nextSibling);
+      return true;
+    } catch(e) {
+      console.error('[NAVBAR] Error rendering Shift Indicator:', e);
+      return false;
+    }
+  }
+
   function initSuperAdminOption() {
     if (navbarInitialized) return;
 
@@ -166,6 +219,7 @@
 
     if (renderAdminLink()) {
       navbarInitialized = true;
+      renderShiftIndicator();
       window.__basaltoMenuReady = true;
       stopMenuObserver();
       syncNavbarAfterRender();
