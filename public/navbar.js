@@ -84,8 +84,7 @@
     }
 
     const valor = localStorage.getItem('user_super_admin');
-    console.error('[NAVBAR_ERROR] No se encontró el grupo en el objeto:', localStorage.getItem('usuarioActivo'));
-    
+
     // KPIs Dashboard Check
     const permisosStr = localStorage.getItem('user_permisos');
     const hasKpiPerms = valor === '1' || (permisosStr && permisosStr.includes('admin_v_kpis'));
