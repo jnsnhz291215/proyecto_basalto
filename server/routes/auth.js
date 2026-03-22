@@ -143,7 +143,7 @@ router.post('/login', async (req, res) => {
             SELECT p.id_permiso, p.clave_permiso 
             FROM admin_permisos ap
             INNER JOIN permisos p ON ap.id_permiso = p.id_permiso
-            WHERE REPLACE(REPLACE(REPLACE(ap.rut_admin, ".", ""), "-", ""), " ", "") = ?
+            WHERE REPLACE(REPLACE(REPLACE(ap.admin_rut, ".", ""), "-", ""), " ", "") = ?
             ORDER BY p.clave_permiso ASC
           `;
           const [permisosData] = await pool.execute(sqlPermisos, [rutLimpio]);
@@ -154,8 +154,11 @@ router.post('/login', async (req, res) => {
           
           console.log(`[AUTH] Permisos obtenidos para admin ${rutLimpio}:`, permisos);
         } catch (permisosError) {
-          console.warn('[AUTH] Error consultando permisos:', permisosError.message);
-          // No es crítico si falla - continuar sin permisos
+          console.error('[AUTH] Error Crítico consultando permisos:', permisosError.message);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Error de integridad SQL: No se pudo cargar el perfil de permisos. ' + permisosError.message
+          });
         }
         
         console.log(`[AUTH] Login exitoso como ADMIN - ${nombreCompleto} (Super Admin: ${esSuperAdmin})`);

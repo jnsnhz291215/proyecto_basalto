@@ -95,7 +95,7 @@ router.get('/admins', verificarSuperAdmin, async (req, res) => {
 
     const sqlPermisos = `
       SELECT 
-        ap.rut_admin,
+        ap.admin_rut,
         p.id_permiso,
         p.clave_permiso,
         p.descripcion
@@ -109,7 +109,7 @@ router.get('/admins', verificarSuperAdmin, async (req, res) => {
 
     const permisosPorRut = new Map();
     permisosRows.forEach((permiso) => {
-      const rutLimpio = limpiarRUT(permiso.rut_admin);
+      const rutLimpio = limpiarRUT(permiso.admin_rut);
       if (!permisosPorRut.has(rutLimpio)) {
         permisosPorRut.set(rutLimpio, []);
       }
@@ -244,13 +244,13 @@ router.post('/admins/permisos', verificarSuperAdmin, async (req, res) => {
     await connection.beginTransaction();
 
     // Eliminar permisos actuales
-    const sqlDeletePermisos = 'DELETE FROM admin_permisos WHERE REPLACE(REPLACE(REPLACE(rut_admin, ".", ""), "-", ""), " ", "") = ?';
+    const sqlDeletePermisos = 'DELETE FROM admin_permisos WHERE REPLACE(REPLACE(REPLACE(admin_rut, ".", ""), "-", ""), " ", "") = ?';
     await connection.execute(sqlDeletePermisos, [rutLimpio]);
 
     // Insertar nuevos permisos
     if (idsSolicitados.length > 0) {
       for (const idPermiso of idsSolicitados) {
-        const sqlInsertPermiso = 'INSERT INTO admin_permisos (rut_admin, id_permiso) VALUES (?, ?)';
+        const sqlInsertPermiso = 'INSERT INTO admin_permisos (admin_rut, id_permiso) VALUES (?, ?)';
         await connection.execute(sqlInsertPermiso, [adminExists[0].rut, idPermiso]);
       }
     }
@@ -365,7 +365,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
     if (idsSolicitados.length > 0) {
       for (const idPermiso of idsSolicitados) {
         await connection.execute(
-          'INSERT INTO admin_permisos (rut_admin, id_permiso) VALUES (?, ?)',
+          'INSERT INTO admin_permisos (admin_rut, id_permiso) VALUES (?, ?)',
           [rutLimpio, idPermiso]
         );
       }
@@ -489,7 +489,7 @@ router.delete('/admins/:rut', verificarSuperAdmin, async (req, res) => {
 
     await connection.beginTransaction();
 
-    const sqlDeletePermisos = 'DELETE FROM admin_permisos WHERE rut_admin = ?';
+    const sqlDeletePermisos = 'DELETE FROM admin_permisos WHERE admin_rut = ?';
     await connection.execute(sqlDeletePermisos, [adminRows[0].rut]);
 
     const sqlDeleteAdmin = 'DELETE FROM admin_users WHERE rut = ?';
