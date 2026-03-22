@@ -803,4 +803,101 @@ router.post('/informes/enviar-email', async (req, res) => {
   }
 });
 
+// ============================================
+// ENDPOINT: ENVIAR PDF DIRECTO (EN MEMORIA)
+// ============================================
+router.post('/informes/enviar-pdf', async (req, res) => {
+  let browser = null;
+  try {
+    const { id_informe, email_destino } = req.body;
+    if (!id_informe || !email_destino) {
+      return res.status(400).json({ error: 'Se requiere id_informe y email_destino' });
+    }
+
+    // 1. Validar informe y estado
+    const [rows] = await pool.execute('SELECT numero_informe, estado, fecha FROM informes_turno WHERE id_informe = ? LIMIT 1', [id_informe]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Informe no encontrado' });
+    }
+    
+    const informe = rows[0];
+    if (informe.estado !== 'Finalizado') {
+      return res.status(403).json({ error: 'No se puede exportar un informe que no esté Finalizado' });
+    }
+
+    const numeroInforme = informe.numero_informe || 'S/N';
+    const fechaFormateada = informe.fecha ? new Date(informe.fecha).toISOString().split('T')[0] : 'S/F';
+
+    // 2. Generar PDF con Puppeteer en Buffer
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Bypass auth to print view
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem('user_role', 'admin');
+      localStorage.setItem('user_rut', 'system');
+      localStorage.setItem('user_super_admin', '1');
+    });
+
+    const port = process.env.PORT || 3000;
+    const printUrl = `http://localhost:${port}/print/informe/${id_informe}`;
+    
+    await page.goto(printUrl, { waitUntil: 'networkidle0' });
+    
+    const pdfBuffer = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true,
+      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    });
+    
+    await browser.close();
+    browser = null; // Mark as closed
+
+    // 3. Enviar Correo con Nodemailer
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      port: process.env.SMTP_PORT || 587,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const subject = `Informe de Turno N° ${numeroInforme} - ${fechaFormateada}`;
+    
+    const mailOptions = {
+      from: '"Reportes Basalto (No Responder)" <basaltodebian@basaltodrilling.cl>',
+      replyTo: 'noreply@basaltodrilling.cl',
+      to: email_destino,
+      subject: subject,
+      html: `
+        <p>Estimado usuario,</p>
+        <p>Se adjunta a este correo el reporte de perforación (<strong>Informe de Turno N&deg; ${numeroInforme}</strong>) correspondiente a la fecha <strong>${fechaFormateada}</strong>.</p>
+        <p>Saludos cordiales,<br>Equipo Basalto Drilling</p>
+        <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+        <p style="font-size: 12px; color: #666;">Este es un mensaje generado automáticamente por el sistema de gestión de Basalto Drilling. Por favor, no responda a esta dirección de correo.</p>
+      `,
+      attachments: [
+        {
+          filename: `Informe_${numeroInforme}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: 'Correo enviado correctamente' });
+  } catch (error) {
+    if (browser) {
+      try { await browser.close(); } catch(e) {}
+    }
+    console.error('[ERROR] /enviar-pdf:', error);
+    res.status(500).json({ error: error.message || 'Error al generar o enviar el PDF' });
+  }
+});
+
 module.exports = router;
