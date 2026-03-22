@@ -532,10 +532,15 @@
       
       try {
         const usuarioActivo = JSON.parse(sessionData);
-        if (!usuarioActivo.grupo) return;
+        console.warn('[DEBUG_GUARD] Validando sesión para:', usuarioActivo);
         
-        console.warn('[DEBUG_GUARD] Validando sesión para:', JSON.parse(localStorage.getItem('usuarioActivo')));
-        const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(usuarioActivo.grupo);
+        if (!usuarioActivo.grupo && !usuarioActivo.id_grupo) {
+          console.error('[DEBUG_GUARD] Sesión inválida: Falta grupo/id_grupo');
+          return;
+        }
+        
+        const grupoParaValidar = usuarioActivo.grupo || usuarioActivo.id_grupo;
+        const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(grupoParaValidar);
         
         if (!isEnTurno) {
           var overlay = document.createElement('div');

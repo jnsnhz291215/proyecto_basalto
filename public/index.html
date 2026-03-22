@@ -258,6 +258,7 @@
             localStorage.setItem('user_permissions_total', JSON.stringify(data.permisos_totales || []));
             localStorage.setItem('user_cargo_name', data.cargo?.nombre_cargo || '');
             localStorage.setItem('user_cargo_id', data.cargo?.id_cargo ? String(data.cargo.id_cargo) : '');
+            localStorage.setItem('user_grupo', data.grupo || '');
             
             // Guardar datos de Super Admin y permisos si es admin
             if (data.role === 'admin') {
@@ -290,7 +291,9 @@
               permisos: data.permisos || [],
               permisos_cargo: data.permisos_cargo || [],
               permisos_totales: data.permisos_totales || [],
-              cargo: data.cargo || null
+              cargo: data.cargo || null,
+              id_grupo: data.id_grupo || null,
+              grupo: data.grupo || data.id_grupo || null
             }));
             
             console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre, '- Super Admin:', data.es_super_admin);

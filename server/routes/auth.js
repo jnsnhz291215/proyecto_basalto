@@ -19,10 +19,11 @@ function toSlug(value) {
 async function obtenerContextoCargoPorRut(rutLimpio) {
   try {
     const sqlCargo = `
-      SELECT c.id_cargo, c.nombre_cargo, t.id_grupo
+      SELECT c.id_cargo, c.nombre_cargo, t.id_grupo, g.nombre_grupo
       FROM trabajadores t
       LEFT JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
-      WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      WHERE UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '')) = UPPER(?)
       LIMIT 1
     `;
 
@@ -31,6 +32,7 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
       return {
         cargo: null,
         id_grupo: null,
+        nombre_grupo: null,
         permisos_cargo: [],
         permisos_cargo_ids: []
       };
@@ -65,6 +67,7 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     return {
       cargo,
       id_grupo: cargoRows[0].id_grupo,
+      nombre_grupo: cargoRows[0].nombre_grupo,
       permisos_cargo: permisosCargo.map((p) => p.clave_permiso),
       permisos_cargo_ids: permisosCargo.map((p) => p.id_permiso)
     };
@@ -73,6 +76,7 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     return {
       cargo: null,
       id_grupo: null,
+      nombre_grupo: null,
       permisos_cargo: [],
       permisos_cargo_ids: []
     };
@@ -134,7 +138,16 @@ router.post('/login', async (req, res) => {
         console.log('[AUTH][DIAG] Admin password match:', adminPasswordOk ? 'SÍ' : 'NO');
       }
 
-      const sqlAdmin = 'SELECT * FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
+      const sqlAdmin = `
+        SELECT a.*, t.id_grupo, g.nombre_grupo
+        FROM admin_users a 
+        LEFT JOIN trabajadores t ON UPPER(REPLACE(REPLACE(REPLACE(a.rut, '.', ''), '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', ''))
+        LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+        WHERE UPPER(REPLACE(REPLACE(REPLACE(a.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?) 
+          AND a.password = ? 
+          AND a.activo = 1 
+        LIMIT 1
+      `;
       const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordParaBuscar]);
 
       if (admins && admins.length > 0) {
@@ -180,7 +193,8 @@ router.post('/login', async (req, res) => {
           es_super_admin: esSuperAdmin,
           permisos: permisos,
           permisos_ids: [],
-          id_grupo: contextoCargo.id_grupo,
+          id_grupo: admin.id_grupo || contextoCargo.id_grupo,
+          grupo: admin.nombre_grupo || contextoCargo.nombre_grupo,
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
@@ -228,7 +242,16 @@ router.post('/login', async (req, res) => {
       console.log('[AUTH][DIAG] userFound RAW:', JSON.stringify(userFound));
       console.log('Estado Activo:', userFound?.activo);
 
-      const sqlUser = 'SELECT * FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 1 LIMIT 1';
+      const sqlUser = `
+        SELECT u.*, t.id_grupo, g.nombre_grupo
+        FROM users u 
+        LEFT JOIN trabajadores t ON UPPER(REPLACE(REPLACE(REPLACE(u.rut, '.', ''), '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', ''))
+        LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+        WHERE UPPER(REPLACE(REPLACE(REPLACE(u.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?) 
+          AND u.password = ? 
+          AND u.activo = 1 
+        LIMIT 1
+      `;
       const [users] = await pool.execute(sqlUser, [rutLimpio, passwordParaBuscar]);
 
       if (users && users.length > 0) {
@@ -244,7 +267,8 @@ router.post('/login', async (req, res) => {
           rut: user.rut || rutLimpio,
           nombre: nombreCompleto,
           email: user.email || null,
-          id_grupo: contextoCargo.id_grupo,
+          id_grupo: user.id_grupo || contextoCargo.id_grupo,
+          grupo: user.nombre_grupo || contextoCargo.nombre_grupo,
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
