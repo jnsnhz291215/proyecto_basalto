@@ -521,13 +521,22 @@
   // ============================================
   // RESTRICCIÓN TURNO ACTIVO (solo informe.html)
   // Si el usuario es 'user' (no admin) y no está en turno activo,
-  // se muestra un overlay bloqueante en lugar de redirigir.
+  // se muestra un overlay bloqueante vía validación matemática local.
   // ============================================
   if (currentPath.includes('informe.html') && userRut && !isSuperAdmin && userRole !== 'admin') {
-    fetch('/api/estado-turno/' + encodeURIComponent(userRut))
-      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function(data) {
-        if (data.estado && data.estado !== 'en_turno') {
+    function verificarYBloqueoTurno() {
+      if (!window.basaltoShiftUtils) return; // Fail-safe si no está common.js
+      
+      const sessionData = localStorage.getItem('usuarioActivo');
+      if (!sessionData) return;
+      
+      try {
+        const usuarioActivo = JSON.parse(sessionData);
+        if (!usuarioActivo.grupo) return;
+        
+        const isEnTurno = window.basaltoShiftUtils.isGrupoOnShift(usuarioActivo.grupo);
+        
+        if (!isEnTurno) {
           var overlay = document.createElement('div');
           overlay.id = 'shift-access-denied-overlay';
           overlay.setAttribute('style',
@@ -538,23 +547,30 @@
             '<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:2.5rem 2rem;' +
             'max-width:420px;width:90%;text-align:center;color:#f8fafc;box-shadow:0 25px 50px rgba(0,0,0,0.5);">' +
               '<div style="font-size:3rem;margin-bottom:1rem;">&#x1F512;</div>' +
-              '<h2 style="font-size:1.35rem;font-weight:700;margin:0 0 0.6rem;">Fuera de Turno</h2>' +
+              '<h2 style="font-size:1.35rem;font-weight:700;margin:0 0 0.6rem;">Acceso Restringido</h2>' +
               '<p style="color:#94a3b8;margin:0 0 0.4rem;">Usted no se encuentra en turno activo.</p>' +
-              '<p style="color:#64748b;font-size:0.85rem;margin:0 0 1.5rem;">' +
-                (data.mensaje ? data.mensaje.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '') + '</p>' +
-              '<p style="color:#64748b;font-size:0.85rem;margin:0 0 1.5rem;">Acceso denegado.</p>' +
-              '<a href="/menu.html" style="display:inline-block;padding:0.6rem 1.4rem;background:#3b82f6;' +
+              '<p style="color:#64748b;font-size:0.85rem;margin:0 0 1.5rem;">Cálculo Algorítmico: Descanso Detectado</p>' +
+              '<a href="/index.html" style="display:inline-block;padding:0.6rem 1.4rem;background:#3b82f6;' +
               'color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.95rem;">' +
               '\u2190 Volver al men\u00fa</a>' +
             '</div>';
           document.body.appendChild(overlay);
-          // Ocultar contenido principal para que no sea accesible detrás del overlay
+          
           var main = document.querySelector('main');
           if (main) main.setAttribute('aria-hidden', 'true');
-          console.log('[AUTH_GUARD] Acceso bloqueado: usuario fuera de turno activo');
+          console.log('[AUTH_GUARD] Acceso bloqueado: usuario fuera de turno activo (Validación Local)');
         }
-      })
-      .catch(function() { /* API no disponible: no bloquear */ });
+      } catch (e) {
+        console.error('[AUTH_GUARD] Error al parsear usuarioActivo:', e);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', verificarYBloqueoTurno);
+    } else {
+       // Wait a tick just in case common.js hasn't fully registered window bindings depending on load order
+       setTimeout(verificarYBloqueoTurno, 50);
+    }
   }
 
 })();
