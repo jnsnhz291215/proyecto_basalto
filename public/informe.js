@@ -78,6 +78,16 @@ const InformeTurno = (() => {
     state.cargoName = localStorage.getItem('user_cargo_name') || '';
     state.permisosCargo = parseJSONArray('user_permissions_cargo');
     state.isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+    // Leer grupo desde localStorage para que el check de turno en init() tenga el valor correcto
+    // antes de que initShiftContext() lo asigne a través de la API.
+    if (!state.userGrupo) {
+      try {
+        const ua = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+        state.userGrupo = localStorage.getItem('user_grupo') || ua.grupo || String(ua.id_grupo || '') || null;
+      } catch (_e) {
+        state.userGrupo = localStorage.getItem('user_grupo') || null;
+      }
+    }
   }
 
   function normalizePerm(value) {

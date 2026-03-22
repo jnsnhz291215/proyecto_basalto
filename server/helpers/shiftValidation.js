@@ -120,9 +120,13 @@ function isGrupoOnShift(idGrupo, fechaParam) {
  */
 async function isWorkerOnShiftToday(worker_rut) {
   try {
-    // 1. Get the worker's group ID from the database
+    // 1. Get the worker's group name from the database
     const [workerRows] = await pool.execute(
-      'SELECT id_grupo FROM trabajadores WHERE RUT = ? LIMIT 1',
+      `SELECT t.id_grupo, g.nombre_grupo
+       FROM trabajadores t
+       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+       WHERE UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(REPLACE(?, '.', ''), '-', ''), ' ', ''))
+       LIMIT 1`,
       [worker_rut]
     );
 
@@ -137,8 +141,11 @@ async function isWorkerOnShiftToday(worker_rut) {
       return false;
     }
 
+    // Use nombre_grupo (e.g. "C") for the algorithm, which compares group letters
+    const nombreGrupo = workerRows[0].nombre_grupo || String(idGrupo);
+
     // 2. Check if the group is scheduled for today mathematically
-    return isGrupoOnShift(idGrupo, new Date());
+    return isGrupoOnShift(nombreGrupo, new Date());
   } catch (error) {
     console.error('[SHIFT VALIDATION] Error checking shift:', error);
     return false; // Fail-safe: securely deny access on DB error
