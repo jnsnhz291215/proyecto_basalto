@@ -19,9 +19,9 @@ function toSlug(value) {
 async function obtenerContextoCargoPorRut(rutLimpio) {
   try {
     const sqlCargo = `
-      SELECT c.id_cargo, c.nombre_cargo
+      SELECT c.id_cargo, c.nombre_cargo, t.id_grupo
       FROM trabajadores t
-      INNER JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
+      LEFT JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
       WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
       LIMIT 1
     `;
@@ -30,34 +30,41 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     if (!cargoRows || cargoRows.length === 0) {
       return {
         cargo: null,
+        id_grupo: null,
         permisos_cargo: [],
         permisos_cargo_ids: []
       };
     }
 
-    const cargo = {
-      id_cargo: cargoRows[0].id_cargo,
-      nombre_cargo: cargoRows[0].nombre_cargo
-    };
+    let cargo = null;
+    let permisosCargo = [];
 
-    const sqlPermisosCargo = `
-      SELECT p.id_permiso, p.clave_permiso, p.descripcion
-      FROM cargo_permisos cp
-      INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
-      WHERE cp.id_cargo = ?
-      ORDER BY p.clave_permiso ASC
-    `;
+    if (cargoRows[0].id_cargo) {
+      cargo = {
+        id_cargo: cargoRows[0].id_cargo,
+        nombre_cargo: cargoRows[0].nombre_cargo
+      };
 
-    const [permisosCargoRows] = await pool.execute(sqlPermisosCargo, [cargo.id_cargo]);
-    const permisosCargo = (permisosCargoRows || []).map((p) => ({
-      id_permiso: p.id_permiso,
-      clave_permiso: p.clave_permiso,
-      descripcion: p.descripcion || null,
-      slug: toSlug(p.clave_permiso)
-    }));
+      const sqlPermisosCargo = `
+        SELECT p.id_permiso, p.clave_permiso, p.descripcion
+        FROM cargo_permisos cp
+        INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
+        WHERE cp.id_cargo = ?
+        ORDER BY p.clave_permiso ASC
+      `;
+
+      const [permisosCargoRows] = await pool.execute(sqlPermisosCargo, [cargo.id_cargo]);
+      permisosCargo = (permisosCargoRows || []).map((p) => ({
+        id_permiso: p.id_permiso,
+        clave_permiso: p.clave_permiso,
+        descripcion: p.descripcion || null,
+        slug: toSlug(p.clave_permiso)
+      }));
+    }
 
     return {
       cargo,
+      id_grupo: cargoRows[0].id_grupo,
       permisos_cargo: permisosCargo.map((p) => p.clave_permiso),
       permisos_cargo_ids: permisosCargo.map((p) => p.id_permiso)
     };
@@ -65,6 +72,7 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     console.warn('[AUTH] No se pudo obtener contexto de cargo:', error.message);
     return {
       cargo: null,
+      id_grupo: null,
       permisos_cargo: [],
       permisos_cargo_ids: []
     };
@@ -172,6 +180,7 @@ router.post('/login', async (req, res) => {
           es_super_admin: esSuperAdmin,
           permisos: permisos,
           permisos_ids: [],
+          id_grupo: contextoCargo.id_grupo,
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
@@ -235,6 +244,7 @@ router.post('/login', async (req, res) => {
           rut: user.rut || rutLimpio,
           nombre: nombreCompleto,
           email: user.email || null,
+          id_grupo: contextoCargo.id_grupo,
           cargo: contextoCargo.cargo,
           permisos_cargo: contextoCargo.permisos_cargo,
           permisos_cargo_ids: contextoCargo.permisos_cargo_ids,
