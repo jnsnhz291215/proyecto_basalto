@@ -85,6 +85,7 @@ const InformeTurno = (() => {
     accessRestricted: false,
     auditModeRequested: false,
     auditModeEnabled: false,
+    adminBypass: false,
     mathValidationErrors: {
       hrs_horometro: false,
       mts_perforados: false
@@ -278,6 +279,10 @@ const InformeTurno = (() => {
     if (permisos.size === 0) return false;
 
     return permissionAliases(permissionKey).some((alias) => permisos.has(normalizePerm(alias)));
+  }
+
+  function hasElevatedAccess() {
+    return state.isSuperAdmin || normalizePerm(state.role) === 'admin';
   }
 
   function sectionAccess(sectionKey) {
@@ -1011,6 +1016,50 @@ const InformeTurno = (() => {
     await populatePersonalSelects([], { auditMode: true });
   }
 
+  function applyAdminAccessVisuals() {
+    const hiddenTurno = document.getElementById('input-turno');
+    const displayTurno = document.getElementById('input-turno-display');
+    const badge = getShiftStatusBadge();
+
+    if (hiddenTurno && !hiddenTurno.value && state.userGrupo) {
+      hiddenTurno.value = normalizeGroupValue(state.userGrupo);
+    }
+    if (displayTurno) {
+      displayTurno.value = 'Acceso Total';
+    }
+    if (badge) {
+      badge.hidden = false;
+      badge.className = 'shift-badge shift-badge--unknown';
+      badge.innerHTML = '<i class="fa-solid fa-user-shield"></i> Modo Administrador - Acceso Total';
+    }
+  }
+
+  async function loadInformeFull() {
+    state.adminBypass = true;
+
+    const fechaInput = document.getElementById('input-fecha');
+    if (fechaInput && !fechaInput.value) {
+      fechaInput.value = window.getShiftDateISO ? window.getShiftDateISO() : new Date().toISOString().split('T')[0];
+    }
+
+    applyAdminAccessVisuals();
+    await populatePersonalSelects([], { auditMode: true });
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('id')) {
+      try {
+        await loadExistingReportIfNeeded();
+      } catch (error) {
+        console.error('[INFORME] Error cargando informe existente en modo admin:', error);
+        setStatusBanner('warning', error.message || 'No se pudo cargar el informe solicitado.');
+      }
+    }
+
+    applyPermissionMatrix();
+    runLiveMathEngine();
+    startAutosaveCycle();
+  }
+
   async function fetchExistingInformeForShift(fecha, grupo) {
     try {
       const url = `/api/informes/por-turno?fecha=${encodeURIComponent(fecha)}&grupo=${encodeURIComponent(grupo)}`;
@@ -1081,6 +1130,12 @@ const InformeTurno = (() => {
           setLockedTurnoValue(state.userGrupo);
           updateShiftStatusBadge(shiftData);
         } else {
+          if (resp.status === 404 && hasElevatedAccess()) {
+            state.adminBypass = true;
+            applyAdminAccessVisuals();
+            console.log('[SECURITY] Acceso concedido por privilegios de Super Admin.');
+            console.log('[AUTH_DEBUG] Usuario Juan Sanhueza detectado como Admin. Omitiendo restricciones de tiempo real.');
+          }
           console.warn('[INFORME][SHIFT_API] /api/estado-turno respondió con status:', resp.status);
         }
       } catch (error) {
@@ -1113,7 +1168,7 @@ const InformeTurno = (() => {
   }
 
   async function runShiftHeartbeat() {
-    if (!state.userRut || state.auditModeEnabled || state.accessRestricted) return;
+    if (!state.userRut || state.auditModeEnabled || state.accessRestricted || state.adminBypass) return;
 
     try {
       const previousShiftContext = state.userShiftContext;
@@ -1148,7 +1203,7 @@ const InformeTurno = (() => {
   }
 
   function startHeartbeatCycle() {
-    if (state.auditModeEnabled || state.accessRestricted) return;
+    if (state.auditModeEnabled || state.accessRestricted || state.adminBypass) return;
     if (state.heartbeatIntervalId) window.clearInterval(state.heartbeatIntervalId);
     state.heartbeatIntervalId = window.setInterval(runShiftHeartbeat, HEARTBEAT_INTERVAL_MS);
   }
@@ -1831,6 +1886,18 @@ const InformeTurno = (() => {
     initializeMathEngine();
     
     await loadCargoPermisosIds();
+
+    const session = {
+      isSuperAdmin: state.isSuperAdmin,
+      userRole: normalizePerm(state.role)
+    };
+
+    if (session.isSuperAdmin === true || session.userRole === 'admin') {
+      console.log('[SECURITY] Acceso concedido por privilegios de Super Admin.');
+      console.log('[AUTH_DEBUG] Usuario Juan Sanhueza detectado como Admin. Omitiendo restricciones de tiempo real.');
+      await loadInformeFull();
+      return;
+    }
 
     if (state.auditModeEnabled) {
       await initAuditContext();
