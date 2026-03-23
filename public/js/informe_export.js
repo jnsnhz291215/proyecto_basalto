@@ -386,7 +386,12 @@ async function exportarInformeAPDF(idInforme) {
             observaciones,
             calculos,
             datos
-        } = await collectPdfData();
+           } = await collectPdfData();
+
+            // CORRECCIÓN: Obtener fecha y grupo con fallback seguro
+            let todayDate = document.getElementById('input-fecha')?.value || new Date().toISOString().split('T')[0];
+            let grupo = document.getElementById('input-turno')?.value || document.getElementById('input-grupo')?.value || 'SG';
+            console.log(`[PDF_ENGINE] Error de referencia corregido. Usando fecha: ${todayDate}, grupo: ${grupo}`);
 
         const folio = buildFolio(idInforme);
 
@@ -586,7 +591,7 @@ async function exportarInformeAPDF(idInforme) {
         }
 
         // ===== TRANSFORMAR FECHA A FORMATO DD_MM_AAAA =====
-        let fechaFormato = todayDate || new Date().toISOString().split('T')[0]; // Ej: "2026-03-23"
+                let fechaFormato = todayDate || new Date().toISOString().split('T')[0]; // Ej: "2026-03-23"
         const fechaParts = fechaFormato.split('-'); // Ej: ["2026", "03", "23"]
         if (fechaParts.length === 3) {
           // Reordenar: [AAAA, MM, DD] -> [DD, MM, AAAA]
@@ -594,8 +599,8 @@ async function exportarInformeAPDF(idInforme) {
         }
         
         // ===== CONSTRUIR NOMBRE DE ARCHIVO =====
-        const grupoLimpio = String(grupo || 'SG').trim().replace(/\s+/g, '');
-        const nombreArchivo = `Informe_Turno_Grupo_${grupoLimpio}_${jornada}_${fechaFormato}.pdf`;
+                const grupoLimpio = String(grupo || 'SG').trim().replace(/\s+/g, '');
+                const nombreArchivo = `Informe_Turno_Grupo_${grupoLimpio}_${jornada}_${fechaFormato}.pdf`;
         
         pdf.save(nombreArchivo);
         console.log(`[PDF_ENGINE] Exportando archivo: ${nombreArchivo}`);
