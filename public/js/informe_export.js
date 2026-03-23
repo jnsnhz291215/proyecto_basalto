@@ -152,6 +152,12 @@ function getSelectLabel(id) {
     return String(selected.textContent || selected.value || '').trim();
 }
 
+function getSelectValue(id) {
+    const select = document.getElementById(id);
+    if (!select) return '';
+    return String(select.value || '').trim();
+}
+
 function normalizeCellValue(value) {
     const text = String(value || '').trim();
     return text || '-';
@@ -167,6 +173,32 @@ function normalizeWorkerLabel(value) {
 
 function rowValuesByNames(row, names) {
     return names.map((name) => normalizeCellValue(row.querySelector(`[name="${name}"]`)?.value || ''));
+}
+
+function buildFolio(idInforme) {
+    const numeric = Number(idInforme);
+    const safe = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+    return `I-${String(safe).padStart(3, '0')}`;
+}
+
+async function fetchWorkerCatalog() {
+    try {
+        const response = await fetch('/api/trabajadores');
+        if (!response.ok) return new Map();
+        const workers = await response.json();
+        const catalog = new Map();
+        workers.forEach((worker) => {
+            const rut = String(worker.RUT || worker.rut || '').trim();
+            if (!rut) return;
+            catalog.set(rut, {
+                nombre: normalizeWorkerLabel(`${worker.nombres || ''} ${worker.apellido_paterno || ''} ${worker.apellido_materno || ''}`),
+                cargo: String(worker.cargo || '').trim()
+            });
+        });
+        return catalog;
+    } catch (_error) {
+        return new Map();
+    }
 }
 
 async function imageUrlToBase64(url) {
@@ -189,25 +221,40 @@ async function imageUrlToBase64(url) {
     }
 }
 
-function collectPdfData() {
+async function collectPdfData() {
+    const workerCatalog = await fetchWorkerCatalog();
+    const fallbackCargo = String((window.state && window.state.cargoName) || localStorage.getItem('user_cargo_name') || '').trim() || 'Operador';
+
+    const resolveCargo = (rut, defaultCargo) => {
+        const found = workerCatalog.get(String(rut || '').trim());
+        if (found && found.cargo) return found.cargo;
+        return defaultCargo;
+    };
+
     const todayDate = getInputValue('input-fecha');
     const grupo = getInputValue('input-turno') || getInputValue('input-turno-display');
     const faena = getInputValue('input-faena');
     const equipo = getInputValue('input-equipo');
+    const responsableRut = getSelectValue('input-operador');
     const responsable = normalizeWorkerLabel(getSelectLabel('input-operador'));
 
     const personalRows = [
-        ['Responsable de Turno', normalizeCellValue(responsable)]
+        ['Responsable de Turno', normalizeCellValue(responsable), normalizeCellValue(resolveCargo(responsableRut, fallbackCargo))]
     ];
     for (let index = 1; index <= 5; index += 1) {
+        const helperRut = getSelectValue(`input-ayudante-${index}`);
         const helperLabel = normalizeWorkerLabel(getSelectLabel(`input-ayudante-${index}`));
         if (helperLabel && helperLabel !== '— Ninguno —') {
-            personalRows.push([`Ayudante ${index}`, normalizeCellValue(helperLabel)]);
+            personalRows.push([
+                `Ayudante ${index}`,
+                normalizeCellValue(helperLabel),
+                normalizeCellValue(resolveCargo(helperRut, 'Ayudante'))
+            ]);
         }
     }
 
     const perforacionRows = Array.from(document.querySelectorAll('#tabla-perforacion tr')).map((row) =>
-        rowValuesByNames(row, ['perf_desde[]', 'perf_hasta[]', 'perf_metros[]', 'perf_tipo[]'])
+        rowValuesByNames(row, ['perf_desde[]', 'perf_hasta[]', 'perf_metros[]', 'perf_recuper[]', 'perf_tipo[]', 'perf_dureza[]'])
     ).filter((row) => row.some((cell) => cell !== '-'));
 
     const actividadRows = Array.from(document.querySelectorAll('#lista-actividades tr')).map((row) =>
@@ -216,6 +263,18 @@ function collectPdfData() {
 
     const hrsHorometro = getInputValue('input-horometro-hrs');
     const mtsPerforados = getInputValue('input-mts-perforados');
+    const observaciones = getInputValue('notas-observaciones');
+
+    const consumiblesRows = [
+        ['Petroleo (Gal)', normalizeCellValue(getInputValue('input-petroleo'))],
+        ['Aceites (Ltr)', normalizeCellValue(getInputValue('input-aceites'))],
+        ['Lubricantes (Ltr)', normalizeCellValue(getInputValue('input-lubricantes'))],
+        ['Aditivos / Otros (Kg)', normalizeCellValue(getInputValue('input-otros'))]
+    ];
+
+    const herramientasRows = Array.from(document.querySelectorAll('#tabla-herramientas tr')).map((row) =>
+        rowValuesByNames(row, ['herr_tipo_elemento[]', 'herr_diametro[]', 'herr_numero_serie[]', 'herr_desde_mts[]', 'herr_hasta_mts[]', 'herr_detalle_extra[]'])
+    ).filter((row) => row.some((cell) => cell !== '-'));
 
     const datos = [
         todayDate,
@@ -225,6 +284,9 @@ function collectPdfData() {
         responsable,
         hrsHorometro,
         mtsPerforados,
+        observaciones,
+        ...consumiblesRows.flat(),
+        ...herramientasRows.flat(),
         ...personalRows.flat(),
         ...perforacionRows.flat(),
         ...actividadRows.flat()
@@ -241,6 +303,9 @@ function collectPdfData() {
         personalRows,
         perforacionRows,
         actividadRows,
+        consumiblesRows,
+        herramientasRows,
+        observaciones: normalizeCellValue(observaciones),
         calculos: {
             hrsHorometro: normalizeCellValue(hrsHorometro),
             mtsPerforados: normalizeCellValue(mtsPerforados)
@@ -261,7 +326,19 @@ async function exportarInformeAPDF(idInforme) {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const logoBase64 = await imageUrlToBase64('/IMG/logoBASALTO.png');
-        const { encabezado, personalRows, perforacionRows, actividadRows, calculos, datos } = collectPdfData();
+        const {
+            encabezado,
+            personalRows,
+            perforacionRows,
+            actividadRows,
+            consumiblesRows,
+            herramientasRows,
+            observaciones,
+            calculos,
+            datos
+        } = await collectPdfData();
+
+        const folio = buildFolio(idInforme);
 
         let cursorY = 16;
 
@@ -272,9 +349,11 @@ async function exportarInformeAPDF(idInforme) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(16);
         pdf.text('Reporte Diario de Operaciones', 105, 18, { align: 'center' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.text(`Informe #${idInforme}`, 198, 14, { align: 'right' });
+        pdf.setTextColor(220, 38, 38);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(13);
+        pdf.text(folio, 198, 14, { align: 'right' });
+        pdf.setTextColor(0, 0, 0);
         cursorY = 34;
 
         pdf.setFont('helvetica', 'bold');
@@ -304,8 +383,8 @@ async function exportarInformeAPDF(idInforme) {
 
         pdf.autoTable({
             startY: cursorY + 2,
-            head: [['Rol', 'Trabajador']],
-            body: personalRows.length ? personalRows : [['Responsable de Turno', '-']],
+            head: [['Rol', 'Trabajador', 'Cargo']],
+            body: personalRows.length ? personalRows : [['Responsable de Turno', '-', '-']],
             theme: 'striped',
             styles: { fontSize: 9, cellPadding: 2.5 },
             headStyles: { fillColor: [249, 115, 22], textColor: 255 }
@@ -318,8 +397,8 @@ async function exportarInformeAPDF(idInforme) {
 
         pdf.autoTable({
             startY: cursorY + 2,
-            head: [['Desde', 'Hasta', 'Mts', 'Tipo Roca']],
-            body: perforacionRows.length ? perforacionRows : [['-', '-', '-', '-']],
+            head: [['Desde', 'Hasta', 'Mts Perf', 'Recuperacion %', 'Tipo Roca', 'Dureza']],
+            body: perforacionRows.length ? perforacionRows : [['-', '-', '-', '-', '-', '-']],
             theme: 'grid',
             styles: { fontSize: 9, cellPadding: 2.5 },
             headStyles: { fillColor: [75, 85, 99], textColor: 255 }
@@ -338,19 +417,74 @@ async function exportarInformeAPDF(idInforme) {
         cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(12);
-        pdf.text('4. Cálculos', 14, cursorY);
+        pdf.text('4. Materiales', 14, cursorY);
 
         pdf.autoTable({
             startY: cursorY + 2,
-            head: [['Concepto', 'Valor']],
-            body: [
-                ['Total Horas Horómetro', calculos.hrsHorometro],
-                ['Total Metros Perforados', calculos.mtsPerforados]
-            ],
+            head: [['Consumible', 'Cantidad']],
+            body: consumiblesRows.length ? consumiblesRows : [['-', '-']],
             theme: 'grid',
             styles: { fontSize: 10, cellPadding: 3 },
             headStyles: { fillColor: [31, 41, 55], textColor: 255 }
         });
+
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
+        pdf.autoTable({
+            startY: cursorY,
+            head: [['Tipo Elemento', 'Diametro', 'N Serie', 'Desde (m)', 'Hasta (m)', 'Detalle']],
+            body: herramientasRows.length ? herramientasRows : [['-', '-', '-', '-', '-', '-']],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [75, 85, 99], textColor: 255 }
+        });
+
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('5. Cierre y Firmas', 14, cursorY);
+
+        pdf.autoTable({
+            startY: cursorY + 2,
+            head: [['Total Horas Horómetro', 'Total Metros Perforados']],
+            body: [[calculos.hrsHorometro, calculos.mtsPerforados]],
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 3 },
+            headStyles: { fillColor: [31, 41, 55], textColor: 255 }
+        });
+
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
+        pdf.autoTable({
+            startY: cursorY,
+            head: [['Notas / Observaciones']],
+            body: [[observaciones]],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3, minCellHeight: 20, valign: 'top' },
+            headStyles: { fillColor: [75, 85, 99], textColor: 255 }
+        });
+
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 10;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const signatureBlockHeight = 42;
+        if (cursorY + signatureBlockHeight > pageHeight - 12) {
+            pdf.addPage();
+            cursorY = 20;
+        }
+
+        const leftX = 14;
+        const rightX = 110;
+        const boxWidth = 86;
+        const boxHeight = 24;
+        const lineY = cursorY + 18;
+
+        pdf.rect(leftX, cursorY, boxWidth, boxHeight);
+        pdf.rect(rightX, cursorY, boxWidth, boxHeight);
+        pdf.line(leftX + 6, lineY, leftX + boxWidth - 6, lineY);
+        pdf.line(rightX + 6, lineY, rightX + boxWidth - 6, lineY);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.text('Firma Responsable de Turno', leftX + (boxWidth / 2), cursorY + 22, { align: 'center' });
+        pdf.text('Firma Supervisor / Cliente', rightX + (boxWidth / 2), cursorY + 22, { align: 'center' });
 
         pdf.save(`Reporte_IT_${idInforme}.pdf`);
         console.log(`[PDF_ENGINE] Documento generado exitosamente con ${datos.length} campos.`);
