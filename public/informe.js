@@ -64,6 +64,7 @@ const InformeTurno = (() => {
     role: '',
     userRut: '',
     userName: '',
+    userEmail: '',
     cargoName: '',
     permisosCargo: [],
     permisosIds: [],
@@ -239,6 +240,7 @@ const InformeTurno = (() => {
     state.role = localStorage.getItem('user_role') || '';
     state.userRut = localStorage.getItem('user_rut') || '';
     state.userName = localStorage.getItem('user_name') || '';
+    state.userEmail = localStorage.getItem('user_email') || '';
     state.cargoName = localStorage.getItem('user_cargo_name') || '';
     state.permisosCargo = parseJSONArray('user_permissions_cargo');
     state.isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
@@ -251,6 +253,60 @@ const InformeTurno = (() => {
       } catch (_e) {
         state.userGrupo = localStorage.getItem('user_grupo') || null;
       }
+    }
+  }
+
+  async function syncUserSession() {
+    const rutActual = localStorage.getItem('user_rut') || state.userRut || '';
+    const isSuperAdminLocal = localStorage.getItem('user_super_admin') === '1' || state.isSuperAdmin;
+
+    if (!rutActual) return;
+
+    try {
+      const resp = await fetch(`/api/auth/me?rut=${encodeURIComponent(rutActual)}`, {
+        headers: {
+          'x-user-rut': rutActual
+        }
+      });
+
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (!data?.success) {
+        throw new Error(data?.message || 'Respuesta inválida de /api/auth/me');
+      }
+
+      localStorage.setItem('user_role', String(data.role || ''));
+      localStorage.setItem('user_rut', String(data.rut || rutActual));
+      localStorage.setItem('user_name', String(data.nombre || ''));
+      localStorage.setItem('user_email', String(data.email || ''));
+      localStorage.setItem('user_super_admin', String(Number(data.es_super_admin) === 1 ? '1' : '0'));
+      localStorage.setItem('user_grupo', String(data.grupo || ''));
+      localStorage.setItem('user_cargo_name', String(data.cargo || ''));
+      localStorage.setItem('user_permissions_cargo', JSON.stringify(Array.isArray(data.permisos_cargo) ? data.permisos_cargo : []));
+
+      const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+      const usuarioSincronizado = {
+        ...usuarioActivo,
+        rut: data.rut || rutActual,
+        nombre: data.nombre || usuarioActivo.nombre || '',
+        email: data.email || usuarioActivo.email || '',
+        grupo: data.grupo || usuarioActivo.grupo || '',
+        id_grupo: data.id_grupo || usuarioActivo.id_grupo || null,
+        cargo: data.cargo || usuarioActivo.cargo || '',
+        role: data.role || usuarioActivo.role || ''
+      };
+      localStorage.setItem('usuarioActivo', JSON.stringify(usuarioSincronizado));
+
+      refreshSessionContext();
+      console.log(`[AUTH_SYNC] Sesión actualizada. Correo actual en DB: ${data.email || '-'}.`);
+    } catch (error) {
+      if (isSuperAdminLocal) {
+        throw new Error(`Sincronización obligatoria fallida para Super Admin: ${error.message || error}`);
+      }
+      console.warn('[AUTH_SYNC] No se pudo sincronizar sesión. Se usará contexto local.', error?.message || error);
     }
   }
 
@@ -1945,20 +2001,24 @@ const InformeTurno = (() => {
           btnConfirmCorreo.onclick = async () => {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const correoAdicional = String(inputCorreoAdicional?.value || '').trim();
-            const destinatario = correoAdicional || myEmail;
 
-            if (!destinatario || !emailRegex.test(destinatario)) {
+            if (correoAdicional && !emailRegex.test(correoAdicional)) {
               if (errorCorreo) errorCorreo.style.display = 'block';
               return;
             }
             if (errorCorreo) errorCorreo.style.display = 'none';
+
+            if (!myEmail || !emailRegex.test(myEmail)) {
+              showErrorModal('No se encontró un correo válido en tu sesión. Vuelve a iniciar sesión para sincronizar datos.');
+              return;
+            }
 
             if (!state.currentReportId) {
               showErrorModal('Debes guardar el informe antes de enviarlo por correo.');
               return;
             }
 
-            console.log(`[MAIL_SYSTEM] Preparando envío para: ${destinatario}.`);
+            console.log(`[MAIL_SYSTEM] Preparando envío para: ${myEmail}.`);
 
             const originalContent = btnConfirmCorreo.innerHTML;
             btnConfirmCorreo.disabled = true;
@@ -1980,7 +2040,8 @@ const InformeTurno = (() => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   id_informe: state.currentReportId,
-                  destinatario,
+                  rut_solicitante: state.userRut,
+                  email_adicional: correoAdicional || null,
                   pdf_base64: pdfBase64,
                   nombre_archivo: nombreArchivo
                 })
@@ -1990,7 +2051,7 @@ const InformeTurno = (() => {
               if (!res.ok) throw new Error(data.error || 'Error al enviar correo con adjunto');
 
               closeCorreoModal();
-              showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${destinatario}`, false);
+              showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${myEmail}`, false);
             } catch (err) {
               showErrorModal(err.message || 'Error al enviar el correo.');
             } finally {
@@ -2101,6 +2162,7 @@ const InformeTurno = (() => {
 
   async function init() {
     refreshSessionContext();
+    await syncUserSession();
     state.accessRestricted = false;
     state.helperSelectCount = 2;
     renderExtraAyudanteFields();

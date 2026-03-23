@@ -318,6 +318,87 @@ router.post('/login', async (req, res) => {
 });
 
 // ============================================
+// GET /api/auth/me - Sincroniza sesión actual con DB
+// ============================================
+router.get('/auth/me', async (req, res) => {
+  try {
+    const rutRaw = req.query?.rut || req.headers['x-user-rut'] || req.headers['rut_solicitante'];
+    const rutLimpio = limpiarRUT(rutRaw);
+
+    if (!rutLimpio) {
+      return res.status(400).json({ success: false, message: 'Se requiere rut para sincronizar sesión' });
+    }
+
+    const sqlTrabajador = `
+      SELECT
+        t.RUT,
+        t.nombres,
+        t.apellido_paterno,
+        t.apellido_materno,
+        t.email,
+        t.telefono,
+        t.id_grupo,
+        g.nombre_grupo,
+        t.cargo,
+        t.activo
+      FROM trabajadores t
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
+      LIMIT 1
+    `;
+
+    const [trabRows] = await pool.execute(sqlTrabajador, [rutLimpio]);
+    if (!trabRows || trabRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado en trabajadores' });
+    }
+
+    const trabajador = trabRows[0];
+
+    const [adminRows] = await pool.execute(
+      `SELECT es_super_admin, activo, email
+       FROM admin_users
+       WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
+       LIMIT 1`,
+      [rutLimpio]
+    );
+
+    const esAdmin = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1);
+    const esSuperAdmin = Boolean(esAdmin && Number(adminRows[0].es_super_admin) === 1);
+    const role = esAdmin ? 'admin' : 'user';
+
+    const nombreCompleto = `${trabajador.nombres || ''} ${trabajador.apellido_paterno || ''} ${trabajador.apellido_materno || ''}`.trim() || rutLimpio;
+    const grupo = trabajador.nombre_grupo ? String(trabajador.nombre_grupo).trim() : (trabajador.id_grupo ? String(trabajador.id_grupo) : null);
+    const email = trabajador.email || (esAdmin ? adminRows[0].email : null) || null;
+
+    const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
+
+    return res.json({
+      success: true,
+      rut: trabajador.RUT || rutLimpio,
+      role,
+      nombre: nombreCompleto,
+      email,
+      es_super_admin: esSuperAdmin ? 1 : 0,
+      id_grupo: trabajador.id_grupo || null,
+      grupo,
+      cargo: trabajador.cargo || contextoCargo?.cargo?.nombre_cargo || null,
+      permisos_cargo: contextoCargo?.permisos_cargo || [],
+      permisos_cargo_ids: contextoCargo?.permisos_cargo_ids || [],
+      user: {
+        rut: trabajador.RUT || rutLimpio,
+        nombres: trabajador.nombres || null,
+        apellido_paterno: trabajador.apellido_paterno || null,
+        apellido_materno: trabajador.apellido_materno || null,
+        email
+      }
+    });
+  } catch (error) {
+    console.error('[AUTH] Error sincronizando /auth/me:', error);
+    return res.status(500).json({ success: false, message: 'Error sincronizando sesión', error: error.message });
+  }
+});
+
+// ============================================
 // GET /api/perfil/:rut - Obtener datos completos del trabajador
 // ============================================
 router.get('/perfil/:rut', async (req, res) => {

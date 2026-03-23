@@ -1058,16 +1058,42 @@ router.post('/informes/enviar-pdf', async (req, res) => {
 // ============================================
 router.post('/mail/enviar-informe', async (req, res) => {
   try {
-    const { id_informe, destinatario, pdf_base64, nombre_archivo } = req.body || {};
+    const { id_informe, rut_solicitante, email_adicional, pdf_base64, nombre_archivo } = req.body || {};
 
-    if (!id_informe || !destinatario || !pdf_base64) {
-      return res.status(400).json({ error: 'Se requiere id_informe, destinatario y pdf_base64' });
+    if (!id_informe || !rut_solicitante || !pdf_base64) {
+      return res.status(400).json({ error: 'Se requiere id_informe, rut_solicitante y pdf_base64' });
     }
 
+    const rutLimpio = limpiarRUT(rut_solicitante);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(String(destinatario).trim())) {
-      return res.status(400).json({ error: 'Correo destinatario inválido' });
+
+    const [destRows] = await pool.execute(
+      `SELECT email
+       FROM trabajadores
+       WHERE REPLACE(REPLACE(REPLACE(RUT, '.', ''), '-', ''), ' ', '') = ?
+       LIMIT 1`,
+      [rutLimpio]
+    );
+
+    if (!destRows || destRows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró trabajador para el RUT de sesión' });
     }
+
+    const emailDb = String(destRows[0].email || '').trim();
+    if (!emailDb || !emailRegex.test(emailDb)) {
+      return res.status(400).json({ error: 'El correo del usuario en DB es inválido o está vacío' });
+    }
+
+    let destinatarioFinal = emailDb;
+    const adicional = String(email_adicional || '').trim();
+    if (adicional) {
+      if (!emailRegex.test(adicional)) {
+        return res.status(400).json({ error: 'Correo adicional inválido' });
+      }
+      destinatarioFinal = `${emailDb}, ${adicional}`;
+    }
+
+    console.log(`[MAIL_SYSTEM] Intento de envío a: ${destinatarioFinal}`);
 
     const [rows] = await pool.execute(
       'SELECT estado, fecha, turno FROM informes_turno WHERE id_informe = ? LIMIT 1',
@@ -1104,7 +1130,7 @@ router.post('/mail/enviar-informe', async (req, res) => {
     const asunto = `Informe de Turno - ${fechaFormateada} - Grupo ${grupo}`;
     await transporter.sendMail({
       from: process.env.MAIL_FROM || '"Basalto Drilling" <no-reply@basalto.app>',
-      to: destinatario,
+      to: destinatarioFinal,
       subject: asunto,
       text: `Se adjunta Informe de Turno (ID ${id_informe}) para fecha ${fechaFormateada}, grupo ${grupo}.`,
       attachments: [
@@ -1118,7 +1144,18 @@ router.post('/mail/enviar-informe', async (req, res) => {
 
     return res.json({ success: true, message: 'Correo enviado correctamente' });
   } catch (error) {
-    console.error('[ERROR] /mail/enviar-informe:', error);
+    console.error('[ERROR] /mail/enviar-informe:', error?.message || error);
+    if (error?.code || error?.command || error?.response || error?.responseCode) {
+      console.error('[MAIL_SYSTEM][SMTP_DEBUG]', {
+        code: error.code || null,
+        command: error.command || null,
+        responseCode: error.responseCode || null,
+        response: error.response || null,
+        host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+        port: process.env.SMTP_PORT || 587,
+        user: process.env.SMTP_USER || null
+      });
+    }
     return res.status(500).json({ error: error.message || 'Error al enviar informe por correo' });
   }
 });
