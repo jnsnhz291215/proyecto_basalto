@@ -1084,14 +1084,25 @@ router.post('/mail/enviar-informe', async (req, res) => {
       return res.status(400).json({ error: 'El correo del usuario en DB es inválido o está vacío' });
     }
 
+    const [adminRows] = await pool.execute(
+      `SELECT es_super_admin, activo
+       FROM admin_users
+       WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
+       LIMIT 1`,
+      [rutLimpio]
+    );
+    const isSuperAdmin = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1 && Number(adminRows[0].es_super_admin) === 1);
+
     let destinatarioFinal = emailDb;
     const adicional = String(email_adicional || '').trim();
-    if (adicional) {
+    if (!isSuperAdmin && adicional) {
       if (!emailRegex.test(adicional)) {
         return res.status(400).json({ error: 'Correo adicional inválido' });
       }
       destinatarioFinal = `${emailDb}, ${adicional}`;
     }
+
+    console.log(`[MAIL_SYSTEM] Usando correo oficial de DB para envío: ${emailDb}.`);
 
     console.log(`[MAIL_SYSTEM] Intento de envío a: ${destinatarioFinal}`);
 

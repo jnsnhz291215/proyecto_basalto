@@ -307,7 +307,9 @@ const InformeTurno = (() => {
         isSuperAdmin: syncSuper
       };
       localStorage.setItem('usuarioActivo', JSON.stringify(usuarioSincronizado));
+      localStorage.removeItem('usuario');
       localStorage.setItem('usuario', JSON.stringify(usuarioSincronizado));
+      console.log('[AUTH_SYNC] Cache de localStorage limpiado y actualizado.');
 
       state.role = syncRole;
       state.userRut = syncRut;
@@ -316,6 +318,16 @@ const InformeTurno = (() => {
       state.isSuperAdmin = syncSuper;
       state.userGrupo = syncGrupo || state.userGrupo;
       state.cargoName = syncCargo || state.cargoName;
+
+      // Refresco visual inmediato de sesión en UI (navbar/modal)
+      const userNameSpan = document.getElementById('user_name_span');
+      if (userNameSpan && state.userName) {
+        userNameSpan.textContent = state.userName;
+      }
+      const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
+      if (btnConfirmCorreo) {
+        btnConfirmCorreo.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar a mi correo (${state.userEmail || 'sin correo en sesión'})`;
+      }
 
       refreshSessionContext();
       console.log(`[AUTH_SYNC] Datos sincronizados desde DB para ${state.userName || 'Usuario'}. Correo: ${state.userEmail || '-'}.`);
@@ -1951,6 +1963,9 @@ const InformeTurno = (() => {
         const session = window.getSession ? window.getSession() : null;
         if (session?.userEmail) return String(session.userEmail).trim();
         if (session?.email) return String(session.email).trim();
+
+        const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+        if (usuario?.email) return String(usuario.email).trim();
 
         const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
         if (usuarioActivo?.email) return String(usuarioActivo.email).trim();
