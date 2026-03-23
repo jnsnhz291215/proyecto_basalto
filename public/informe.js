@@ -541,12 +541,22 @@ const InformeTurno = (() => {
     if (prevValue) select.value = prevValue;
   }
 
+  function detectGrupoActivo(activeGroups) {
+    return normalizeGroupValue(
+      state.userShiftContext?.grupo
+      || state.userGrupo
+      || (Array.isArray(activeGroups) && activeGroups.length > 0 ? activeGroups[0] : '')
+    );
+  }
+
   async function populatePersonalSelects(activeGroups, options = {}) {
     const auditMode = Boolean(options.auditMode);
     let trabajadores = [];
+    let responsables = [];
+    const grupoDetectado = detectGrupoActivo(activeGroups);
+
     try {
-      const grupoDebug = state.userGrupo || (Array.isArray(activeGroups) && activeGroups.length > 0 ? activeGroups[0] : null);
-      console.log('[DEBUG_WORKERS] Cargando responsables para el turno:', grupoDebug, '| grupos activos:', activeGroups, '| auditMode:', auditMode);
+      console.log('[DEBUG_WORKERS] Cargando responsables para el turno:', grupoDetectado);
       const resp = await fetch('/api/trabajadores');
       if (resp.ok) {
         trabajadores = await resp.json();
@@ -554,16 +564,27 @@ const InformeTurno = (() => {
       }
     } catch (_) { return; }
 
-    // En modo auditoria (superadmin) no se restringe por grupo/permiso para inspeccion historica.
-    const responsables = auditMode
-      ? trabajadores.filter(isOperadorCargo)
-      : trabajadores.filter(
-        (t) => isOperadorCargo(t) && hasInfEditPermission(t) && perteneceAGruposActivos(t, activeGroups)
-      );
-    const listaResp = responsables.length > 0 ? responsables : trabajadores.filter(isOperadorCargo);
+    if (auditMode) {
+      responsables = trabajadores.filter(isOperadorCargo);
+    } else if (grupoDetectado) {
+      try {
+        const respResponsables = await fetch(`/api/trabajadores/responsables?grupo=${encodeURIComponent(grupoDetectado)}`);
+        if (respResponsables.ok) {
+          responsables = await respResponsables.json();
+        }
+      } catch (_error) {
+        responsables = [];
+      }
+    }
+
+    console.group('[DEBUG_RESPONSABLES]');
+    console.log('Filtrando por Grupo:', grupoDetectado);
+    console.log('Trabajadores recibidos del servidor:', responsables);
+    console.groupEnd();
+
     const selResp = document.getElementById('input-operador');
     if (selResp && selResp.tagName === 'SELECT') {
-      buildSelectOptions(selResp, listaResp, '— Seleccionar Responsable —');
+      buildSelectOptions(selResp, responsables, '— Seleccionar Responsable —');
       if (state.userRut && Array.from(selResp.options).some((o) => o.value === state.userRut)) {
         selResp.value = state.userRut;
       }

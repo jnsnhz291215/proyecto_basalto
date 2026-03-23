@@ -45,6 +45,15 @@ async function obtenerPermisosPorCargo(connection, idCargo) {
   }));
 }
 
+async function obtenerIdPermisoPorClave(connection, clavePermiso) {
+  const [rows] = await connection.execute(
+    'SELECT id_permiso FROM permisos WHERE clave_permiso = ? LIMIT 1',
+    [clavePermiso]
+  );
+
+  return rows && rows[0] ? Number(rows[0].id_permiso) : null;
+}
+
 // ============================================
 // GET /api/cargos - Lista de cargos con permisos asociados
 // ============================================
@@ -102,9 +111,9 @@ router.post('/cargos', async (req, res) => {
   let connection;
 
   try {
-    const { id_cargo, nombre_cargo, id_permisos = [] } = req.body || {};
+    const { id_cargo, nombre_cargo, id_permisos = [], responsable_turno = false } = req.body || {};
     const nombreNormalizado = String(nombre_cargo || '').trim();
-    const permisosNormalizados = dedupeNumberArray(id_permisos);
+    let permisosNormalizados = dedupeNumberArray(id_permisos);
 
     if (!nombreNormalizado) {
       return res.status(400).json({ success: false, message: 'El nombre del cargo es requerido' });
@@ -112,6 +121,20 @@ router.post('/cargos', async (req, res) => {
 
     connection = await pool.getConnection();
     await connection.beginTransaction();
+
+    const responsableTurnoId = await obtenerIdPermisoPorClave(connection, 'responsable_turno');
+    if (responsable_turno && !responsableTurnoId) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'No existe el permiso responsable_turno en la base de datos' });
+    }
+
+    if (responsableTurnoId) {
+      permisosNormalizados = permisosNormalizados.filter((idPermiso) => idPermiso !== responsableTurnoId);
+      if (Boolean(responsable_turno)) {
+        permisosNormalizados.push(responsableTurnoId);
+        permisosNormalizados = dedupeNumberArray(permisosNormalizados);
+      }
+    }
 
     let targetCargoId = null;
 
@@ -152,6 +175,7 @@ router.post('/cargos', async (req, res) => {
     await connection.commit();
 
     const permisosActualizados = await obtenerPermisosPorCargo(connection, targetCargoId);
+    console.log(`[ADMIN_PERMISOS] Cargo ${targetCargoId} actualizado. ¿Responsable?: ${Boolean(responsable_turno)}`);
 
     res.json({
       success: true,

@@ -203,6 +203,14 @@
       checkKpis.value = kpiId;
       checkKpis.checked = selectedSet.has(21) || selectedSet.has(kpiId);
     }
+
+    const checkResponsable = document.getElementById('chk-responsable-turno');
+    const responsableActivo = Boolean(cargo?.permisos?.some((permiso) => permiso.clave_permiso === 'responsable_turno'));
+    if (checkResponsable) {
+      checkResponsable.checked = responsableActivo;
+    }
+
+    console.log('[MODAL_CARGOS] Cargando permisos para:', cargo?.nombre_cargo || 'Nuevo cargo', '| Responsable:', responsableActivo);
   }
 
   function openModal(cargoId = null) {
@@ -218,6 +226,10 @@
     state.editingCargoId = null;
     el.cargoNombre.value = '';
     if (el.permisosOperacion) el.permisosOperacion.innerHTML = '';
+    const checkKpis = document.getElementById('checkAdminKpis');
+    const checkResponsable = document.getElementById('chk-responsable-turno');
+    if (checkKpis) checkKpis.checked = false;
+    if (checkResponsable) checkResponsable.checked = false;
     clearNotification();
     closeManagedModal(el.modal);
   }
@@ -250,6 +262,7 @@
     const payload = {
       nombre_cargo: nombre,
       id_permisos: collectSelectedPermissionIds(),
+      responsable_turno: Boolean(document.getElementById('chk-responsable-turno')?.checked),
       ...(state.editingCargoId ? { id_cargo: state.editingCargoId } : {})
     };
 

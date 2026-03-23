@@ -78,4 +78,67 @@ router.get('/trabajadores', async (req, res) => {
   }
 });
 
+// GET /api/trabajadores/responsables - Responsables de turno por grupo activo
+router.get('/trabajadores/responsables', async (req, res) => {
+  try {
+    const grupoRaw = String(req.query.grupo || req.query.id_grupo || '').trim();
+    if (!grupoRaw) {
+      return res.status(400).json({ error: 'Se requiere grupo o id_grupo' });
+    }
+
+    const grupoNormalizado = grupoRaw.toUpperCase();
+    const sqlQuery = `
+      SELECT DISTINCT
+        t.RUT,
+        t.nombres,
+        t.apellido_paterno,
+        t.apellido_materno,
+        t.email,
+        t.telefono,
+        t.id_grupo,
+        g.nombre_grupo,
+        t.cargo,
+        c.id_cargo,
+        t.activo
+      FROM trabajadores t
+      INNER JOIN grupos g ON t.id_grupo = g.id_grupo
+      INNER JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
+      INNER JOIN cargo_permisos cp ON cp.id_cargo = c.id_cargo
+      INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
+      WHERE p.clave_permiso = ?
+        AND t.activo = 1
+        AND (
+          UPPER(TRIM(g.nombre_grupo)) = ?
+          OR CAST(t.id_grupo AS CHAR) = ?
+        )
+      ORDER BY t.nombres ASC, t.apellido_paterno ASC, t.apellido_materno ASC
+    `;
+    const params = ['responsable_turno', grupoNormalizado, grupoRaw];
+
+    console.log('[DEBUG_SQL] Query ejecutada para responsables:', sqlQuery);
+    console.log('[DEBUG_SQL] Parámetros recibidos para responsables:', params);
+
+    const [rows] = await pool.execute(sqlQuery, params);
+
+    res.json(rows.map((row) => ({
+      RUT: row.RUT,
+      nombres: row.nombres,
+      apellido_paterno: row.apellido_paterno,
+      apellido_materno: row.apellido_materno,
+      apellidos: `${row.apellido_paterno || ''} ${row.apellido_materno || ''}`.trim(),
+      email: row.email,
+      telefono: row.telefono,
+      id_grupo: row.id_grupo || null,
+      grupo: row.nombre_grupo ? String(row.nombre_grupo).trim() : (row.id_grupo ? String(row.id_grupo) : ''),
+      nombre_grupo: row.nombre_grupo || null,
+      cargo: row.cargo,
+      id_cargo: row.id_cargo || null,
+      activo: row.activo === 1 || row.activo === true
+    })));
+  } catch (error) {
+    console.error('Error al obtener responsables de turno:', error);
+    res.status(500).json({ error: 'Error al obtener responsables de turno' });
+  }
+});
+
 module.exports = router;
