@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../../ejemploconexion');
 const {
+  getGrupoShiftStatus,
   getWorkerShiftStatus,
   isWorkerOnShiftToday,
   isGrupoOnShift,
@@ -215,6 +216,77 @@ router.get('/turnos/jornada', async (req, res) => {
   } catch (error) {
     console.error('[API] Error consultando jornada:', error.message);
     return res.status(500).json({ success: false, error: 'Error interno consultando jornada' });
+  }
+});
+
+// ============================================
+// ENDPOINT: ESTADO DE UN GRUPO EN FECHA
+// Responde en_turno | descanso | fuera_jornada
+// ============================================
+router.get('/turnos/estado-grupo', async (req, res) => {
+  try {
+    const fecha = String(req.query.fecha || '').trim();
+    const grupo = String(req.query.grupo || '').trim().toUpperCase();
+
+    if (!fecha || !grupo) {
+      return res.status(400).json({ success: false, error: 'Se requieren fecha y grupo' });
+    }
+
+    const fechaDate = new Date(`${fecha}T00:00:00`);
+    if (Number.isNaN(fechaDate.getTime())) {
+      return res.status(400).json({ success: false, error: 'Fecha inválida' });
+    }
+
+    const gruposDelDia = obtenerGruposDelDia(fechaDate);
+    const gruposProgramados = new Set([
+      gruposDelDia?.pista1?.manana,
+      gruposDelDia?.pista1?.tarde,
+      gruposDelDia?.pista2?.manana,
+      gruposDelDia?.pista2?.tarde,
+      ...(gruposDelDia?.semanales || [])
+    ].filter(Boolean));
+
+    const jornada = resolverJornadaPorGrupoFecha(grupo, fecha);
+
+    if (!gruposProgramados.has(grupo)) {
+      return res.json({
+        success: true,
+        fecha,
+        grupo,
+        jornada,
+        estado: 'fuera_jornada',
+        mensaje: `Grupo ${grupo} no está programado para esta fecha.`
+      });
+    }
+
+    const hoyIso = new Date().toISOString().split('T')[0];
+    if (fecha !== hoyIso) {
+      return res.json({
+        success: true,
+        fecha,
+        grupo,
+        jornada,
+        estado: 'descanso',
+        mensaje: `Grupo ${grupo} programado para ${fecha} (${jornada}).`
+      });
+    }
+
+    const statusNow = getGrupoShiftStatus(grupo, new Date());
+    const estado = (statusNow.exactActive || statusNow.inGrace) ? 'en_turno' : 'descanso';
+    return res.json({
+      success: true,
+      fecha,
+      grupo,
+      jornada,
+      estado,
+      detalle: statusNow,
+      mensaje: estado === 'en_turno'
+        ? `Grupo ${grupo} está en turno (${jornada}).`
+        : `Grupo ${grupo} está en descanso (${jornada}).`
+    });
+  } catch (error) {
+    console.error('[API] Error consultando estado-grupo:', error.message);
+    return res.status(500).json({ success: false, error: 'Error interno consultando estado de grupo' });
   }
 });
 

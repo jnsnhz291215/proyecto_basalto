@@ -104,6 +104,96 @@ const InformeTurno = (() => {
     return String(value || '').replace(/^grupo\s+/i, '').trim().toUpperCase();
   }
 
+  function getTodayIsoLocal() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function normalizeDateInputValue(rawValue) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+    const dmy = raw.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+    if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    return '';
+  }
+
+  function ensureAdminGroupStatusBadge() {
+    const row = document.querySelector('.header-iden-row');
+    if (!row) return null;
+
+    let wrapper = document.getElementById('admin-group-status-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.id = 'admin-group-status-wrapper';
+      wrapper.style.cssText = 'flex-basis:100%;display:flex;justify-content:flex-end;';
+      row.appendChild(wrapper);
+    }
+
+    let badge = document.getElementById('admin-group-status-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'admin-group-status-badge';
+      badge.className = 'shift-badge shift-badge--unknown';
+      badge.hidden = true;
+      wrapper.appendChild(badge);
+    }
+
+    return badge;
+  }
+
+  async function updateAdminGroupStatusBadge(fecha, grupo) {
+    if (!state.isSuperAdmin) return;
+    const badge = ensureAdminGroupStatusBadge();
+    if (!badge) return;
+
+    const fechaIso = normalizeDateInputValue(fecha);
+    const grupoNorm = normalizeGroupValue(grupo);
+    if (!fechaIso || !grupoNorm) {
+      badge.hidden = true;
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/api/turnos/estado-grupo?fecha=${encodeURIComponent(fechaIso)}&grupo=${encodeURIComponent(grupoNorm)}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const estado = String(data.estado || '').toLowerCase();
+      const jornada = String(data.jornada || 'SinJornada');
+
+      if (estado === 'en_turno') {
+        badge.className = 'shift-badge shift-badge--active';
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Grupo ${grupoNorm}: En Turno (${jornada})`;
+      } else if (estado === 'descanso') {
+        badge.className = 'shift-badge shift-badge--rest';
+        badge.innerHTML = `<i class="fa-solid fa-moon"></i> Grupo ${grupoNorm}: En Descanso (${jornada})`;
+      } else {
+        badge.className = 'shift-badge shift-badge--unknown';
+        badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Grupo ${grupoNorm}: Fuera de Jornada`;
+      }
+      badge.hidden = false;
+    } catch (error) {
+      badge.className = 'shift-badge shift-badge--unknown';
+      badge.innerHTML = `<i class="fa-solid fa-circle-question"></i> Estado de grupo no disponible`;
+      badge.hidden = false;
+      console.warn('[ADMIN_GROUP_BADGE] Error consultando estado de grupo:', error?.message || error);
+    }
+  }
+
   function formatCountdown(totalSeconds) {
     const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
     const minutes = Math.floor(safeSeconds / 60);
@@ -1142,6 +1232,8 @@ const InformeTurno = (() => {
       badge.className = 'shift-badge shift-badge--unknown';
       badge.innerHTML = '<i class="fa-solid fa-user-shield"></i> Modo Administrador - Acceso Total';
     }
+
+    ensureAdminGroupStatusBadge();
   }
 
   function clearInformeForGroupChange(selectedGroup) {
@@ -1195,22 +1287,22 @@ const InformeTurno = (() => {
       groupSelect = document.createElement('select');
       groupSelect.id = 'input-grupo';
       groupSelect.className = 'modern-input';
-      
-      // Obtener grupos disponibles dinámicamente
-      let allGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K']; // Fallback
+
+      // En modo admin se muestran todos los grupos base, no solo activos del día.
+      let allGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K'];
       try {
         const fechaParam = document.getElementById('input-fecha')?.value 
-          || new Date().toISOString().split('T')[0];
+          || getTodayIsoLocal();
         const resp = await fetch(`/api/turnos/grupos-activos?fecha=${encodeURIComponent(fechaParam)}`);
         if (resp.ok) {
           const data = await resp.json();
           if (data.grupos && Array.isArray(data.grupos)) {
-            allGroups = [...new Set(data.grupos)].sort();
+            allGroups = [...new Set([...allGroups, ...data.grupos.map(normalizeGroupValue)])].sort();
             console.log('[ADMIN_SELECTOR] Grupos disponibles para ' + fechaParam + ':', allGroups);
           }
         }
       } catch (error) {
-        console.warn('[ADMIN_SELECTOR] Error obteniendo grupos dinámicos, usando fallback:', error?.message);
+        console.warn('[ADMIN_SELECTOR] Error obteniendo grupos activos, usando catálogo completo:', error?.message);
       }
       
       allGroups.forEach((group) => {
@@ -1234,6 +1326,7 @@ const InformeTurno = (() => {
     groupSelect.value = availableOptions.includes(initialGroup) ? initialGroup : (availableOptions[0] || 'A');
     state.adminSelectedGroup = groupSelect.value;
     setLockedTurnoValue(groupSelect.value);
+    await updateAdminGroupStatusBadge(document.getElementById('input-fecha')?.value || getTodayIsoLocal(), groupSelect.value);
 
     groupSelect.onchange = async () => {
       const seleccionado = normalizeGroupValue(groupSelect.value) || 'A';
@@ -1242,6 +1335,7 @@ const InformeTurno = (() => {
       console.log('[ADMIN_ACTION] Cambiando vista al Grupo: ' + seleccionado);
       const fecha = document.getElementById('input-fecha')?.value || '';
       await fetchInformeForAdminView(fecha, seleccionado);
+      await updateAdminGroupStatusBadge(fecha, seleccionado);
     };
   }
 
@@ -1249,8 +1343,11 @@ const InformeTurno = (() => {
     state.adminBypass = true;
 
     const fechaInput = document.getElementById('input-fecha');
-    if (fechaInput && !fechaInput.value) {
-      fechaInput.value = window.getShiftDateISO ? window.getShiftDateISO() : new Date().toISOString().split('T')[0];
+    if (fechaInput) {
+      const fechaInicial = normalizeDateInputValue(fechaInput.value)
+        || normalizeDateInputValue(window.getShiftDateISO ? window.getShiftDateISO() : '')
+        || getTodayIsoLocal();
+      fechaInput.value = fechaInicial;
     }
 
     applyAdminAccessVisuals();
@@ -1278,6 +1375,7 @@ const InformeTurno = (() => {
           const grupoNav = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
           console.log(`[ADMIN_NAVIGATION] Buscando registros para la fecha: ${fechaInput.value}.`);
           await fetchInformeForAdminView(fechaInput.value, grupoNav);
+          await updateAdminGroupStatusBadge(fechaInput.value, grupoNav);
         };
 
         if (btnPrev && !btnPrev.dataset.navReady) {
@@ -1293,11 +1391,13 @@ const InformeTurno = (() => {
         if (!fechaInput.dataset.navChangeReady) {
           fechaInput.dataset.navChangeReady = '1';
           fechaInput.addEventListener('change', async () => {
-            const nuevaFecha = fechaInput.value;
+            const nuevaFecha = normalizeDateInputValue(fechaInput.value) || getTodayIsoLocal();
+            fechaInput.value = nuevaFecha;
             if (!nuevaFecha) return;
             const grupoActual = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
             console.log(`[ADMIN_NAVIGATION] Buscando registros para la fecha: ${nuevaFecha}.`);
             await fetchInformeForAdminView(nuevaFecha, grupoActual);
+            await updateAdminGroupStatusBadge(nuevaFecha, grupoActual);
           });
         }
       }
@@ -1381,8 +1481,11 @@ const InformeTurno = (() => {
   async function initShiftContext() {
     // 1. Fecha contable
     const fechaInput = document.getElementById('input-fecha');
-    if (fechaInput && !fechaInput.value) {
-      fechaInput.value = window.getShiftDateISO ? window.getShiftDateISO() : new Date().toISOString().split('T')[0];
+    if (fechaInput) {
+      const fechaInicial = normalizeDateInputValue(fechaInput.value)
+        || normalizeDateInputValue(window.getShiftDateISO ? window.getShiftDateISO() : '')
+        || getTodayIsoLocal();
+      fechaInput.value = fechaInicial;
     }
 
     // 2. Estado de turno del usuario
