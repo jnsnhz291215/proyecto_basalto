@@ -524,6 +524,9 @@
   // se muestra un overlay bloqueante vía validación matemática local.
   // ============================================
   if (currentPath.includes('informe.html') && userRut && !isSuperAdmin && userRole !== 'admin') {
+    console.log('[AUTH_GUARD] informe.html detectado: se omite Validación Local de turno; informe.js será responsable del bloqueo visual.');
+    return;
+
     function verificarYBloqueoTurno() {
       if (!window.basaltoShiftUtils) return; // Fail-safe si no está common.js
       

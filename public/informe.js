@@ -113,7 +113,7 @@ const InformeTurno = (() => {
     console.warn('[DEBUG_SECURITY] Bloqueo activado por informe.js. Motivo:', reason);
     console.trace('[DEBUG_TRACE] Origen de la llamada al bloqueo:');
 
-    const oldModals = document.querySelectorAll('#access-restricted-overlay, [class*="access-restricted"], [class*="restricted-content"]');
+    const oldModals = document.querySelectorAll('#access-restricted-overlay, #shift-access-denied-overlay, [class*="access-restricted"], [class*="restricted-content"]');
     oldModals.forEach((el) => {
       console.log('[DEBUG_CLEANUP] Eliminando elemento redundante:', el.tagName, el.className, el.id);
       el.remove();
@@ -545,8 +545,13 @@ const InformeTurno = (() => {
     const auditMode = Boolean(options.auditMode);
     let trabajadores = [];
     try {
+      const grupoDebug = state.userGrupo || (Array.isArray(activeGroups) && activeGroups.length > 0 ? activeGroups[0] : null);
+      console.log('[DEBUG_WORKERS] Cargando responsables para el turno:', grupoDebug, '| grupos activos:', activeGroups, '| auditMode:', auditMode);
       const resp = await fetch('/api/trabajadores');
-      if (resp.ok) trabajadores = await resp.json();
+      if (resp.ok) {
+        trabajadores = await resp.json();
+        console.log('[DEBUG_WORKERS] Lista recibida:', trabajadores);
+      }
     } catch (_) { return; }
 
     // En modo auditoria (superadmin) no se restringe por grupo/permiso para inspeccion historica.

@@ -22,7 +22,7 @@ router.get('/trabajadores', async (req, res) => {
     const incluirInactivos = req.query.incluirInactivos === 'true';
     const trabajadores = await obtenerTrabajadores(incluirInactivos);
 
-    const [relacionesCargoPermisos] = await pool.execute(`
+    const sqlQuery = `
       SELECT 
         c.id_cargo,
         c.nombre_cargo,
@@ -32,7 +32,13 @@ router.get('/trabajadores', async (req, res) => {
       LEFT JOIN cargo_permisos cp ON cp.id_cargo = c.id_cargo
       LEFT JOIN permisos p ON p.id_permiso = cp.id_permiso
       ORDER BY c.nombre_cargo ASC, p.descripcion ASC
-    `);
+    `;
+
+    console.log('[DEBUG_SQL] Query ejecutada para responsables:', sqlQuery);
+    console.warn('[DEBUG_SQL] Advertencia: No se detectaron filtros de turno en la consulta.');
+    console.warn('[DEBUG_SQL] Advertencia: No se detectaron filtros por cargo de operador en la consulta SQL base.');
+
+    const [relacionesCargoPermisos] = await pool.execute(sqlQuery);
 
     const permisosPorCargo = new Map();
     relacionesCargoPermisos.forEach((row) => {
