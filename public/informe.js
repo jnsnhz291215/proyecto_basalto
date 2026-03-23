@@ -86,6 +86,7 @@ const InformeTurno = (() => {
     auditModeRequested: false,
     auditModeEnabled: false,
     adminBypass: false,
+    adminSelectedGroup: '',
     mathValidationErrors: {
       hrs_horometro: false,
       mts_perforados: false
@@ -131,8 +132,12 @@ const InformeTurno = (() => {
     const normalizedGroup = normalizeGroupValue(grupo);
     const hiddenInput = document.getElementById('input-turno');
     const displayInput = document.getElementById('input-turno-display');
+    const adminGroupSelect = document.getElementById('input-grupo');
     if (hiddenInput) hiddenInput.value = normalizedGroup;
     if (displayInput) displayInput.value = normalizedGroup ? `Grupo ${normalizedGroup}` : 'Sin grupo asignado';
+    if (adminGroupSelect && normalizedGroup && Array.from(adminGroupSelect.options).some((opt) => opt.value === normalizedGroup)) {
+      adminGroupSelect.value = normalizedGroup;
+    }
   }
 
   function buildAccessDeniedReason(shiftContext, isInGrace) {
@@ -657,16 +662,21 @@ const InformeTurno = (() => {
     const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
 
     if (btnGuardar) {
-      if (state.documentBlocked || !state.canWriteAnySection) btnGuardar.setAttribute('disabled', 'disabled');
+      if (state.isSuperAdmin) btnGuardar.removeAttribute('disabled');
+      else if (state.documentBlocked || !state.canWriteAnySection) btnGuardar.setAttribute('disabled', 'disabled');
       else btnGuardar.removeAttribute('disabled');
     }
 
     if (btnFinalizar) {
-      const finalizeReady = validateFinalizeRequirements(false).isValid;
-      if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted || hasNegativeMathError()) {
-        btnFinalizar.setAttribute('disabled', 'disabled');
-      } else {
+      if (state.isSuperAdmin) {
         btnFinalizar.removeAttribute('disabled');
+      } else {
+        const finalizeReady = validateFinalizeRequirements(false).isValid;
+        if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted || hasNegativeMathError()) {
+          btnFinalizar.setAttribute('disabled', 'disabled');
+        } else {
+          btnFinalizar.removeAttribute('disabled');
+        }
       }
     }
 
@@ -1034,6 +1044,107 @@ const InformeTurno = (() => {
     }
   }
 
+  function clearInformeForGroupChange(selectedGroup) {
+    state.currentReportId = null;
+    state.currentReportStatus = '';
+    state.documentBlocked = false;
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete('id');
+    window.history.replaceState({}, '', params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname);
+
+    populateInforme({}, [], [], []);
+    setLockedTurnoValue(selectedGroup);
+
+    const btnPdf = document.getElementById('btn-descargar-pdf');
+    if (btnPdf) {
+      btnPdf.disabled = true;
+      btnPdf.title = 'Primero debes guardar los cambios';
+      btnPdf.style.cursor = 'not-allowed';
+      btnPdf.style.opacity = '0.6';
+    }
+  }
+
+  async function fetchInformeForAdminView(fecha, grupo) {
+    if (!fecha || !grupo) {
+      clearInformeForGroupChange(grupo);
+      return;
+    }
+
+    clearInformeForGroupChange(grupo);
+    await populatePersonalSelects([grupo]);
+
+    const existing = await fetchExistingInformeForShift(fecha, grupo);
+    if (existing?.id_informe) {
+      await openExistingInforme(existing.id_informe);
+      return;
+    }
+
+    applyPermissionMatrix();
+    runLiveMathEngine();
+  }
+
+  async function setupAdminGroupSelector() {
+    if (!state.isSuperAdmin) return;
+
+    const displayTurno = document.getElementById('input-turno-display');
+    if (!displayTurno) return;
+
+    let groupSelect = document.getElementById('input-grupo');
+    if (!groupSelect) {
+      groupSelect = document.createElement('select');
+      groupSelect.id = 'input-grupo';
+      groupSelect.className = 'modern-input';
+      
+      // Obtener grupos disponibles dinámicamente
+      let allGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K']; // Fallback
+      try {
+        const fechaParam = document.getElementById('input-fecha')?.value 
+          || new Date().toISOString().split('T')[0];
+        const resp = await fetch(`/api/turnos/grupos-activos?fecha=${encodeURIComponent(fechaParam)}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.grupos && Array.isArray(data.grupos)) {
+            allGroups = [...new Set(data.grupos)].sort();
+            console.log('[ADMIN_SELECTOR] Grupos disponibles para ' + fechaParam + ':', allGroups);
+          }
+        }
+      } catch (error) {
+        console.warn('[ADMIN_SELECTOR] Error obteniendo grupos dinámicos, usando fallback:', error?.message);
+      }
+      
+      allGroups.forEach((group) => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = `Grupo ${group}`;
+        groupSelect.appendChild(option);
+      });
+      displayTurno.replaceWith(groupSelect);
+    }
+
+    const initialGroup = normalizeGroupValue(
+      state.adminSelectedGroup
+      || document.getElementById('input-turno')?.value
+      || state.userGrupo
+      || 'A'
+    );
+
+    // Validar que el grupo inicial existe en las opciones disponibles
+    const availableOptions = Array.from(groupSelect.options).map(opt => opt.value);
+    groupSelect.value = availableOptions.includes(initialGroup) ? initialGroup : (availableOptions[0] || 'A');
+    state.adminSelectedGroup = groupSelect.value;
+    setLockedTurnoValue(groupSelect.value);
+
+    groupSelect.onchange = async () => {
+      const seleccionado = normalizeGroupValue(groupSelect.value) || 'A';
+      state.adminSelectedGroup = seleccionado;
+      setLockedTurnoValue(seleccionado);
+      console.log('[ADMIN_ACTION] Cambiando vista al Grupo: ' + seleccionado);
+      const fecha = document.getElementById('input-fecha')?.value || '';
+      await fetchInformeForAdminView(fecha, seleccionado);
+    };
+  }
+
   async function loadInformeFull() {
     state.adminBypass = true;
 
@@ -1043,16 +1154,26 @@ const InformeTurno = (() => {
     }
 
     applyAdminAccessVisuals();
-    await populatePersonalSelects([], { auditMode: true });
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('id')) {
-      try {
-        await loadExistingReportIfNeeded();
-      } catch (error) {
-        console.error('[INFORME] Error cargando informe existente en modo admin:', error);
-        setStatusBanner('warning', error.message || 'No se pudo cargar el informe solicitado.');
+    if (state.isSuperAdmin) {
+      await setupAdminGroupSelector();
+      const selectedGroup = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
+      state.adminSelectedGroup = selectedGroup;
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('id')) {
+        try {
+          await loadExistingReportIfNeeded();
+          setLockedTurnoValue(document.getElementById('input-turno')?.value || selectedGroup);
+        } catch (error) {
+          console.error('[INFORME] Error cargando informe existente en modo admin:', error);
+          setStatusBanner('warning', error.message || 'No se pudo cargar el informe solicitado.');
+        }
+      } else {
+        await fetchInformeForAdminView(fechaInput?.value || '', selectedGroup);
       }
+    } else {
+      await populatePersonalSelects([], { auditMode: true });
     }
 
     applyPermissionMatrix();
@@ -1545,6 +1666,10 @@ const InformeTurno = (() => {
     if (state.auditModeEnabled) {
       payload.is_audit_edit = true;
       payload.admin_rut = state.userRut || '';
+    }
+
+    if (state.isSuperAdmin && state.currentReportId) {
+      payload.forceUpdate = true;
     }
 
     const method = state.currentReportId ? 'PUT' : 'POST';
