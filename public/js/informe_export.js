@@ -188,16 +188,32 @@ function buildFolio(idInforme) {
 
 async function fetchWorkerCatalog() {
     try {
-        const response = await fetch('/api/trabajadores');
-        if (!response.ok) return new Map();
-        const workers = await response.json();
+        // Priorizar lista cargada en memoria si existe; fallback a API
+        const inMemoryWorkers = Array.isArray(window?.state?.listaTrabajadores)
+            ? window.state.listaTrabajadores
+            : null;
+
+        let workers = inMemoryWorkers;
+        if (!workers) {
+            const response = await fetch('/api/trabajadores');
+            if (!response.ok) return new Map();
+            workers = await response.json();
+        }
+
         const catalog = new Map();
         workers.forEach((worker) => {
             const rut = String(worker.RUT || worker.rut || '').trim();
             if (!rut) return;
+            const cargoReal = String(
+                worker.cargo_nombre
+                || worker.nombre_cargo
+                || worker.cargo
+                || ''
+            ).trim();
+
             catalog.set(rut, {
                 nombre: normalizeWorkerLabel(`${worker.nombres || ''} ${worker.apellido_paterno || ''} ${worker.apellido_materno || ''}`),
-                cargo: String(worker.cargo || '').trim()
+                cargo: cargoReal
             });
         });
         return catalog;
@@ -228,20 +244,12 @@ async function imageUrlToBase64(url) {
 
 async function collectPdfData() {
     const workerCatalog = await fetchWorkerCatalog();
-    const fallbackCargo = String((window.state && window.state.cargoName) || localStorage.getItem('user_cargo_name') || '').trim() || 'Operador';
 
-    const normalizeCargoLabel = (cargoValue, defaultCargo) => {
-        const raw = String(cargoValue || '').trim();
-        if (!raw) return defaultCargo;
-        const normalized = raw.toLowerCase();
-        if (normalized === 'test' || normalized === 'test2' || normalized === 'test3') return defaultCargo;
-        return raw;
-    };
-
-    const resolveCargo = (rut, defaultCargo) => {
+    const resolveCargo = (rut, nombreTrabajador) => {
         const found = workerCatalog.get(String(rut || '').trim());
-        if (found && found.cargo) return normalizeCargoLabel(found.cargo, defaultCargo);
-        return normalizeCargoLabel(defaultCargo, 'Operador');
+        const cargoReal = String(found?.cargo || '').trim() || '-';
+        console.log(`[PDF_ENGINE] Mapeando Cargo para ${nombreTrabajador || '-'}: ${cargoReal}`);
+        return cargoReal;
     };
 
     const todayDate = getInputValue('input-fecha');
@@ -252,7 +260,7 @@ async function collectPdfData() {
     const responsable = normalizeWorkerLabel(getSelectLabel('input-operador'));
 
     const personalRows = [
-        ['Responsable de Turno', formatValue(responsable), formatValue(resolveCargo(responsableRut, fallbackCargo))]
+        ['Responsable de Turno', formatValue(responsable), formatValue(resolveCargo(responsableRut, responsable))]
     ];
     for (let index = 1; index <= 5; index += 1) {
         const helperRut = getSelectValue(`input-ayudante-${index}`);
@@ -261,7 +269,7 @@ async function collectPdfData() {
             personalRows.push([
                 `Ayudante ${index}`,
                 formatValue(helperLabel),
-                formatValue(resolveCargo(helperRut, 'Ayudante'))
+                formatValue(resolveCargo(helperRut, helperLabel))
             ]);
         }
     }
