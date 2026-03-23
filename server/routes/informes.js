@@ -8,6 +8,30 @@ const path = require('path');
 const os = require('os');
 const { getWorkerShiftStatus, isWorkerOnShiftToday } = require('../helpers/shiftValidation');
 
+function createSmtpTransporter() {
+  const smtpUser = String(process.env.SMTP_USER || process.env.MAIL_USER || '').trim();
+  const smtpPassRaw = String(process.env.SMTP_PASS || process.env.MAIL_PASS || '').trim();
+  // Google App Password suele pegarse con espacios/corchetes; normalizamos ese formato.
+  const smtpPass = smtpPassRaw.replace(/[\[\]\s]/g, '');
+  const smtpPort = Number(process.env.SMTP_PORT || process.env.MAIL_PORT || 587);
+  const smtpSecure = smtpPort === 465;
+  console.log(`[MAIL_BACKEND] Validando credenciales SMTP... ${smtpUser ? 'OK' : 'FAIL'}.`);
+
+  if (!smtpUser || !smtpPass) {
+    throw new Error('Credenciales SMTP no configuradas. Define SMTP_USER/SMTP_PASS o MAIL_USER/MAIL_PASS.');
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || process.env.MAIL_HOST || 'smtp.ethereal.email',
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass
+    }
+  });
+}
+
 // Control de doble envío (Rate Limiting en memoria)
 const recentRequests = new Map();
 
@@ -916,14 +940,7 @@ router.post('/informes/enviar-email', async (req, res) => {
     fs.writeFileSync(tempPdfPath, pdfBuffer);
 
     // 3. Envío de Correo (Nodemailer)
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    const transporter = createSmtpTransporter();
 
     const subject = `Informe de Turno - Basalto Drilling - ${fechaFormateada} - Grupo ${turnoGrupo}`;
     
@@ -1009,14 +1026,7 @@ router.post('/informes/enviar-pdf', async (req, res) => {
     browser = null; // Mark as closed
 
     // 3. Enviar Correo con Nodemailer
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    const transporter = createSmtpTransporter();
 
     const subject = `Informe de Turno N° ${numeroInforme} - ${fechaFormateada}`;
     
@@ -1167,14 +1177,7 @@ router.post('/mail/enviar-informe', async (req, res) => {
 
     const pdfBuffer = Buffer.from(base64Limpio, 'base64');
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    const transporter = createSmtpTransporter();
 
     const asunto = `Informe de Turno - ${fechaFormateada} - Grupo ${grupo}`;
     await transporter.sendMail({

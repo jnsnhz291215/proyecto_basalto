@@ -186,6 +186,85 @@ function buildFolio(idInforme) {
     return `I-${String(safe).padStart(3, '0')}`;
 }
 
+function normalizeJornadaLabel(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const normalized = raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    if (normalized.includes('noche')) return 'Noche';
+    if (normalized.includes('dia')) return 'Dia';
+    return raw;
+}
+
+function extractGroupCode(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'SG';
+    const match = text.match(/grupo\s*([a-z0-9]+)/i);
+    if (match && match[1]) return match[1].toUpperCase();
+    return text.replace(/\s+/g, '').toUpperCase();
+}
+
+function toDateDash(isoDate) {
+    const text = String(isoDate || '').trim();
+    const parts = text.split('-');
+    if (parts.length !== 3) return text || 'S/F';
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
+function toDateUnderscore(isoDate) {
+    const text = String(isoDate || '').trim();
+    const parts = text.split('-');
+    if (parts.length !== 3) return String(text || 'S_F').replace(/[^a-zA-Z0-9]+/g, '_');
+    return `${parts[2]}_${parts[1]}_${parts[0]}`;
+}
+
+async function fetchInformeHeaderById(idInforme) {
+    try {
+        const res = await fetch(`/api/informes/${idInforme}`);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (_error) {
+        return null;
+    }
+}
+
+function resolveJornadaFromReportData(reportData) {
+    const inputJornada = normalizeJornadaLabel(getInputValue('input-jornada'));
+    if (inputJornada) {
+        console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${inputJornada}.`);
+        return inputJornada;
+    }
+
+    const dbCandidates = [
+        reportData?.jornada,
+        reportData?.turno_jornada,
+        reportData?.jornada_turno,
+        reportData?.tipo_turno,
+        reportData?.turno_tipo
+    ];
+    for (const candidate of dbCandidates) {
+        const value = normalizeJornadaLabel(candidate);
+        if (value) {
+            console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${value}.`);
+            return value;
+        }
+    }
+
+    const turnoDisplay = String(getInputValue('input-turno-display') || '').trim();
+    const turnoValue = String(getInputValue('input-turno') || reportData?.turno || '').trim();
+    const displayCandidate = normalizeJornadaLabel(`${turnoDisplay} ${turnoValue}`);
+    if (displayCandidate === 'Dia' || displayCandidate === 'Noche') {
+        console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${displayCandidate}.`);
+        return displayCandidate;
+    }
+
+    const fallback = 'SinJornada';
+    console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${fallback}.`);
+    return fallback;
+}
+
 async function fetchWorkerCatalog() {
     try {
         // Priorizar lista cargada en memoria si existe; fallback a API
@@ -253,7 +332,7 @@ async function collectPdfData() {
     };
 
     const todayDate = getInputValue('input-fecha');
-    const grupo = getInputValue('input-turno') || getInputValue('input-turno-display');
+    const grupo = getInputValue('input-turno') || getInputValue('input-grupo') || getInputValue('input-turno-display');
     const faena = getInputValue('input-faena');
     const equipo = getInputValue('input-equipo');
     const responsableRut = getSelectValue('input-operador');
@@ -397,10 +476,11 @@ async function exportarInformeAPDF(idInforme, options = {}) {
             datos
            } = await collectPdfData();
 
-            // CORRECCIÓN: Obtener fecha y grupo con fallback seguro
-            let todayDate = document.getElementById('input-fecha')?.value || new Date().toISOString().split('T')[0];
-            let grupo = document.getElementById('input-turno')?.value || document.getElementById('input-grupo')?.value || 'SG';
-            console.log(`[PDF_ENGINE] Error de referencia corregido. Usando fecha: ${todayDate}, grupo: ${grupo}`);
+        const reportData = await fetchInformeHeaderById(idInforme);
+        const todayDate = getInputValue('input-fecha') || String(reportData?.fecha || '').split('T')[0] || '';
+        const grupoRaw = getInputValue('input-turno') || getInputValue('input-grupo') || reportData?.turno || encabezado.grupo;
+        const grupoCodigo = extractGroupCode(grupoRaw);
+        const jornada = resolveJornadaFromReportData(reportData || {});
 
         const folio = buildFolio(idInforme);
 
@@ -418,6 +498,10 @@ async function exportarInformeAPDF(idInforme, options = {}) {
         pdf.setFontSize(14);
         pdf.text(folio, 198, 14, { align: 'right' });
         pdf.setTextColor(0, 0, 0);
+        const metadatosLinea = `${toDateDash(todayDate)} - Grupo ${grupoCodigo} - ${jornada}`;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(metadatosLinea, 198, 19, { align: 'right' });
         cursorY = 34;
 
         pdf.setFont('helvetica', 'bold');
@@ -582,34 +666,10 @@ async function exportarInformeAPDF(idInforme, options = {}) {
         pdf.text('Firma Responsable de Turno', leftX + (boxWidth / 2), cursorY + 22, { align: 'center' });
         pdf.text('Firma Supervisor / Cliente', rightX + (boxWidth / 2), cursorY + 22, { align: 'center' });
 
-        // ===== DETERMINAR JORNADA =====
-        // 1. Intentar usar input-jornada si existe
-        let jornada = String(document.getElementById('input-jornada')?.value || '').trim().toUpperCase();
-        
-        // 2. Si no hay dato, calcular por hora actual
-        if (!jornada || jornada === 'NINGUNO' || jornada === '-') {
-          const now = new Date();
-          const horaActual = now.getHours();
-          const minutosActual = now.getMinutes();
-          const minutosTotales = horaActual * 60 + minutosActual;
-          // Día: 08:00-20:00 (inclusive), Noche: resto
-          jornada = (minutosTotales >= 8 * 60 && minutosTotales <= 20 * 60) ? 'Dia' : 'Noche';
-          console.log(`[PDF_ENGINE] Jornada calculada por hora: ${jornada} (${horaActual}:${String(minutosActual).padStart(2, '0')})`);
-        } else {
-          console.log(`[PDF_ENGINE] Jornada desde input: ${jornada}`);
-        }
-
-        // ===== TRANSFORMAR FECHA A FORMATO DD_MM_AAAA =====
-                let fechaFormato = todayDate || new Date().toISOString().split('T')[0]; // Ej: "2026-03-23"
-        const fechaParts = fechaFormato.split('-'); // Ej: ["2026", "03", "23"]
-        if (fechaParts.length === 3) {
-          // Reordenar: [AAAA, MM, DD] -> [DD, MM, AAAA]
-          fechaFormato = `${fechaParts[2]}_${fechaParts[1]}_${fechaParts[0]}`; // Ej: "23_03_2026"
-        }
-        
-        // ===== CONSTRUIR NOMBRE DE ARCHIVO =====
-                const grupoLimpio = String(grupo || 'SG').trim().replace(/\s+/g, '');
-                const nombreArchivo = `Informe_Turno_Grupo_${grupoLimpio}_${jornada}_${fechaFormato}.pdf`;
+                // ===== CONSTRUIR NOMBRE DE ARCHIVO (JORNADA REAL DEL INFORME) =====
+                const fechaFormato = toDateUnderscore(todayDate);
+                const jornadaArchivo = String(jornada || 'SinJornada').replace(/\s+/g, '');
+                const nombreArchivo = `Informe_Turno_Grupo_${grupoCodigo}_${jornadaArchivo}_${fechaFormato}.pdf`;
         
         if (saveFile) {
             pdf.save(nombreArchivo);
