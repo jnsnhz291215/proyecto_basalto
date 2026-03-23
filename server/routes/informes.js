@@ -1067,6 +1067,7 @@ router.post('/mail/enviar-informe', async (req, res) => {
     }
 
     console.log(`[MAIL_SYSTEM] Enviando PDF de tamaño: ${Math.round(String(pdf_base64).length / 1024)} KB.`);
+    console.log(`[MAIL_BACKEND] Payload recibido: ${Math.round(String(pdf_base64).length / 1024)} KB.`);
 
     const rutLimpio = limpiarRUT(sessionRut || rut_solicitante);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1079,11 +1080,31 @@ router.post('/mail/enviar-informe', async (req, res) => {
       [rutLimpio]
     );
 
-    if (!destRows || destRows.length === 0) {
+    const encontrado = destRows && destRows.length > 0;
+    console.log(`[MAIL_BACKEND] Buscando correo para RUT: ${rutLimpio}. Resultado: ${encontrado ? 'OK' : 'Bypass Admin'}.`);
+
+    let emailDb = '';
+    if (encontrado) {
+      emailDb = String(destRows[0].email || '').trim();
+    } else if (sessionIsSuperAdmin) {
+      // Super Admin puede no estar en trabajadores; usar email de sesión o admin_users
+      emailDb = String(req.session?.userEmail || '').trim();
+      if (!emailDb || !emailRegex.test(emailDb)) {
+        const [adminEmailRows] = await pool.execute(
+          `SELECT email FROM admin_users
+           WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
+           AND activo = 1 LIMIT 1`,
+          [rutLimpio]
+        );
+        emailDb = adminEmailRows && adminEmailRows.length > 0
+          ? String(adminEmailRows[0].email || '').trim()
+          : '';
+      }
+      console.log(`[MAIL_BACKEND] Correo de Super Admin resuelto desde session/admin_users: ${emailDb || 'NO ENCONTRADO'}.`);
+    } else {
       return res.status(404).json({ error: 'No se encontró trabajador para el RUT de sesión' });
     }
 
-    const emailDb = String(destRows[0].email || '').trim();
     if (!emailDb || !emailRegex.test(emailDb)) {
       return res.status(400).json({ error: 'El correo del usuario en DB es inválido o está vacío' });
     }

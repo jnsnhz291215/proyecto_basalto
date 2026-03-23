@@ -2084,6 +2084,8 @@ const InformeTurno = (() => {
 
             showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${destinatario}`, false);
           } catch (err) {
+            if (btnEnviarMain) btnEnviarMain.classList.remove('btn-loading');
+            console.error('[MAIL_SYSTEM] Error en envío. Spinner reseteado.', err.message);
             showErrorModal(err.message || 'Error al enviar el correo.');
           } finally {
             if (btnEnviarMain) btnEnviarMain.classList.remove('btn-loading');
