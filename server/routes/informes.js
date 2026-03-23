@@ -1058,7 +1058,7 @@ router.post('/informes/enviar-pdf', async (req, res) => {
 // ============================================
 router.post('/mail/enviar-informe', async (req, res) => {
   try {
-    const { id_informe, rut_solicitante, email_adicional, pdf_base64, nombre_archivo } = req.body || {};
+    const { id_informe, rut_solicitante, destinatario, pdf_base64, nombre_archivo } = req.body || {};
     const sessionIsSuperAdmin = Boolean(req.session?.isSuperAdmin);
     const sessionRut = req.session?.userRut || req.session?.rut || null;
 
@@ -1097,15 +1097,19 @@ router.post('/mail/enviar-informe', async (req, res) => {
     const isSuperAdmin = sessionIsSuperAdmin || isSuperAdminByDb;
 
     let destinatarioFinal = emailDb;
-    const adicional = String(email_adicional || '').trim();
-    if (sessionIsSuperAdmin) {
-      destinatarioFinal = emailDb;
-      console.log('[MAIL_SYSTEM] Bypass de validación activado para Super Admin.');
-    } else if (!isSuperAdmin && adicional) {
-      if (!emailRegex.test(adicional)) {
-        return res.status(400).json({ error: 'Correo adicional inválido' });
+    const destinatarioFrontend = String(destinatario || '').trim();
+    if (sessionIsSuperAdmin || isSuperAdmin) {
+      if (destinatarioFrontend && emailRegex.test(destinatarioFrontend)) {
+        destinatarioFinal = destinatarioFrontend;
+      } else {
+        destinatarioFinal = emailDb;
       }
-      destinatarioFinal = `${emailDb}, ${adicional}`;
+      console.log('[MAIL_SYSTEM] Bypass de validación activado para Super Admin.');
+    } else if (destinatarioFrontend) {
+      if (!emailRegex.test(destinatarioFrontend)) {
+        return res.status(400).json({ error: 'Correo destinatario inválido' });
+      }
+      destinatarioFinal = destinatarioFrontend;
     }
 
     console.log(`[MAIL_SYSTEM] Usando correo oficial de DB para envío: ${emailDb}.`);
@@ -1122,7 +1126,7 @@ router.post('/mail/enviar-informe', async (req, res) => {
     }
 
     const informe = rows[0];
-    if (!estadoFueCerrado(informe.estado)) {
+    if (!(sessionIsSuperAdmin || isSuperAdmin) && !estadoFueCerrado(informe.estado)) {
       return res.status(403).json({ error: 'No se puede enviar por correo un informe no cerrado' });
     }
 
