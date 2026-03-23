@@ -1059,12 +1059,14 @@ router.post('/informes/enviar-pdf', async (req, res) => {
 router.post('/mail/enviar-informe', async (req, res) => {
   try {
     const { id_informe, rut_solicitante, email_adicional, pdf_base64, nombre_archivo } = req.body || {};
+    const sessionIsSuperAdmin = Boolean(req.session?.isSuperAdmin);
+    const sessionRut = req.session?.userRut || req.session?.rut || null;
 
-    if (!id_informe || !rut_solicitante || !pdf_base64) {
+    if (!id_informe || !pdf_base64 || (!rut_solicitante && !sessionRut)) {
       return res.status(400).json({ error: 'Se requiere id_informe, rut_solicitante y pdf_base64' });
     }
 
-    const rutLimpio = limpiarRUT(rut_solicitante);
+    const rutLimpio = limpiarRUT(sessionRut || rut_solicitante);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const [destRows] = await pool.execute(
@@ -1091,11 +1093,15 @@ router.post('/mail/enviar-informe', async (req, res) => {
        LIMIT 1`,
       [rutLimpio]
     );
-    const isSuperAdmin = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1 && Number(adminRows[0].es_super_admin) === 1);
+    const isSuperAdminByDb = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1 && Number(adminRows[0].es_super_admin) === 1);
+    const isSuperAdmin = sessionIsSuperAdmin || isSuperAdminByDb;
 
     let destinatarioFinal = emailDb;
     const adicional = String(email_adicional || '').trim();
-    if (!isSuperAdmin && adicional) {
+    if (sessionIsSuperAdmin) {
+      destinatarioFinal = emailDb;
+      console.log('[MAIL_SYSTEM] Bypass de validación activado para Super Admin.');
+    } else if (!isSuperAdmin && adicional) {
       if (!emailRegex.test(adicional)) {
         return res.status(400).json({ error: 'Correo adicional inválido' });
       }

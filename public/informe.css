@@ -764,3 +764,11 @@ border: 1px solid transparent;
 .shift-badge--rest     { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
 .shift-badge--upcoming { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 .shift-badge--unknown  { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+
+/* Alertas y validaciones por encima de modales de proceso/correo */
+.modal-error,
+.modal-validation,
+#modal-error,
+#modal-validation {
+	z-index: 2600 !important;
+}

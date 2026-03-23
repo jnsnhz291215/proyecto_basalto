@@ -2043,11 +2043,13 @@ const InformeTurno = (() => {
             if (errorCorreo) errorCorreo.style.display = 'none';
 
             if (!myEmail || !emailRegex.test(myEmail)) {
+              closeCorreoModal();
               showErrorModal('No se encontró un correo válido en tu sesión. Vuelve a iniciar sesión para sincronizar datos.');
               return;
             }
 
             if (!state.currentReportId) {
+              closeCorreoModal();
               showErrorModal('Debes guardar el informe antes de enviarlo por correo.');
               return;
             }
@@ -2087,6 +2089,7 @@ const InformeTurno = (() => {
               closeCorreoModal();
               showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${myEmail}`, false);
             } catch (err) {
+              closeCorreoModal();
               showErrorModal(err.message || 'Error al enviar el correo.');
             } finally {
               btnConfirmCorreo.disabled = false;
@@ -2100,6 +2103,7 @@ const InformeTurno = (() => {
 
         if (inputCorreoAdicional) inputCorreoAdicional.value = '';
         if (errorCorreo) errorCorreo.style.display = 'none';
+        console.log('[UI_DEBUG] Ajustando z-index de alertas para visibilidad superior.');
         modalCorreo.style.display = 'flex';
         if (window.bloquearScroll) window.bloquearScroll();
       });
