@@ -2558,6 +2558,7 @@ const InformeTurno = (() => {
 })();
 
 window.abrirPestaña = InformeTurno.abrirPestaña;
+window.abrirPestana = InformeTurno.abrirPestaña;
 document.addEventListener('DOMContentLoaded', () => {
   InformeTurno.init().catch((error) => {
     console.error('[INFORME] Error inicializando la vista:', error);

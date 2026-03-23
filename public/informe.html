@@ -1,17 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Informe de Turno</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="informe.css">
+    <link rel="stylesheet" href="css/informe.css">
     <script src="js/navbar_core.js"></script>
     <script src="js/common.js"></script>
     <script src="js/route-guard.js"></script>
-    <script src="auth_guard.js"></script>
-    <script src="navbar.js"></script>
+    <script src="js/auth_guard.js"></script>
+    <script src="js/navbar.js"></script>
 </head>
 <body>
   <div id="shared-menu-placeholder"></div>
@@ -113,16 +113,16 @@
 
         <!-- TABS NAVIGATION -->
         <div class="tabs-header">
-            <button id="btn-tab-antecedentes" class="tab-btn active" data-section-tab="antecedentes" onclick="abrirPestaña(event, 'tab-antecedentes')">
+            <button id="btn-tab-antecedentes" class="tab-btn active" data-section-tab="antecedentes" onclick="abrirPestana(event, 'tab-antecedentes')">
                 <i class="fa-solid fa-file-lines"></i> Antecedentes
             </button>
-            <button id="btn-tab-operacion" class="tab-btn" data-section-tab="operacion" onclick="abrirPestaña(event, 'tab-operacion')">
+            <button id="btn-tab-operacion" class="tab-btn" data-section-tab="operacion" onclick="abrirPestana(event, 'tab-operacion')">
                 <i class="fa-solid fa-gears"></i> Operación
             </button>
-            <button id="btn-tab-materiales" class="tab-btn" data-section-tab="materiales" onclick="abrirPestaña(event, 'tab-materiales')">
+            <button id="btn-tab-materiales" class="tab-btn" data-section-tab="materiales" onclick="abrirPestana(event, 'tab-materiales')">
                 <i class="fa-solid fa-boxes"></i> Materiales
             </button>
-            <button id="btn-tab-cierre" class="tab-btn" data-section-tab="cierre" onclick="abrirPestaña(event, 'tab-cierre')">
+            <button id="btn-tab-cierre" class="tab-btn" data-section-tab="cierre" onclick="abrirPestana(event, 'tab-cierre')">
                 <i class="fa-solid fa-square-check"></i> Cierre
             </button>
         </div>
@@ -344,7 +344,7 @@
                 <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Descargar PDF
             </button>
             <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
-                🔓 Re-abrir para el Operador
+                Re-abrir para el Operador
             </button>
             <button id="btn-guardar-borrador" class="btn btn-secondary-outline" type="button">
                 <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
@@ -376,7 +376,7 @@
       </div>
   </div>
 
-  <!-- MODAL: Éxito (Borrador/Finalizar) -->
+    <!-- MODAL: Éxito (Borrador/Finalizar) -->
   <div id="modal-success" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2200; align-items: center; justify-content: center;">
       <div class="modal-content" style="background: white; padding: 32px 24px; border-radius: 12px; max-width: 350px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
           <div style="width: 64px; height: 64px; background: #d1fae5; color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
@@ -453,7 +453,8 @@
       </div>
   </div>
 
-  <script src="informe.js"></script>
+  <script src="js/informe.js"></script>
   <script src="js/informe_export.js"></script>
 </body>
 </html>
+
