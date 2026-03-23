@@ -158,9 +158,14 @@ function getSelectValue(id) {
     return String(select.value || '').trim();
 }
 
-function normalizeCellValue(value) {
-    const text = String(value || '').trim();
+function formatValue(val) {
+    if (val === null || val === undefined) return '-';
+    const text = String(val).trim();
     return text || '-';
+}
+
+function normalizeCellValue(value) {
+    return formatValue(value);
 }
 
 function normalizeWorkerLabel(value) {
@@ -172,7 +177,7 @@ function normalizeWorkerLabel(value) {
 }
 
 function rowValuesByNames(row, names) {
-    return names.map((name) => normalizeCellValue(row.querySelector(`[name="${name}"]`)?.value || ''));
+    return names.map((name) => formatValue(row.querySelector(`[name="${name}"]`)?.value || ''));
 }
 
 function buildFolio(idInforme) {
@@ -225,10 +230,18 @@ async function collectPdfData() {
     const workerCatalog = await fetchWorkerCatalog();
     const fallbackCargo = String((window.state && window.state.cargoName) || localStorage.getItem('user_cargo_name') || '').trim() || 'Operador';
 
+    const normalizeCargoLabel = (cargoValue, defaultCargo) => {
+        const raw = String(cargoValue || '').trim();
+        if (!raw) return defaultCargo;
+        const normalized = raw.toLowerCase();
+        if (normalized === 'test' || normalized === 'test2' || normalized === 'test3') return defaultCargo;
+        return raw;
+    };
+
     const resolveCargo = (rut, defaultCargo) => {
         const found = workerCatalog.get(String(rut || '').trim());
-        if (found && found.cargo) return found.cargo;
-        return defaultCargo;
+        if (found && found.cargo) return normalizeCargoLabel(found.cargo, defaultCargo);
+        return normalizeCargoLabel(defaultCargo, 'Operador');
     };
 
     const todayDate = getInputValue('input-fecha');
@@ -239,23 +252,57 @@ async function collectPdfData() {
     const responsable = normalizeWorkerLabel(getSelectLabel('input-operador'));
 
     const personalRows = [
-        ['Responsable de Turno', normalizeCellValue(responsable), normalizeCellValue(resolveCargo(responsableRut, fallbackCargo))]
+        ['Responsable de Turno', formatValue(responsable), formatValue(resolveCargo(responsableRut, fallbackCargo))]
     ];
     for (let index = 1; index <= 5; index += 1) {
         const helperRut = getSelectValue(`input-ayudante-${index}`);
         const helperLabel = normalizeWorkerLabel(getSelectLabel(`input-ayudante-${index}`));
-        if (helperLabel && helperLabel !== '— Ninguno —') {
+        if (helperRut && helperLabel !== '— Ninguno —' && helperLabel !== '-' && helperRut !== responsableRut) {
             personalRows.push([
                 `Ayudante ${index}`,
-                normalizeCellValue(helperLabel),
-                normalizeCellValue(resolveCargo(helperRut, 'Ayudante'))
+                formatValue(helperLabel),
+                formatValue(resolveCargo(helperRut, 'Ayudante'))
             ]);
         }
     }
 
-    const perforacionRows = Array.from(document.querySelectorAll('#tabla-perforacion tr')).map((row) =>
-        rowValuesByNames(row, ['perf_desde[]', 'perf_hasta[]', 'perf_metros[]', 'perf_recuper[]', 'perf_tipo[]', 'perf_dureza[]'])
-    ).filter((row) => row.some((cell) => cell !== '-'));
+    const perforacionRowsRaw = Array.from(document.querySelectorAll('#tabla-perforacion tr')).map((row) => {
+        const desdeRaw = row.querySelector('[name="perf_desde[]"]')?.value || '';
+        const hastaRaw = row.querySelector('[name="perf_hasta[]"]')?.value || '';
+        const recuperRaw = row.querySelector('[name="perf_recuper[]"]')?.value || '';
+        const tipoRaw = row.querySelector('[name="perf_tipo[]"]')?.value || '';
+        const durezaRaw = row.querySelector('[name="perf_dureza[]"]')?.value || '';
+
+        const desdeNum = Number(desdeRaw);
+        const hastaNum = Number(hastaRaw);
+        const mtsPerf = Number.isFinite(desdeNum) && Number.isFinite(hastaNum)
+            ? Number((hastaNum - desdeNum).toFixed(2))
+            : null;
+
+        return {
+            desde: formatValue(desdeRaw),
+            hasta: formatValue(hastaRaw),
+            mtsPerf,
+            recuperacion: formatValue(recuperRaw),
+            tipoRoca: formatValue(tipoRaw),
+            dureza: formatValue(durezaRaw)
+        };
+    });
+
+    const perforacionRows = perforacionRowsRaw
+        .map((row) => [
+            row.desde,
+            row.hasta,
+            formatValue(row.mtsPerf),
+            row.recuperacion,
+            row.tipoRoca,
+            row.dureza
+        ])
+        .filter((row) => row.some((cell) => cell !== '-'));
+
+    const totalMtsPerforados = perforacionRowsRaw.reduce((acc, row) => (
+        Number.isFinite(row.mtsPerf) ? acc + row.mtsPerf : acc
+    ), 0);
 
     const actividadRows = Array.from(document.querySelectorAll('#lista-actividades tr')).map((row) =>
         rowValuesByNames(row, ['hora_desde[]', 'hora_hasta[]', 'detalle[]', 'hrs_bd[]', 'hrs_cliente[]'])
@@ -266,10 +313,10 @@ async function collectPdfData() {
     const observaciones = getInputValue('notas-observaciones');
 
     const consumiblesRows = [
-        ['Petroleo (Gal)', normalizeCellValue(getInputValue('input-petroleo'))],
-        ['Aceites (Ltr)', normalizeCellValue(getInputValue('input-aceites'))],
-        ['Lubricantes (Ltr)', normalizeCellValue(getInputValue('input-lubricantes'))],
-        ['Aditivos / Otros (Kg)', normalizeCellValue(getInputValue('input-otros'))]
+        ['Petroleo (Gal)', formatValue(getInputValue('input-petroleo'))],
+        ['Aceites (Ltr)', formatValue(getInputValue('input-aceites'))],
+        ['Lubricantes (Ltr)', formatValue(getInputValue('input-lubricantes'))],
+        ['Aditivos / Otros (Kg)', formatValue(getInputValue('input-otros'))]
     ];
 
     const herramientasRows = Array.from(document.querySelectorAll('#tabla-herramientas tr')).map((row) =>
@@ -294,21 +341,21 @@ async function collectPdfData() {
 
     return {
         encabezado: {
-            fecha: normalizeCellValue(todayDate),
-            grupo: normalizeCellValue(grupo),
-            faena: normalizeCellValue(faena),
-            equipo: normalizeCellValue(equipo),
-            responsable: normalizeCellValue(responsable)
+            fecha: formatValue(todayDate),
+            grupo: formatValue(grupo),
+            faena: formatValue(faena),
+            equipo: formatValue(equipo),
+            responsable: formatValue(responsable)
         },
         personalRows,
         perforacionRows,
         actividadRows,
         consumiblesRows,
         herramientasRows,
-        observaciones: normalizeCellValue(observaciones),
+        observaciones: formatValue(observaciones),
         calculos: {
-            hrsHorometro: normalizeCellValue(hrsHorometro),
-            mtsPerforados: normalizeCellValue(mtsPerforados)
+            hrsHorometro: formatValue(hrsHorometro),
+            mtsPerforados: formatValue(totalMtsPerforados > 0 ? totalMtsPerforados.toFixed(2) : '0.00')
         },
         datos
     };
@@ -351,7 +398,7 @@ async function exportarInformeAPDF(idInforme) {
         pdf.text('Reporte Diario de Operaciones', 105, 18, { align: 'center' });
         pdf.setTextColor(220, 38, 38);
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(13);
+        pdf.setFontSize(14);
         pdf.text(folio, 198, 14, { align: 'right' });
         pdf.setTextColor(0, 0, 0);
         cursorY = 34;
@@ -372,7 +419,7 @@ async function exportarInformeAPDF(idInforme) {
                 encabezado.responsable
             ]],
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            styles: { fontSize: 9, cellPadding: 2.5, halign: 'center' },
             headStyles: { fillColor: [31, 41, 55], textColor: 255 }
         });
 
@@ -386,7 +433,7 @@ async function exportarInformeAPDF(idInforme) {
             head: [['Rol', 'Trabajador', 'Cargo']],
             body: personalRows.length ? personalRows : [['Responsable de Turno', '-', '-']],
             theme: 'striped',
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            styles: { fontSize: 9, cellPadding: 2.5, halign: 'center' },
             headStyles: { fillColor: [249, 115, 22], textColor: 255 }
         });
 
@@ -395,22 +442,32 @@ async function exportarInformeAPDF(idInforme) {
         pdf.setFontSize(12);
         pdf.text('3. Operación', 14, cursorY);
 
+        cursorY += 6;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('3.1 Perforación', 14, cursorY);
+
         pdf.autoTable({
             startY: cursorY + 2,
             head: [['Desde', 'Hasta', 'Mts Perf', 'Recuperacion %', 'Tipo Roca', 'Dureza']],
             body: perforacionRows.length ? perforacionRows : [['-', '-', '-', '-', '-', '-']],
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            styles: { fontSize: 9, cellPadding: 2.5, halign: 'center' },
             headStyles: { fillColor: [75, 85, 99], textColor: 255 }
         });
 
         cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('3.2 Descripción Actividades Realizadas', 14, cursorY);
+
         pdf.autoTable({
-            startY: cursorY,
+            startY: cursorY + 2,
             head: [['Desde', 'Hasta', 'Detalle', 'Hrs BD', 'Hrs Cliente']],
             body: actividadRows.length ? actividadRows : [['-', '-', '-', '-', '-']],
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            styles: { fontSize: 9, cellPadding: 2.5, halign: 'center' },
+            columnStyles: { 2: { halign: 'left' } },
             headStyles: { fillColor: [75, 85, 99], textColor: 255 }
         });
 
@@ -419,26 +476,43 @@ async function exportarInformeAPDF(idInforme) {
         pdf.setFontSize(12);
         pdf.text('4. Materiales', 14, cursorY);
 
+        cursorY += 6;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('4.1 Consumibles', 14, cursorY);
+
         pdf.autoTable({
             startY: cursorY + 2,
             head: [['Consumible', 'Cantidad']],
             body: consumiblesRows.length ? consumiblesRows : [['-', '-']],
             theme: 'grid',
-            styles: { fontSize: 10, cellPadding: 3 },
+            styles: { fontSize: 10, cellPadding: 3, halign: 'center' },
             headStyles: { fillColor: [31, 41, 55], textColor: 255 }
         });
 
         cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('4.2 Herramientas de Perforación', 14, cursorY);
+
         pdf.autoTable({
-            startY: cursorY,
+            startY: cursorY + 2,
             head: [['Tipo Elemento', 'Diametro', 'N Serie', 'Desde (m)', 'Hasta (m)', 'Detalle']],
             body: herramientasRows.length ? herramientasRows : [['-', '-', '-', '-', '-', '-']],
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            styles: { fontSize: 9, cellPadding: 2.5, halign: 'center' },
+            columnStyles: { 5: { halign: 'left' } },
             headStyles: { fillColor: [75, 85, 99], textColor: 255 }
         });
 
         cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
+        const pageHeightForCalc = pdf.internal.pageSize.getHeight();
+        const minCalcBlockHeight = 42;
+        if (cursorY + minCalcBlockHeight > pageHeightForCalc - 14) {
+            pdf.addPage();
+            cursorY = 20;
+        }
+
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(12);
         pdf.text('5. Cierre y Firmas', 14, cursorY);
@@ -448,7 +522,7 @@ async function exportarInformeAPDF(idInforme) {
             head: [['Total Horas Horómetro', 'Total Metros Perforados']],
             body: [[calculos.hrsHorometro, calculos.mtsPerforados]],
             theme: 'grid',
-            styles: { fontSize: 10, cellPadding: 3 },
+            styles: { fontSize: 10, cellPadding: 3, halign: 'center' },
             headStyles: { fillColor: [31, 41, 55], textColor: 255 }
         });
 
@@ -458,7 +532,7 @@ async function exportarInformeAPDF(idInforme) {
             head: [['Notas / Observaciones']],
             body: [[observaciones]],
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 3, minCellHeight: 20, valign: 'top' },
+            styles: { fontSize: 9, cellPadding: 3, minCellHeight: 20, valign: 'top', halign: 'left' },
             headStyles: { fillColor: [75, 85, 99], textColor: 255 }
         });
 
