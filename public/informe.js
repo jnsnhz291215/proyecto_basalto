@@ -1256,6 +1256,52 @@ const InformeTurno = (() => {
     applyAdminAccessVisuals();
 
     if (state.isSuperAdmin) {
+      // --- Desbloquear input de fecha para navegación histórica ---
+      if (fechaInput) {
+        fechaInput.removeAttribute('readonly');
+        fechaInput.removeAttribute('disabled');
+        fechaInput.removeAttribute('max');
+        fechaInput.removeAttribute('aria-readonly');
+        fechaInput.classList.remove('input-readonly');
+        console.log('[ADMIN_NAVIGATION] Calendario desbloqueado para Super Admin.');
+
+        // Flechas de navegación
+        const btnPrev = document.getElementById('btn-fecha-prev');
+        const btnNext = document.getElementById('btn-fecha-next');
+        if (btnPrev) btnPrev.style.display = 'flex';
+        if (btnNext) btnNext.style.display = 'flex';
+
+        const navigateFecha = async (deltaDays) => {
+          const current = fechaInput.value ? new Date(fechaInput.value + 'T12:00:00') : new Date();
+          current.setDate(current.getDate() + deltaDays);
+          fechaInput.value = current.toISOString().split('T')[0];
+          const grupoNav = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
+          console.log(`[ADMIN_NAVIGATION] Buscando registros para la fecha: ${fechaInput.value}.`);
+          await fetchInformeForAdminView(fechaInput.value, grupoNav);
+        };
+
+        if (btnPrev && !btnPrev.dataset.navReady) {
+          btnPrev.dataset.navReady = '1';
+          btnPrev.addEventListener('click', () => navigateFecha(-1));
+        }
+        if (btnNext && !btnNext.dataset.navReady) {
+          btnNext.dataset.navReady = '1';
+          btnNext.addEventListener('click', () => navigateFecha(1));
+        }
+
+        // onchange para saltar directo a una fecha del calendario
+        if (!fechaInput.dataset.navChangeReady) {
+          fechaInput.dataset.navChangeReady = '1';
+          fechaInput.addEventListener('change', async () => {
+            const nuevaFecha = fechaInput.value;
+            if (!nuevaFecha) return;
+            const grupoActual = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
+            console.log(`[ADMIN_NAVIGATION] Buscando registros para la fecha: ${nuevaFecha}.`);
+            await fetchInformeForAdminView(nuevaFecha, grupoActual);
+          });
+        }
+      }
+
       await setupAdminGroupSelector();
       const selectedGroup = normalizeGroupValue(state.adminSelectedGroup || document.getElementById('input-grupo')?.value || 'A');
       state.adminSelectedGroup = selectedGroup;

@@ -164,6 +164,38 @@ body {
 	color: #374151;
 }
 
+/* Date navigation wrapper */
+.date-nav-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.date-nav-wrapper #input-fecha {
+	flex: 1;
+	min-width: 0;
+}
+.date-nav-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid #bfdbfe;
+	border-radius: 6px;
+	background: #eaf2ff;
+	color: #1d4ed8;
+	font-size: 1.2rem;
+	line-height: 1;
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: background 0.15s, border-color 0.15s;
+}
+.date-nav-btn:hover {
+	background: #dbeafe;
+	border-color: #93c5fd;
+}
+
 .input-group input, .input-group select, .input-group textarea {
 	padding: 8px 12px; /* Reduced padding */
 	border: 1px solid #d1d5db;

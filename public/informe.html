@@ -81,7 +81,11 @@
             <div class="header-fields-grid" data-section-panel="antecedentes">
                 <div class="input-group">
                     <label>Fecha del Informe</label>
-                    <input type="date" id="input-fecha" class="modern-input input-readonly" readonly aria-readonly="true">
+                    <div class="date-nav-wrapper">
+                        <button type="button" id="btn-fecha-prev" class="date-nav-btn" title="Día anterior" style="display:none;">&#8249;</button>
+                        <input type="date" id="input-fecha" class="modern-input input-readonly" readonly aria-readonly="true">
+                        <button type="button" id="btn-fecha-next" class="date-nav-btn" title="Día siguiente" style="display:none;">&#8250;</button>
+                    </div>
                 </div>
                 <div class="input-group">
                     <label>Grupo / Turno asignado</label>
