@@ -699,7 +699,10 @@ const InformeTurno = (() => {
     }
 
     if (btnEnviarCorreo) {
-      if (normalizeStatus(state.currentReportStatus) === 'finalizado' || normalizeStatus(state.currentReportStatus) === 'cerrado' || normalizeStatus(state.currentReportStatus) === 'validado') {
+      if (state.isSuperAdmin) {
+        document.getElementById('btn-enviar-correo').style.display = 'inline-block';
+        console.log('[UI_DEBUG] Botón de envío verificado. Estado: Visible.');
+      } else if (normalizeStatus(state.currentReportStatus) === 'finalizado' || normalizeStatus(state.currentReportStatus) === 'cerrado' || normalizeStatus(state.currentReportStatus) === 'validado') {
         btnEnviarCorreo.style.display = 'inline-flex';
       } else {
         btnEnviarCorreo.style.display = 'none';
