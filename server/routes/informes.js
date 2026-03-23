@@ -1053,4 +1053,74 @@ router.post('/informes/enviar-pdf', async (req, res) => {
   }
 });
 
+// ============================================
+// ENDPOINT: ENVIAR INFORME (PDF DESDE FRONTEND)
+// ============================================
+router.post('/mail/enviar-informe', async (req, res) => {
+  try {
+    const { id_informe, destinatario, pdf_base64, nombre_archivo } = req.body || {};
+
+    if (!id_informe || !destinatario || !pdf_base64) {
+      return res.status(400).json({ error: 'Se requiere id_informe, destinatario y pdf_base64' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(String(destinatario).trim())) {
+      return res.status(400).json({ error: 'Correo destinatario inválido' });
+    }
+
+    const [rows] = await pool.execute(
+      'SELECT estado, fecha, turno FROM informes_turno WHERE id_informe = ? LIMIT 1',
+      [id_informe]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Informe no encontrado' });
+    }
+
+    const informe = rows[0];
+    if (!estadoFueCerrado(informe.estado)) {
+      return res.status(403).json({ error: 'No se puede enviar por correo un informe no cerrado' });
+    }
+
+    const fechaFormateada = informe.fecha ? new Date(informe.fecha).toISOString().split('T')[0] : 'S/F';
+    const grupo = informe.turno || 'S/G';
+
+    const base64Limpio = String(pdf_base64).includes(',')
+      ? String(pdf_base64).split(',')[1]
+      : String(pdf_base64);
+
+    const pdfBuffer = Buffer.from(base64Limpio, 'base64');
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      port: process.env.SMTP_PORT || 587,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const asunto = `Informe de Turno - ${fechaFormateada} - Grupo ${grupo}`;
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM || '"Basalto Drilling" <no-reply@basalto.app>',
+      to: destinatario,
+      subject: asunto,
+      text: `Se adjunta Informe de Turno (ID ${id_informe}) para fecha ${fechaFormateada}, grupo ${grupo}.`,
+      attachments: [
+        {
+          filename: nombre_archivo || `Informe_Turno_${id_informe}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    });
+
+    return res.json({ success: true, message: 'Correo enviado correctamente' });
+  } catch (error) {
+    console.error('[ERROR] /mail/enviar-informe:', error);
+    return res.status(500).json({ error: error.message || 'Error al enviar informe por correo' });
+  }
+});
+
 module.exports = router;

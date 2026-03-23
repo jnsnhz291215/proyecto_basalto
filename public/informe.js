@@ -1867,70 +1867,143 @@ const InformeTurno = (() => {
 
     // Modal Enviar Correo
     const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
-    const modalCorreo = document.getElementById('modal-enviar-correo');
-    const btnCloseCorreo = document.getElementById('btn-close-correo');
-    const btnCancelCorreo = document.getElementById('btn-cancel-correo');
-    const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
-    const inputCorreo = document.getElementById('input-correo-destino');
-    const errorCorreo = document.getElementById('error-correo');
+
+    const getSessionEmail = () => {
+      try {
+        const session = window.getSession ? window.getSession() : null;
+        if (session?.userEmail) return String(session.userEmail).trim();
+        if (session?.email) return String(session.email).trim();
+
+        const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+        if (usuarioActivo?.email) return String(usuarioActivo.email).trim();
+
+        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+        if (adminData?.email) return String(adminData.email).trim();
+      } catch (_error) {}
+
+      return '';
+    };
+
+    const ensureMailModal = () => {
+      let modal = document.getElementById('modal-enviar-correo');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-enviar-correo';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2400;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div class="modal-content" style="background:white;padding:24px;border-radius:12px;max-width:420px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 style="margin:0;font-size:18px;font-weight:600;color:#1e293b;"><i class="fa-regular fa-envelope"></i> Enviar Informe por Correo</h3>
+              <button id="btn-close-correo" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
+            </div>
+            <p style="color:#4b5563;font-size:14px;margin-bottom:20px;">El informe se exportará a PDF y se enviará como archivo adjunto.</p>
+            <button id="btn-confirm-correo" class="btn btn-mail-soft" style="font-weight:600;width:100%;margin-bottom:14px;justify-content:center;">
+              <i class="fa-solid fa-paper-plane"></i> Enviar a mi correo
+            </button>
+            <div class="input-group" style="margin-bottom:14px;">
+              <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;color:#334155;">Correo adicional (opcional)</label>
+              <input type="email" id="input-correo-adicional" placeholder="tercero@empresa.com" class="modern-input" style="width:100%;box-sizing:border-box;">
+              <span id="error-correo" style="color:#ef4444;font-size:12px;display:none;margin-top:4px;">Ingresa un correo electrónico válido.</span>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;">
+              <button id="btn-cancel-correo" class="btn" style="background:#e5e7eb;color:#374151;font-weight:600;">Cancelar</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+      return modal;
+    };
 
     if (btnEnviarCorreo) {
       btnEnviarCorreo.addEventListener('click', () => {
-        if (!modalCorreo) return;
-        modalCorreo.style.display = 'flex';
-        if (inputCorreo) inputCorreo.value = '';
+        const modalCorreo = ensureMailModal();
+        const btnCloseCorreo = document.getElementById('btn-close-correo');
+        const btnCancelCorreo = document.getElementById('btn-cancel-correo');
+        const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
+        const inputCorreoAdicional = document.getElementById('input-correo-adicional');
+        const errorCorreo = document.getElementById('error-correo');
+
+        const myEmail = getSessionEmail();
+        if (btnConfirmCorreo) {
+          btnConfirmCorreo.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar a mi correo (${myEmail || 'sin correo en sesión'})`;
+        }
+
+        const closeCorreoModal = () => {
+          modalCorreo.style.display = 'none';
+          if (window.desbloquearScroll) window.desbloquearScroll();
+        };
+
+        if (btnCloseCorreo) btnCloseCorreo.onclick = closeCorreoModal;
+        if (btnCancelCorreo) btnCancelCorreo.onclick = closeCorreoModal;
+
+        if (btnConfirmCorreo) {
+          btnConfirmCorreo.onclick = async () => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const correoAdicional = String(inputCorreoAdicional?.value || '').trim();
+            const destinatario = correoAdicional || myEmail;
+
+            if (!destinatario || !emailRegex.test(destinatario)) {
+              if (errorCorreo) errorCorreo.style.display = 'block';
+              return;
+            }
+            if (errorCorreo) errorCorreo.style.display = 'none';
+
+            if (!state.currentReportId) {
+              showErrorModal('Debes guardar el informe antes de enviarlo por correo.');
+              return;
+            }
+
+            console.log(`[MAIL_SYSTEM] Preparando envío para: ${destinatario}.`);
+
+            const originalContent = btnConfirmCorreo.innerHTML;
+            btnConfirmCorreo.disabled = true;
+            btnConfirmCorreo.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+            if (btnCancelCorreo) btnCancelCorreo.disabled = true;
+            if (btnCloseCorreo) btnCloseCorreo.disabled = true;
+            if (inputCorreoAdicional) inputCorreoAdicional.disabled = true;
+
+            try {
+              if (typeof generarPDFBase64ParaCorreo !== 'function') {
+                throw new Error('Motor PDF no disponible para envío por correo.');
+              }
+
+              const { pdfBase64, nombreArchivo } = await generarPDFBase64ParaCorreo(state.currentReportId);
+              console.log('[MAIL_SYSTEM] PDF generado y adjuntado exitosamente.');
+
+              const res = await fetch('/api/mail/enviar-informe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id_informe: state.currentReportId,
+                  destinatario,
+                  pdf_base64: pdfBase64,
+                  nombre_archivo: nombreArchivo
+                })
+              });
+
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.error || 'Error al enviar correo con adjunto');
+
+              closeCorreoModal();
+              showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${destinatario}`, false);
+            } catch (err) {
+              showErrorModal(err.message || 'Error al enviar el correo.');
+            } finally {
+              btnConfirmCorreo.disabled = false;
+              btnConfirmCorreo.innerHTML = originalContent;
+              if (btnCancelCorreo) btnCancelCorreo.disabled = false;
+              if (btnCloseCorreo) btnCloseCorreo.disabled = false;
+              if (inputCorreoAdicional) inputCorreoAdicional.disabled = false;
+            }
+          };
+        }
+
+        if (inputCorreoAdicional) inputCorreoAdicional.value = '';
         if (errorCorreo) errorCorreo.style.display = 'none';
+        modalCorreo.style.display = 'flex';
         if (window.bloquearScroll) window.bloquearScroll();
-      });
-    }
-
-    const closeCorreoModal = () => {
-      if (modalCorreo) modalCorreo.style.display = 'none';
-      if (window.desbloquearScroll) window.desbloquearScroll();
-    };
-
-    if (btnCloseCorreo) btnCloseCorreo.addEventListener('click', closeCorreoModal);
-    if (btnCancelCorreo) btnCancelCorreo.addEventListener('click', closeCorreoModal);
-
-    if (btnConfirmCorreo) {
-      btnConfirmCorreo.addEventListener('click', async () => {
-        const email = inputCorreo.value.trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-        if (!email || !emailRegex.test(email)) {
-          errorCorreo.style.display = 'block';
-          return;
-        }
-
-        errorCorreo.style.display = 'none';
-        
-        const originalContent = btnConfirmCorreo.innerHTML;
-        btnConfirmCorreo.disabled = true;
-        btnConfirmCorreo.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando y Enviando...';
-        btnCancelCorreo.disabled = true;
-        btnCloseCorreo.disabled = true;
-        inputCorreo.disabled = true;
-
-        try {
-          const res = await fetch('/api/informes/enviar-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_informe: state.currentReportId, email })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Error al enviar');
-          
-          closeCorreoModal();
-          showSuccessModal('Correo Enviado', `El informe ha sido enviado exitosamente a ${email}`, false);
-        } catch (err) {
-          showErrorModal(err.message || 'Error al enviar el correo.');
-        } finally {
-          btnConfirmCorreo.disabled = false;
-          btnConfirmCorreo.innerHTML = originalContent;
-          btnCancelCorreo.disabled = false;
-          btnCloseCorreo.disabled = false;
-          inputCorreo.disabled = false;
-        }
       });
     }
 

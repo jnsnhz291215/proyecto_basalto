@@ -497,6 +497,19 @@ body {
 	transform: translateY(-2px);
 }
 
+.btn-mail-soft {
+	background: #eaf2ff;
+	color: #1d4ed8;
+	border: 1px solid #bfdbfe;
+	box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+
+.btn-mail-soft:hover {
+	background: #dbeafe;
+	border-color: #93c5fd;
+	color: #1e40af;
+}
+
 .btn:disabled,
 .btn-add-row:disabled,
 .btn-delete:disabled,

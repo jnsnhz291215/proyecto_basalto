@@ -373,7 +373,8 @@ async function collectPdfData() {
 }
 
 // Generador Universal y On-Demand
-async function exportarInformeAPDF(idInforme) {
+async function exportarInformeAPDF(idInforme, options = {}) {
+    const { saveFile = true, returnBlob = false } = options;
     if (!idInforme) {
         throw new Error("No hay ID de informe válido");
     }
@@ -610,12 +611,43 @@ async function exportarInformeAPDF(idInforme) {
                 const grupoLimpio = String(grupo || 'SG').trim().replace(/\s+/g, '');
                 const nombreArchivo = `Informe_Turno_Grupo_${grupoLimpio}_${jornada}_${fechaFormato}.pdf`;
         
-        pdf.save(nombreArchivo);
-        console.log(`[PDF_ENGINE] Exportando archivo: ${nombreArchivo}`);
+        if (saveFile) {
+            pdf.save(nombreArchivo);
+            console.log(`[PDF_ENGINE] Exportando archivo: ${nombreArchivo}`);
+        }
+
+        const pdfBlob = returnBlob ? pdf.output('blob') : null;
         console.log(`[PDF_ENGINE] Documento generado exitosamente con ${datos.length} campos.`);
+
+        return {
+            nombreArchivo,
+            blob: pdfBlob
+        };
 
     } catch (err) {
         console.error('Error generando PDF bajo demanda:', err);
         throw err;
     }
+}
+
+async function generarPDFBase64ParaCorreo(idInforme) {
+    const resultado = await exportarInformeAPDF(idInforme, { saveFile: false, returnBlob: true });
+    if (!resultado?.blob) {
+        throw new Error('No fue posible generar el PDF para correo.');
+    }
+
+    const pdfBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const dataUrl = String(reader.result || '');
+            resolve(dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl);
+        };
+        reader.onerror = () => reject(new Error('No se pudo convertir PDF a base64'));
+        reader.readAsDataURL(resultado.blob);
+    });
+
+    return {
+        pdfBase64,
+        nombreArchivo: resultado.nombreArchivo
+    };
 }
