@@ -399,6 +399,81 @@ router.get('/auth/me', async (req, res) => {
 });
 
 // ============================================
+// GET /api/auth/perfil - Perfil de sesión sincronizado desde DB
+// ============================================
+router.get('/auth/perfil', async (req, res) => {
+  try {
+    const rutSesion = req.session?.userRut || req.session?.rut || null;
+    const rutRaw = rutSesion || req.query?.rut || req.headers['x-user-rut'] || req.headers['rut_solicitante'];
+    const rutLimpio = limpiarRUT(rutRaw);
+
+    if (!rutLimpio) {
+      return res.status(400).json({ success: false, message: 'No existe RUT de sesión para sincronizar perfil' });
+    }
+
+    const sqlTrabajador = `
+      SELECT
+        t.RUT,
+        t.nombres,
+        t.apellido_paterno,
+        t.apellido_materno,
+        t.email,
+        t.telefono,
+        t.id_grupo,
+        g.nombre_grupo,
+        t.cargo,
+        t.activo
+      FROM trabajadores t
+      LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
+      LIMIT 1
+    `;
+
+    const [trabRows] = await pool.execute(sqlTrabajador, [rutLimpio]);
+    if (!trabRows || trabRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Perfil no encontrado para el RUT de sesión' });
+    }
+
+    const trabajador = trabRows[0];
+    const [adminRows] = await pool.execute(
+      `SELECT es_super_admin, activo, email
+       FROM admin_users
+       WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
+       LIMIT 1`,
+      [rutLimpio]
+    );
+
+    const esAdmin = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1);
+    const isSuperAdmin = Boolean(esAdmin && Number(adminRows[0].es_super_admin) === 1);
+    const role = esAdmin ? 'admin' : 'user';
+
+    const userName = `${trabajador.nombres || ''} ${trabajador.apellido_paterno || ''} ${trabajador.apellido_materno || ''}`.trim() || rutLimpio;
+    const userEmail = trabajador.email || (esAdmin ? adminRows[0].email : null) || null;
+
+    return res.json({
+      success: true,
+      RUT: trabajador.RUT || rutLimpio,
+      Nombre: userName,
+      Correo: userEmail,
+      Rol: role,
+      isSuperAdmin,
+      user: {
+        userRut: trabajador.RUT || rutLimpio,
+        userName,
+        userEmail,
+        userRole: role,
+        isSuperAdmin,
+        grupo: trabajador.nombre_grupo ? String(trabajador.nombre_grupo).trim() : (trabajador.id_grupo ? String(trabajador.id_grupo) : null),
+        cargo: trabajador.cargo || null
+      }
+    });
+  } catch (error) {
+    console.error('[AUTH] Error sincronizando /auth/perfil:', error);
+    return res.status(500).json({ success: false, message: 'Error sincronizando perfil', error: error.message });
+  }
+});
+
+// ============================================
 // GET /api/perfil/:rut - Obtener datos completos del trabajador
 // ============================================
 router.get('/perfil/:rut', async (req, res) => {

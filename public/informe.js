@@ -263,7 +263,7 @@ const InformeTurno = (() => {
     if (!rutActual) return;
 
     try {
-      const resp = await fetch(`/api/auth/me?rut=${encodeURIComponent(rutActual)}`, {
+      const resp = await fetch(`/api/auth/perfil?rut=${encodeURIComponent(rutActual)}`, {
         headers: {
           'x-user-rut': rutActual
         }
@@ -275,36 +275,55 @@ const InformeTurno = (() => {
 
       const data = await resp.json();
       if (!data?.success) {
-        throw new Error(data?.message || 'Respuesta inválida de /api/auth/me');
+        throw new Error(data?.message || 'Respuesta inválida de /api/auth/perfil');
       }
 
-      localStorage.setItem('user_role', String(data.role || ''));
-      localStorage.setItem('user_rut', String(data.rut || rutActual));
-      localStorage.setItem('user_name', String(data.nombre || ''));
-      localStorage.setItem('user_email', String(data.email || ''));
-      localStorage.setItem('user_super_admin', String(Number(data.es_super_admin) === 1 ? '1' : '0'));
-      localStorage.setItem('user_grupo', String(data.grupo || ''));
-      localStorage.setItem('user_cargo_name', String(data.cargo || ''));
-      localStorage.setItem('user_permissions_cargo', JSON.stringify(Array.isArray(data.permisos_cargo) ? data.permisos_cargo : []));
+      const user = data.user || {};
+      const syncRole = String(user.userRole || data.Rol || '').trim();
+      const syncRut = String(user.userRut || data.RUT || rutActual).trim();
+      const syncName = String(user.userName || data.Nombre || '').trim();
+      const syncEmail = String(user.userEmail || data.Correo || '').trim();
+      const syncSuper = Boolean(user.isSuperAdmin ?? data.isSuperAdmin);
+      const syncGrupo = String(user.grupo || '').trim();
+      const syncCargo = String(user.cargo || '').trim();
+
+      localStorage.setItem('user_role', syncRole);
+      localStorage.setItem('user_rut', syncRut);
+      localStorage.setItem('user_name', syncName);
+      localStorage.setItem('user_email', syncEmail);
+      localStorage.setItem('user_super_admin', syncSuper ? '1' : '0');
+      localStorage.setItem('user_grupo', syncGrupo);
+      localStorage.setItem('user_cargo_name', syncCargo);
 
       const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
       const usuarioSincronizado = {
         ...usuarioActivo,
-        rut: data.rut || rutActual,
-        nombre: data.nombre || usuarioActivo.nombre || '',
-        email: data.email || usuarioActivo.email || '',
-        grupo: data.grupo || usuarioActivo.grupo || '',
-        id_grupo: data.id_grupo || usuarioActivo.id_grupo || null,
-        cargo: data.cargo || usuarioActivo.cargo || '',
-        role: data.role || usuarioActivo.role || ''
+        rut: syncRut,
+        nombre: syncName || usuarioActivo.nombre || '',
+        email: syncEmail || usuarioActivo.email || '',
+        grupo: syncGrupo || usuarioActivo.grupo || '',
+        cargo: syncCargo || usuarioActivo.cargo || '',
+        role: syncRole || usuarioActivo.role || '',
+        isSuperAdmin: syncSuper
       };
       localStorage.setItem('usuarioActivo', JSON.stringify(usuarioSincronizado));
+      localStorage.setItem('usuario', JSON.stringify(usuarioSincronizado));
+
+      state.role = syncRole;
+      state.userRut = syncRut;
+      state.userName = syncName;
+      state.userEmail = syncEmail;
+      state.isSuperAdmin = syncSuper;
+      state.userGrupo = syncGrupo || state.userGrupo;
+      state.cargoName = syncCargo || state.cargoName;
 
       refreshSessionContext();
-      console.log(`[AUTH_SYNC] Sesión actualizada. Correo actual en DB: ${data.email || '-'}.`);
+      console.log(`[AUTH_SYNC] Datos sincronizados desde DB para ${state.userName || 'Usuario'}. Correo: ${state.userEmail || '-'}.`);
+      console.log('[AUTH_SYNC] Sincronización exitosa. Procediendo con vista de Admin.');
     } catch (error) {
       if (isSuperAdminLocal) {
-        throw new Error(`Sincronización obligatoria fallida para Super Admin: ${error.message || error}`);
+        console.warn('[AUTH_SYNC] Sincronización falló para Super Admin. Se continúa con datos locales para priorizar acceso.', error?.message || error);
+        return;
       }
       console.warn('[AUTH_SYNC] No se pudo sincronizar sesión. Se usará contexto local.', error?.message || error);
     }
