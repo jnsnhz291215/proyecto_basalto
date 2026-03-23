@@ -57,7 +57,7 @@ async function validarSuperAdminPorRut(rutSolicitante) {
   }
 
   const [rows] = await pool.execute(
-    'SELECT es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+    'SELECT es_super_admin, activo, nombres, apellido_paterno FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
     [rutLimpio]
   );
 
@@ -65,7 +65,31 @@ async function validarSuperAdminPorRut(rutSolicitante) {
   if (Number(rows[0].activo) === 0) return { ok: false, status: 403, message: 'Cuenta solicitante inactiva' };
   if (Number(rows[0].es_super_admin) !== 1) return { ok: false, status: 403, message: 'Solo un Superadministrador puede realizar esta accion' };
 
-  return { ok: true, rutLimpio };
+  const nombreCompleto = `${rows[0].nombres || ''} ${rows[0].apellido_paterno || ''}`.trim();
+
+  return { ok: true, rutLimpio, nombreCompleto };
+}
+
+// Valida Super Admin y permite bypass de validación de turno
+async function checkSuperAdminBypass(req) {
+  const isSuperAdminFlag = parseBoolean(req.body?.isSuperAdmin) || parseBoolean(req.headers['issuperadmin']);
+  const adminRutSolicitante = req.body?.admin_rut || req.headers['x-admin-rut'] || req.headers['rut_solicitante'];
+  
+  if (!isSuperAdminFlag || !adminRutSolicitante) {
+    return { bypassActive: false };
+  }
+
+  try {
+    const validacion = await validarSuperAdminPorRut(adminRutSolicitante);
+    if (validacion.ok) {
+      console.log(`[ADMIN_BYPASS] Permiso de escritura concedido para ${validacion.nombreCompleto}`);
+      return { bypassActive: true, ...validacion };
+    }
+  } catch (error) {
+    console.warn('[ADMIN_BYPASS_CHECK] Error validando Super Admin:', error.message);
+  }
+
+  return { bypassActive: false };
 }
 
 async function validarHardDeleteSuperAdmin(req) {
@@ -296,12 +320,16 @@ router.post('/informes', async (req, res) => {
       return res.status(400).json({ error: 'Se requiere el RUT del operador para crear el informe.' });
     }
 
-    const validacionTurno = await validarEscrituraTurno(operadorRut, { allowGrace: false });
-    if (!validacionTurno.ok) {
-      if (validacionTurno.shiftStatus?.inGrace) {
-        return res.status(403).json({ error: 'La ventana de gracia solo permite continuar borradores existentes. No es posible crear un informe nuevo.' });
+    // BYPASS SUPER ADMIN: Saltarse validación de turno
+    const bypassCheck = await checkSuperAdminBypass(req);
+    if (!bypassCheck.bypassActive) {
+      const validacionTurno = await validarEscrituraTurno(operadorRut, { allowGrace: false });
+      if (!validacionTurno.ok) {
+        if (validacionTurno.shiftStatus?.inGrace) {
+          return res.status(403).json({ error: 'La ventana de gracia solo permite continuar borradores existentes. No es posible crear un informe nuevo.' });
+        }
+        return res.status(validacionTurno.status).json({ error: validacionTurno.message });
       }
-      return res.status(validacionTurno.status).json({ error: validacionTurno.message });
     }
 
     connection = await pool.getConnection();
@@ -490,9 +518,13 @@ router.post('/informes/temporal', async (req, res) => {
     const { id_informe, datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = req.body;
     if (!id_informe) return res.status(400).json({ error: 'Se requiere id_informe' });
 
-    const validacionTurno = await validarEscrituraTurno(datosGenerales?.operador_rut, { allowGrace: true });
-    if (!validacionTurno.ok) {
-      return res.status(validacionTurno.status).json({ error: validacionTurno.message });
+    // BYPASS SUPER ADMIN: Saltarse validación de turno
+    const bypassCheck = await checkSuperAdminBypass(req);
+    if (!bypassCheck.bypassActive) {
+      const validacionTurno = await validarEscrituraTurno(datosGenerales?.operador_rut, { allowGrace: true });
+      if (!validacionTurno.ok) {
+        return res.status(validacionTurno.status).json({ error: validacionTurno.message });
+      }
     }
 
     connection = await pool.getConnection();
@@ -613,6 +645,9 @@ router.put('/informes/:id', async (req, res) => {
       const adminRutSolicitante = datosActualizados?.admin_rut || req.headers['x-admin-rut'] || req.headers['rut_solicitante'];
       let auditAdminRut = null;
 
+      // BYPASS SUPER ADMIN: Chequear primero si es bypass
+      const bypassCheck = await checkSuperAdminBypass(req);
+
       if (isAuditEdit) {
         const validacionAudit = await validarSuperAdminPorRut(adminRutSolicitante);
         if (!validacionAudit.ok) {
@@ -622,7 +657,9 @@ router.put('/informes/:id', async (req, res) => {
       }
 
       const { datosGenerales, actividades = [], herramientas = [], perforaciones = [] } = datosActualizados;
-      if (!isAuditEdit) {
+      
+      // Si NO es audit edit Y NO tiene bypass activo, validar turno
+      if (!isAuditEdit && !bypassCheck.bypassActive) {
         const validacionTurno = await validarEscrituraTurno(datosGenerales?.operador_rut, { allowGrace: true });
         if (!validacionTurno.ok) {
           return res.status(validacionTurno.status).json({ error: validacionTurno.message });

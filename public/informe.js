@@ -670,6 +670,16 @@ const InformeTurno = (() => {
     if (btnFinalizar) {
       if (state.isSuperAdmin) {
         btnFinalizar.removeAttribute('disabled');
+        // Cambiar texto si está Finalizado y es Super Admin
+        const isFinalizado = normalizeStatus(state.currentReportStatus) === 'finalizado';
+        const esCerrado = normalizeStatus(state.currentReportStatus) === 'cerrado';
+        if (isFinalizado || esCerrado) {
+          btnFinalizar.innerHTML = '<i class="fa-solid fa-pencil"></i> Actualizar Informe Cerrado';
+          btnFinalizar.title = 'Como Administrador, puedes actualizar un informe finalizado';
+        } else {
+          btnFinalizar.innerHTML = '<i class="fa-solid fa-check"></i> Finalizar Turno';
+          btnFinalizar.title = 'Finalizar el informe de turno';
+        }
       } else {
         const finalizeReady = validateFinalizeRequirements(false).isValid;
         if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted || hasNegativeMathError()) {
@@ -1681,9 +1691,27 @@ const InformeTurno = (() => {
     let response;
     let result;
     try {
+      const fetchHeaders = {
+        'Content-Type': 'application/json'
+      };
+
+      // Agregar headers de Super Admin si aplica
+      if (state.isSuperAdmin) {
+        fetchHeaders['isSuperAdmin'] = 'true';
+        if (state.userRut) {
+          fetchHeaders['x-admin-rut'] = state.userRut;
+        }
+      }
+
+      // Agregar flags de Super Admin al payload
+      if (state.isSuperAdmin) {
+        payload.isSuperAdmin = true;
+        payload.admin_rut = state.userRut || '';
+      }
+
       response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: fetchHeaders,
         body: JSON.stringify(payload)
       });
       result = await response.json().catch(() => ({}));

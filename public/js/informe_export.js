@@ -355,9 +355,12 @@ async function collectPdfData() {
         observaciones: formatValue(observaciones),
         calculos: {
             hrsHorometro: formatValue(hrsHorometro),
-            mtsPerforados: formatValue(totalMtsPerforados > 0 ? totalMtsPerforados.toFixed(2) : '0.00')
+            mtsPerforados: formatValue(totalMtsPerforados > 0 ? totalMtsPerforados.toFixed(2) : '0.00'),
+            totalMtsPerforados
         },
-        datos
+        datos,
+        todayDate,
+        grupo
     };
 }
 
@@ -526,6 +529,11 @@ async function exportarInformeAPDF(idInforme) {
             headStyles: { fillColor: [31, 41, 55], textColor: 255 }
         });
 
+        // Validar cálculos: mts perforados debe coincidir con suma de perforación
+        const mtsPerfsumFromTable = calculos.totalMtsPerforados || 0;
+        const displayMtsPerf = calculos.mtsPerforados;
+        console.log(`[PDF_ENGINE] Validación de Mts Perf: Tabla sumada=${mtsPerfsumFromTable}, Mostrado en PDF=${displayMtsPerf}`);
+
         cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
         pdf.autoTable({
             startY: cursorY,
@@ -560,7 +568,37 @@ async function exportarInformeAPDF(idInforme) {
         pdf.text('Firma Responsable de Turno', leftX + (boxWidth / 2), cursorY + 22, { align: 'center' });
         pdf.text('Firma Supervisor / Cliente', rightX + (boxWidth / 2), cursorY + 22, { align: 'center' });
 
-        pdf.save(`Reporte_IT_${idInforme}.pdf`);
+        // ===== DETERMINAR JORNADA =====
+        // 1. Intentar usar input-jornada si existe
+        let jornada = String(document.getElementById('input-jornada')?.value || '').trim().toUpperCase();
+        
+        // 2. Si no hay dato, calcular por hora actual
+        if (!jornada || jornada === 'NINGUNO' || jornada === '-') {
+          const now = new Date();
+          const horaActual = now.getHours();
+          const minutosActual = now.getMinutes();
+          const minutosTotales = horaActual * 60 + minutosActual;
+          // Día: 08:00-20:00 (inclusive), Noche: resto
+          jornada = (minutosTotales >= 8 * 60 && minutosTotales <= 20 * 60) ? 'Dia' : 'Noche';
+          console.log(`[PDF_ENGINE] Jornada calculada por hora: ${jornada} (${horaActual}:${String(minutosActual).padStart(2, '0')})`);
+        } else {
+          console.log(`[PDF_ENGINE] Jornada desde input: ${jornada}`);
+        }
+
+        // ===== TRANSFORMAR FECHA A FORMATO DD_MM_AAAA =====
+        let fechaFormato = todayDate || new Date().toISOString().split('T')[0]; // Ej: "2026-03-23"
+        const fechaParts = fechaFormato.split('-'); // Ej: ["2026", "03", "23"]
+        if (fechaParts.length === 3) {
+          // Reordenar: [AAAA, MM, DD] -> [DD, MM, AAAA]
+          fechaFormato = `${fechaParts[2]}_${fechaParts[1]}_${fechaParts[0]}`; // Ej: "23_03_2026"
+        }
+        
+        // ===== CONSTRUIR NOMBRE DE ARCHIVO =====
+        const grupoLimpio = String(grupo || 'SG').trim().replace(/\s+/g, '');
+        const nombreArchivo = `Informe_Turno_Grupo_${grupoLimpio}_${jornada}_${fechaFormato}.pdf`;
+        
+        pdf.save(nombreArchivo);
+        console.log(`[PDF_ENGINE] Exportando archivo: ${nombreArchivo}`);
         console.log(`[PDF_ENGINE] Documento generado exitosamente con ${datos.length} campos.`);
 
     } catch (err) {
