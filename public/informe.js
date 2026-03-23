@@ -110,18 +110,20 @@ const InformeTurno = (() => {
   }
 
   function showRestrictedAccess(reason) {
-    const main = document.querySelector('main');
+    console.warn('[DEBUG_SECURITY] Bloqueo activado por informe.js. Motivo:', reason);
+    console.trace('[DEBUG_TRACE] Origen de la llamada al bloqueo:');
 
-    // Evita superponer múltiples bloqueos en reintentos de init.
-    document.querySelectorAll('#access-restricted-overlay, .restricted-content-card, .access-restricted-card').forEach((node) => {
-      if (node) node.remove();
+    const oldModals = document.querySelectorAll('#access-restricted-overlay, [class*="access-restricted"], [class*="restricted-content"]');
+    oldModals.forEach((el) => {
+      console.log('[DEBUG_CLEANUP] Eliminando elemento redundante:', el.tagName, el.className, el.id);
+      el.remove();
     });
 
+    document.querySelector('.informe-container')?.style.setProperty('display', 'none', 'important');
+
+    const main = document.querySelector('main');
     if (main) {
       main.innerHTML = '';
-    } else {
-      const container = document.querySelector('.informe-container');
-      if (container) container.style.display = 'none';
     }
 
     const overlay = document.createElement('div');
@@ -142,11 +144,8 @@ const InformeTurno = (() => {
 
     overlay.querySelector('.access-restricted-reason').textContent = reason;
 
-    if (main) {
-      main.appendChild(overlay);
-    } else {
-      document.body.appendChild(overlay);
-    }
+    overlay.style.zIndex = '3000';
+    document.body.appendChild(overlay);
   }
 
   function activarBotonPDF() {

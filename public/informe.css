@@ -218,7 +218,7 @@ body {
 	inset: 0;
 	width: 100vw;
 	height: 100vh;
-	z-index: 2600;
+	z-index: 3000;
 	background: rgba(15, 23, 42, 0.66);
 	display: flex;
 	align-items: center;
