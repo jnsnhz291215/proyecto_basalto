@@ -110,8 +110,19 @@ const InformeTurno = (() => {
   }
 
   function showRestrictedAccess(reason) {
-    const container = document.querySelector('.informe-container');
-    if (container) container.style.display = 'none';
+    const main = document.querySelector('main');
+
+    // Evita superponer múltiples bloqueos en reintentos de init.
+    document.querySelectorAll('#access-restricted-overlay, .restricted-content-card, .access-restricted-card').forEach((node) => {
+      if (node) node.remove();
+    });
+
+    if (main) {
+      main.innerHTML = '';
+    } else {
+      const container = document.querySelector('.informe-container');
+      if (container) container.style.display = 'none';
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'access-restricted-overlay';
@@ -131,7 +142,6 @@ const InformeTurno = (() => {
 
     overlay.querySelector('.access-restricted-reason').textContent = reason;
 
-    const main = document.querySelector('main');
     if (main) {
       main.appendChild(overlay);
     } else {
