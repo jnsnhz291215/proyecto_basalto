@@ -1066,6 +1066,8 @@ router.post('/mail/enviar-informe', async (req, res) => {
       return res.status(400).json({ error: 'Se requiere id_informe, rut_solicitante y pdf_base64' });
     }
 
+    console.log(`[MAIL_SYSTEM] Enviando PDF de tamaño: ${Math.round(String(pdf_base64).length / 1024)} KB.`);
+
     const rutLimpio = limpiarRUT(sessionRut || rut_solicitante);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

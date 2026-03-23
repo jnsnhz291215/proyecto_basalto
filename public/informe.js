@@ -2104,6 +2104,7 @@ const InformeTurno = (() => {
         }
 
         if (inputCorreoAdicional) {
+          console.log('[MAIL_SYSTEM] Tecla Enter vinculada al input de correo.');
           inputCorreoAdicional.onkeypress = async (event) => {
             if (event.key === 'Enter') {
               event.preventDefault();

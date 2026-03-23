@@ -4,7 +4,10 @@ const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editar
 const app = express();
 
 // Middleware para parsear JSON - DEBE IR PRIMERO
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+console.log('[SERVER_CONFIG] Límite de payload aumentado a 50MB.');
+console.log('[SERVER] Límite de carga aumentado a 50MB.');
 
 // ============================================
 // RUTAS DE AUTENTICACIÓN (SISTEMA UNIFICADO)
