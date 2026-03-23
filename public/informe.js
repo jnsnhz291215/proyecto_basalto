@@ -1459,6 +1459,29 @@ const InformeTurno = (() => {
       }
 
       if (!exactActive && !inGrace) {
+        if (state.currentReportId && normalizeStatus(state.currentReportStatus) === 'borrador') {
+          try {
+            const autoCloseResp = await fetch('/api/informes/auto-cerrar-expirado', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id_informe: state.currentReportId,
+                rut_operador: state.userRut
+              })
+            });
+
+            const autoCloseData = await autoCloseResp.json().catch(() => ({}));
+            if (autoCloseResp.ok && autoCloseData.auto_closed) {
+              state.currentReportStatus = autoCloseData.estado || 'Finalizado';
+              state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
+              applyPermissionMatrix();
+              console.log('[AUTO_CLOSE] Borrador auto-cerrado al finalizar ventana de gracia.');
+            }
+          } catch (autoCloseError) {
+            console.warn('[AUTO_CLOSE] No se pudo confirmar auto-cierre:', autoCloseError?.message || autoCloseError);
+          }
+        }
+
         const expiredContext = previousShiftContext?.grace_ends_at
           ? { ...shiftData, grace_ends_at: previousShiftContext.grace_ends_at }
           : shiftData;

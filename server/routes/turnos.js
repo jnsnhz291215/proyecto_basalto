@@ -12,6 +12,29 @@ function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+function resolverJornadaPorGrupoFecha(grupoRaw, fechaRaw) {
+  const grupo = String(grupoRaw || '').trim().toUpperCase();
+  const fecha = new Date(`${String(fechaRaw || '').trim()}T00:00:00`);
+  if (!grupo || Number.isNaN(fecha.getTime())) return 'SinJornada';
+
+  const gruposDelDia = obtenerGruposDelDia(fecha);
+  const esDia =
+    gruposDelDia?.pista1?.manana === grupo ||
+    gruposDelDia?.pista1?.doble === grupo ||
+    gruposDelDia?.pista2?.manana === grupo ||
+    gruposDelDia?.pista2?.doble === grupo ||
+    (Array.isArray(gruposDelDia?.semanales) && gruposDelDia.semanales.includes(grupo));
+
+  const esNoche =
+    gruposDelDia?.pista1?.tarde === grupo ||
+    gruposDelDia?.pista2?.tarde === grupo;
+
+  if (esDia && esNoche) return 'Dia/Noche';
+  if (esDia) return 'Dia';
+  if (esNoche) return 'Noche';
+  return 'SinJornada';
+}
+
 // ============================================
 // ENDPOINT: CHECK SI EL TRABAJADOR TIENE TURNO HOY
 // ============================================
@@ -166,6 +189,32 @@ router.get('/turnos/grupos-activos', async (req, res) => {
   } catch (error) {
     console.error('[API] Error consultando grupos-activos:', error.message);
     return res.status(500).json({ success: false, error: 'Error interno consultando grupos activos' });
+  }
+});
+
+// ============================================
+// ENDPOINT: JORNADA POR GRUPO + FECHA
+// Usado por motor PDF para etiqueta Dia/Noche real
+// ============================================
+router.get('/turnos/jornada', async (req, res) => {
+  try {
+    const fecha = String(req.query.fecha || '').trim();
+    const grupo = String(req.query.grupo || '').trim();
+
+    if (!fecha || !grupo) {
+      return res.status(400).json({ success: false, error: 'Se requieren fecha y grupo' });
+    }
+
+    const jornada = resolverJornadaPorGrupoFecha(grupo, fecha);
+    return res.json({
+      success: true,
+      fecha,
+      grupo: grupo.toUpperCase(),
+      jornada
+    });
+  } catch (error) {
+    console.error('[API] Error consultando jornada:', error.message);
+    return res.status(500).json({ success: false, error: 'Error interno consultando jornada' });
   }
 });
 

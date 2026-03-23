@@ -230,7 +230,25 @@ async function fetchInformeHeaderById(idInforme) {
     }
 }
 
-function resolveJornadaFromReportData(reportData) {
+async function fetchJornadaFromShiftEngine(fechaIso, grupoCodigo) {
+    try {
+        if (!fechaIso || !grupoCodigo) return '';
+        const resp = await fetch(`/api/turnos/jornada?fecha=${encodeURIComponent(fechaIso)}&grupo=${encodeURIComponent(grupoCodigo)}`);
+        if (!resp.ok) return '';
+        const data = await resp.json();
+        return normalizeJornadaLabel(data?.jornada || '');
+    } catch (_error) {
+        return '';
+    }
+}
+
+async function resolveJornadaFromReportData(reportData, fechaIso, grupoCodigo) {
+    const jornadaPorMotor = await fetchJornadaFromShiftEngine(fechaIso, grupoCodigo);
+    if (jornadaPorMotor) {
+        console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${jornadaPorMotor}.`);
+        return jornadaPorMotor;
+    }
+
     const inputJornada = normalizeJornadaLabel(getInputValue('input-jornada'));
     if (inputJornada) {
         console.log(`[PDF_ENGINE] Jornada detectada desde datos del informe: ${inputJornada}.`);
@@ -480,7 +498,7 @@ async function exportarInformeAPDF(idInforme, options = {}) {
         const todayDate = getInputValue('input-fecha') || String(reportData?.fecha || '').split('T')[0] || '';
         const grupoRaw = getInputValue('input-turno') || getInputValue('input-grupo') || reportData?.turno || encabezado.grupo;
         const grupoCodigo = extractGroupCode(grupoRaw);
-        const jornada = resolveJornadaFromReportData(reportData || {});
+        const jornada = await resolveJornadaFromReportData(reportData || {}, todayDate, grupoCodigo);
 
         const folio = buildFolio(idInforme);
 
@@ -501,7 +519,7 @@ async function exportarInformeAPDF(idInforme, options = {}) {
         const metadatosLinea = `${toDateDash(todayDate)} - Grupo ${grupoCodigo} - ${jornada}`;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
-        pdf.text(metadatosLinea, 198, 19, { align: 'right' });
+        pdf.text(metadatosLinea, 198, 22, { align: 'right' });
         cursorY = 34;
 
         pdf.setFont('helvetica', 'bold');

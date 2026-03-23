@@ -3,7 +3,7 @@ const mysql = require('mysql2/promise');
 // Pool de conexión a MariaDB (configurable mediante variables de entorno)
 const DB_HOST = process.env.DB_HOST || '100.100.40.80';
 const DB_USER = process.env.DB_USER || 'turnos_app';
-const DB_PASSWORD = process.env.DB_PASSWORD || 'Basalto1974';
+const DB_PASSWORD = process.env.DB_PASSWORD || process.env.DB_PASS || 'Basalto1974';
 const DB_NAME = process.env.DB_NAME || 'basalto';
 const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306;
 

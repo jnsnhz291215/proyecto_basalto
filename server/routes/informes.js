@@ -143,6 +143,54 @@ async function validarEscrituraTurno(operadorRut, options = {}) {
   };
 }
 
+async function autoCerrarBorradorSiExpirado(idInforme, rutOperador) {
+  const rutLimpio = limpiarRUT(rutOperador);
+  if (!idInforme || !rutLimpio) {
+    return { ok: false, status: 400, message: 'Faltan id_informe y rut_operador' };
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id_informe, operador_rut, estado
+     FROM informes_turno
+     WHERE id_informe = ? LIMIT 1`,
+    [idInforme]
+  );
+
+  if (!rows || rows.length === 0) {
+    return { ok: false, status: 404, message: 'Informe no encontrado' };
+  }
+
+  const informe = rows[0];
+  const rutInforme = limpiarRUT(informe.operador_rut);
+  if (rutInforme && rutInforme !== rutLimpio) {
+    return { ok: false, status: 403, message: 'El informe no pertenece al operador indicado' };
+  }
+
+  const shiftStatus = await getWorkerShiftStatus(rutLimpio, new Date());
+  if (shiftStatus.exactActive || shiftStatus.inGrace) {
+    return {
+      ok: false,
+      status: 409,
+      message: 'El turno sigue vigente. Aún no corresponde cierre automático.',
+      shiftStatus
+    };
+  }
+
+  if (normalizarEstado(informe.estado) !== 'borrador') {
+    return { ok: true, autoClosed: false, estado: informe.estado, shiftStatus };
+  }
+
+  await pool.execute(
+    `UPDATE informes_turno
+     SET estado = 'Finalizado'
+     WHERE id_informe = ? AND LOWER(estado) = 'borrador'`,
+    [idInforme]
+  );
+
+  console.log(`[AUTO_CLOSE] Informe ${idInforme} auto-cerrado por fin de turno/gracia.`);
+  return { ok: true, autoClosed: true, estado: 'Finalizado', shiftStatus };
+}
+
 async function buscarInformePorTriada(connection, rut, fecha, turno, options = {}) {
   const filtros = [
     'REPLACE(REPLACE(REPLACE(operador_rut, ".", ""), "-", ""), " ", "") = ?',
@@ -520,6 +568,36 @@ router.get('/informes/:id', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener el informe' });
   } finally {
     if (connection) connection.release();
+  }
+});
+
+/**
+ * POST /api/informes/auto-cerrar-expirado
+ * Cierra un borrador automáticamente cuando finaliza turno + ventana de gracia.
+ */
+router.post('/informes/auto-cerrar-expirado', async (req, res) => {
+  try {
+    const idInforme = Number(req.body?.id_informe || 0);
+    const rutOperador = String(req.body?.rut_operador || req.body?.rut || '').trim();
+
+    const result = await autoCerrarBorradorSiExpirado(idInforme, rutOperador);
+    if (!result.ok) {
+      return res.status(result.status || 400).json({
+        success: false,
+        message: result.message,
+        shift_status: result.shiftStatus || null
+      });
+    }
+
+    return res.json({
+      success: true,
+      auto_closed: Boolean(result.autoClosed),
+      estado: result.estado,
+      shift_status: result.shiftStatus || null
+    });
+  } catch (error) {
+    console.error('[AUTO_CLOSE] Error en auto-cierre:', error?.message || error);
+    return res.status(500).json({ success: false, message: 'Error en auto-cierre automático' });
   }
 });
 
