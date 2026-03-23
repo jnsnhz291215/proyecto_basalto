@@ -1,24 +1,39 @@
+require('dotenv').config();
 const mysql = require('mysql2/promise');
 
-// Pool de conexión a MariaDB (configurable mediante variables de entorno)
-const DB_HOST = process.env.DB_HOST || '100.100.40.80';
-const DB_USER = process.env.DB_USER || 'turnos_app';
-const DB_PASSWORD = process.env.DB_PASSWORD || process.env.DB_PASS || 'Basalto1974';
-const DB_NAME = process.env.DB_NAME || 'basalto';
-const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306;
+function readEnvValue(name) {
+  const raw = String(process.env[name] || '').trim();
+  if (!raw) return '';
+  // Permite valores copiados como [valor] en .env
+  if (raw.startsWith('[') && raw.endsWith(']')) {
+    return raw.slice(1, -1).trim();
+  }
+  return raw;
+}
+
+// Pool de conexión a MariaDB (sin credenciales hardcodeadas)
+const DB_HOST = readEnvValue('DB_HOST');
+const DB_USER = readEnvValue('DB_USER');
+const DB_PASSWORD = readEnvValue('DB_PASS') || readEnvValue('DB_PASSWORD');
+const DB_NAME = readEnvValue('DB_NAME');
+const DB_PORT = Number.parseInt(readEnvValue('DB_PORT') || '3306', 10);
+
+if (!DB_HOST || !DB_USER || !DB_NAME) {
+  console.warn('[DB] Faltan variables requeridas en .env (DB_HOST, DB_USER, DB_NAME).');
+}
 
 const pool = mysql.createPool({
   host: DB_HOST,
   user: DB_USER,
   password: DB_PASSWORD,
   database: DB_NAME,
-  port: DB_PORT,
+  port: Number.isFinite(DB_PORT) ? DB_PORT : 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
-console.log(`DB pool: host=${DB_HOST} user=${DB_USER} database=${DB_NAME} port=${DB_PORT}`);
+console.log(`[DB] Pool de conexión creado para host=${DB_HOST || 'N/D'} db=${DB_NAME || 'N/D'} port=${Number.isFinite(DB_PORT) ? DB_PORT : 3306}`);
 
 (async () => {
   try {
