@@ -193,6 +193,77 @@ body {
 	box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
+.numeric-spinner {
+	display: grid;
+	grid-template-columns: 36px 1fr 36px;
+	gap: 8px;
+	align-items: center;
+}
+
+.numeric-spinner .modern-input.numeric-spinner-input {
+	width: 100%;
+	text-align: center;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
+.spinner-btn {
+	height: 36px;
+	width: 36px;
+	border: 1px solid #d1d5db;
+	border-radius: 10px;
+	background: #f97316;
+	color: #ffffff;
+	font-size: 1.05rem;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.spinner-btn:hover {
+	filter: brightness(0.95);
+	transform: translateY(-1px);
+}
+
+.spinner-btn:active {
+	transform: translateY(0);
+}
+
+.spinner-btn.spinner-btn-minus {
+	background: #6b7280;
+}
+
+.input-auto-calculated {
+	background: #f3f4f6 !important;
+	color: #4b5563;
+	font-weight: 600;
+	cursor: not-allowed;
+}
+
+.math-warning-toast {
+	position: fixed;
+	left: 50%;
+	bottom: 24px;
+	transform: translateX(-50%) translateY(12px);
+	background: #111827;
+	color: #fff;
+	padding: 12px 16px;
+	border-radius: 10px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.22s ease, transform 0.22s ease;
+	z-index: 2600;
+}
+
+.math-warning-toast.show {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+}
+
 .input-readonly {
 	background-color: #f3f4f6;
 	color: #6b7280;
@@ -339,6 +410,24 @@ body {
 .btn-add-row:hover {
 	background: #f0f4ff;
 	border-color: #4f46e5;
+}
+
+.btn-remove-helper {
+	background: #fee2e2;
+	color: #b91c1c;
+	border: 1px solid #fecaca;
+	border-radius: 6px;
+	padding: 8px 10px;
+	cursor: pointer;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.btn-remove-helper:hover {
+	background: #fecaca;
+	border-color: #fca5a5;
 }
 
 .btn-add-row-small {
@@ -537,6 +626,15 @@ body {
 		gap: 12px;
 	}
 
+	.numeric-spinner {
+		grid-template-columns: 34px 1fr 34px;
+	}
+
+	.spinner-btn {
+		height: 34px;
+		width: 34px;
+	}
+
 	.materiales-grid {
 		grid-template-columns: 1fr;
 	}
@@ -563,6 +661,18 @@ body {
 	.input-compact {
 		padding: 6px;
 		font-size: 0.85rem;
+	}
+
+	.math-warning-toast {
+		left: 12px;
+		right: 12px;
+		bottom: 16px;
+		transform: translateY(12px);
+		text-align: center;
+	}
+
+	.math-warning-toast.show {
+		transform: translateY(0);
 	}
 }
 

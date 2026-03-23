@@ -25,6 +25,32 @@ const InformeTurno = (() => {
   const MAX_AYUDANTES = 5;
   const AUTOSAVE_INTERVAL_MS = 2 * 60 * 1000;
   const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+  const SPINNER_FIELD_IDS = [
+    'input-horas-trabajadas',
+    'input-horometro-inicial',
+    'input-horometro-final',
+    'input-profundidad-inicial',
+    'input-profundidad',
+    'input-pulldown',
+    'input-rpm',
+    'input-petroleo',
+    'input-lubricantes',
+    'input-aceites',
+    'input-otros'
+  ];
+  const SPINNER_FIELD_CONFIG = {
+    'input-horas-trabajadas': { step: 0.5, min: 0 },
+    'input-horometro-inicial': { step: 0.1, min: 0 },
+    'input-horometro-final': { step: 0.1, min: 0 },
+    'input-profundidad-inicial': { step: 0.01, min: 0 },
+    'input-profundidad': { step: 0.01, min: 0 },
+    'input-pulldown': { step: 100, min: 0 },
+    'input-rpm': { step: 1, min: 0 },
+    'input-petroleo': { step: 1, min: 0 },
+    'input-lubricantes': { step: 1, min: 0 },
+    'input-aceites': { step: 1, min: 0 },
+    'input-otros': { step: 1, min: 0 }
+  };
 
   const SECTION_ID_MAP = {
     antecedentes: { r: 22, w: 12 },
@@ -58,7 +84,12 @@ const InformeTurno = (() => {
     activeHelperWorkers: [],
     accessRestricted: false,
     auditModeRequested: false,
-    auditModeEnabled: false
+    auditModeEnabled: false,
+    mathValidationErrors: {
+      hrs_horometro: false,
+      mts_perforados: false
+    },
+    mathWarningTimer: null
   };
   window.state = state;
 
@@ -301,6 +332,170 @@ const InformeTurno = (() => {
       .replace(/>/g, '&gt;');
   }
 
+  function hasNegativeMathError() {
+    return Object.values(state.mathValidationErrors || {}).some(Boolean);
+  }
+
+  function showMathWarningToast(message) {
+    let toast = document.getElementById('math-warning-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'math-warning-toast';
+      toast.className = 'math-warning-toast';
+      document.body.appendChild(toast);
+    }
+
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    if (state.mathWarningTimer) {
+      window.clearTimeout(state.mathWarningTimer);
+    }
+
+    state.mathWarningTimer = window.setTimeout(() => {
+      toast.classList.remove('show');
+      state.mathWarningTimer = null;
+    }, 2600);
+  }
+
+  function parseOptionalNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  function normalizeNumericOutput(value) {
+    return Number((value || 0).toFixed(2));
+  }
+
+  function setMathErrorState(campo, finalInput, hasError) {
+    const hadError = Boolean(state.mathValidationErrors[campo]);
+
+    if (finalInput) {
+      finalInput.classList.toggle('input-error', hasError);
+    }
+
+    state.mathValidationErrors[campo] = hasError;
+    if (hasError) {
+      console.log(`[VALIDACION] Error detectado: Valor negativo en ${campo}. Bloqueando envío.`);
+      if (!hadError) {
+        showMathWarningToast('⚠️ El valor final no puede ser menor al inicial');
+      }
+    }
+  }
+
+  function computeFieldDifference(config) {
+    const { campo, initialId, finalId, resultId } = config;
+    const initialInput = document.getElementById(initialId);
+    const finalInput = document.getElementById(finalId);
+    const resultInput = document.getElementById(resultId);
+    if (!initialInput || !finalInput || !resultInput) return;
+
+    const initialValue = parseOptionalNumber(initialInput.value);
+    const finalValue = parseOptionalNumber(finalInput.value);
+
+    if (initialValue === null || finalValue === null) {
+      resultInput.value = '';
+      setMathErrorState(campo, finalInput, false);
+      return;
+    }
+
+    const rawDiff = finalValue - initialValue;
+    const diff = normalizeNumericOutput(rawDiff);
+    resultInput.value = String(diff);
+    console.log(`[MATH_ENGINE] Cálculo actualizado: ${campo} = ${diff}.`);
+
+    setMathErrorState(campo, finalInput, diff < 0);
+  }
+
+  function runLiveMathEngine() {
+    computeFieldDifference({
+      campo: 'hrs_horometro',
+      initialId: 'input-horometro-inicial',
+      finalId: 'input-horometro-final',
+      resultId: 'input-horometro-hrs'
+    });
+
+    computeFieldDifference({
+      campo: 'mts_perforados',
+      initialId: 'input-profundidad-inicial',
+      finalId: 'input-profundidad',
+      resultId: 'input-mts-perforados'
+    });
+
+    applyActionBarState();
+  }
+
+  function setAutoCalculatedField(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.setAttribute('readonly', 'readonly');
+    input.classList.add('input-auto-calculated');
+  }
+
+  function setupNumericSpinners() {
+    SPINNER_FIELD_IDS.forEach((fieldId) => {
+      const input = document.getElementById(fieldId);
+      if (!input || input.dataset.spinnerReady === '1') return;
+
+      const config = SPINNER_FIELD_CONFIG[fieldId] || {};
+      if (Number.isFinite(Number(config.step))) input.step = String(config.step);
+      if (Number.isFinite(Number(config.min))) input.min = String(config.min);
+      if (Number.isFinite(Number(config.max))) input.max = String(config.max);
+
+      const parent = input.parentElement;
+      if (!parent) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'numeric-spinner';
+
+      const minusBtn = document.createElement('button');
+      minusBtn.type = 'button';
+      minusBtn.className = 'spinner-btn spinner-btn-minus';
+      minusBtn.setAttribute('aria-label', `Disminuir ${fieldId}`);
+      minusBtn.textContent = '-';
+
+      const plusBtn = document.createElement('button');
+      plusBtn.type = 'button';
+      plusBtn.className = 'spinner-btn spinner-btn-plus';
+      plusBtn.setAttribute('aria-label', `Aumentar ${fieldId}`);
+      plusBtn.textContent = '+';
+
+      parent.insertBefore(wrapper, input);
+      wrapper.appendChild(minusBtn);
+      wrapper.appendChild(input);
+      wrapper.appendChild(plusBtn);
+
+      input.dataset.spinnerReady = '1';
+      input.classList.add('numeric-spinner-input');
+
+      const changeByStep = (delta) => {
+        const step = parseOptionalNumber(input.step) || 1;
+        const current = parseOptionalNumber(input.value) ?? 0;
+        const min = parseOptionalNumber(input.min);
+        const max = parseOptionalNumber(input.max);
+        let next = normalizeNumericOutput(current + (step * delta));
+
+        if (min !== null) next = Math.max(min, next);
+        if (max !== null) next = Math.min(max, next);
+
+        input.value = String(next);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      minusBtn.addEventListener('click', () => changeByStep(-1));
+      plusBtn.addEventListener('click', () => changeByStep(1));
+    });
+  }
+
+  function initializeMathEngine() {
+    setAutoCalculatedField('input-horometro-hrs');
+    setAutoCalculatedField('input-mts-perforados');
+    setupNumericSpinners();
+    runLiveMathEngine();
+  }
+
   function activateTab(tabKey) {
     TAB_KEYS.forEach((key) => {
       getTabButton(key)?.classList.toggle('active', key === tabKey);
@@ -438,7 +633,9 @@ const InformeTurno = (() => {
           }
         } else {
           node.removeAttribute('disabled');
-          node.removeAttribute('readonly');
+          if (!node.classList.contains('input-auto-calculated')) {
+            node.removeAttribute('readonly');
+          }
           if (node.tagName === 'BUTTON' && (node.className.includes('btn-add') || node.className.includes('btn-delete') || node.id.includes('btnAgregar'))) {
             node.classList.remove('hidden');
             node.style.display = '';
@@ -461,7 +658,7 @@ const InformeTurno = (() => {
 
     if (btnFinalizar) {
       const finalizeReady = validateFinalizeRequirements(false).isValid;
-      if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted) {
+      if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted || hasNegativeMathError()) {
         btnFinalizar.setAttribute('disabled', 'disabled');
       } else {
         btnFinalizar.removeAttribute('disabled');
@@ -604,6 +801,92 @@ const InformeTurno = (() => {
     if (prevValue) select.value = prevValue;
   }
 
+  function getPersonnelSelects() {
+    const selects = [];
+    const operador = document.getElementById('input-operador');
+    if (operador && operador.tagName === 'SELECT') selects.push(operador);
+
+    for (let index = 1; index <= state.helperSelectCount; index += 1) {
+      const helper = document.getElementById(`input-ayudante-${index}`);
+      if (helper && helper.tagName === 'SELECT') selects.push(helper);
+    }
+
+    return selects;
+  }
+
+  function refreshWorkerLists() {
+    const selects = getPersonnelSelects();
+    const selectedByField = new Map();
+    const occupied = new Set();
+
+    selects.forEach((select) => {
+      const selected = String(select.value || '').trim();
+      if (selected) {
+        selectedByField.set(select.id, selected);
+        occupied.add(selected);
+      }
+    });
+
+    const operadorRut = String(document.getElementById('input-operador')?.value || '').trim();
+    const blockedLogged = new Set();
+
+    selects.forEach((select) => {
+      const currentValue = String(select.value || '').trim();
+      const isHelper = select.id.startsWith('input-ayudante-');
+
+      Array.from(select.options).forEach((option) => {
+        const rut = String(option.value || '').trim();
+        if (!rut) {
+          option.disabled = false;
+          return;
+        }
+
+        let shouldDisable = occupied.has(rut) && rut !== currentValue;
+        if (isHelper && operadorRut && rut === operadorRut && rut !== currentValue) {
+          shouldDisable = true;
+        }
+
+        option.disabled = shouldDisable;
+
+        if (shouldDisable && !blockedLogged.has(rut)) {
+          blockedLogged.add(rut);
+          console.log(`[VALIDACION_PERSONAL] Trabajador ${rut} bloqueado en el resto de la lista.`);
+        }
+      });
+    });
+  }
+
+  function removeExtraHelper(helperIndex) {
+    if (helperIndex < 3 || helperIndex > state.helperSelectCount) return;
+
+    const snapshot = {};
+    for (let index = 1; index <= state.helperSelectCount; index += 1) {
+      snapshot[index] = document.getElementById(`input-ayudante-${index}`)?.value || '';
+    }
+
+    for (let index = helperIndex; index < state.helperSelectCount; index += 1) {
+      snapshot[index] = snapshot[index + 1] || '';
+    }
+
+    snapshot[state.helperSelectCount] = '';
+    state.helperSelectCount = Math.max(2, state.helperSelectCount - 1);
+    renderExtraAyudanteFields();
+
+    for (let index = 1; index <= state.helperSelectCount; index += 1) {
+      const select = document.getElementById(`input-ayudante-${index}`);
+      const value = snapshot[index] || '';
+      if (select) {
+        const exists = Array.from(select.options).some((option) => option.value === value);
+        if (value && !exists) ensureSelectOption(`input-ayudante-${index}`, value, value);
+        select.value = value;
+      }
+    }
+
+    console.log(`[DRAFT_ENGINE] Ayudante ${helperIndex} eliminado del informe`);
+    refreshWorkerLists();
+    applyActionBarState();
+  }
+
   function renderExtraAyudanteFields() {
     const container = document.getElementById('extra-ayudantes-container');
     const addButton = document.getElementById('btn-add-ayudante');
@@ -616,9 +899,14 @@ const InformeTurno = (() => {
       wrapper.dataset.helperIndex = String(index);
       wrapper.innerHTML = `
         <label>Ayudante ${index}</label>
-        <select id="input-ayudante-${index}" class="modern-input">
-          <option value="">— Ninguno —</option>
-        </select>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="input-ayudante-${index}" class="modern-input" style="flex:1 1 auto;">
+            <option value="">— Ninguno —</option>
+          </select>
+          <button type="button" class="btn-remove-helper" data-helper-index="${index}" title="Quitar ayudante ${index}">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       `;
       container.appendChild(wrapper);
     }
@@ -630,6 +918,7 @@ const InformeTurno = (() => {
     }
 
     syncAyudanteSelects();
+    refreshWorkerLists();
   }
 
   function syncAyudanteSelects() {
@@ -640,12 +929,15 @@ const InformeTurno = (() => {
         buildSelectOptions(select, workers, '— Ninguno —');
       }
     }
+    refreshWorkerLists();
   }
 
   function collectAyudantesData() {
     const ayudantes = {};
     for (let index = 1; index <= MAX_AYUDANTES; index += 1) {
-      ayudantes[`ayudante_${index}`] = document.getElementById(`input-ayudante-${index}`)?.value || '';
+      const isVisible = index <= state.helperSelectCount;
+      const value = isVisible ? (document.getElementById(`input-ayudante-${index}`)?.value || '') : '';
+      ayudantes[`ayudante_${index}`] = value || null;
     }
     return ayudantes;
   }
@@ -1003,6 +1295,7 @@ const InformeTurno = (() => {
     renderActividades(actividades);
     renderPerforaciones(perforaciones);
     renderHerramientas(herramientas);
+    runLiveMathEngine();
   }
 
   async function loadExistingReportIfNeeded() {
@@ -1175,6 +1468,11 @@ const InformeTurno = (() => {
     
     // Validar siempre campos críticos básicos si finalizamos
     if (estadoFinal === 'Finalizado') {
+      if (hasNegativeMathError()) {
+        showErrorModal('No se puede finalizar mientras existan calculos automaticos con valor negativo.');
+        return;
+      }
+
       document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 
       const validation = validateFinalizeRequirements(true);
@@ -1305,6 +1603,16 @@ const InformeTurno = (() => {
   }
 
   function bindActions() {
+    document.getElementById('extra-ayudantes-container')?.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.btn-remove-helper');
+      if (!removeBtn) return;
+      event.preventDefault();
+      const helperIndex = parseInt(removeBtn.getAttribute('data-helper-index') || '', 10);
+      if (Number.isInteger(helperIndex)) {
+        removeExtraHelper(helperIndex);
+      }
+    });
+
     document.getElementById('btn-add-ayudante')?.addEventListener('click', (e) => {
       e.preventDefault();
       if (state.helperSelectCount >= MAX_AYUDANTES) return;
@@ -1333,12 +1641,18 @@ const InformeTurno = (() => {
 
     document.addEventListener('input', (event) => {
       if (event.target.closest('.informe-container')) {
+        if (event.target.matches('#input-horometro-inicial, #input-horometro-final, #input-profundidad-inicial, #input-profundidad')) {
+          runLiveMathEngine();
+        }
         applyActionBarState();
       }
     });
 
     document.addEventListener('change', (event) => {
       if (event.target.closest('.informe-container')) {
+        if (event.target.matches('#input-operador, [id^="input-ayudante-"]')) {
+          refreshWorkerLists();
+        }
         applyActionBarState();
       }
     });
@@ -1438,6 +1752,11 @@ const InformeTurno = (() => {
 
   // --- Helpers Modales ---
   function showFinalizeModal() {
+    if (hasNegativeMathError()) {
+      showErrorModal('No se puede finalizar mientras existan calculos automaticos con valor negativo.');
+      return;
+    }
+
     const validation = validateFinalizeRequirements(true);
     if (!validation.isValid) {
       showErrorModal(`No se puede finalizar. Faltan datos obligatorios: ${validation.missing.join(', ')}`);
@@ -1509,6 +1828,7 @@ const InformeTurno = (() => {
 
     addRowHandlers();
     bindActions();
+    initializeMathEngine();
     
     await loadCargoPermisosIds();
 
@@ -1568,6 +1888,7 @@ const InformeTurno = (() => {
     }
 
     applyPermissionMatrix();
+    runLiveMathEngine();
     await runShiftHeartbeat();
     startHeartbeatCycle();
     startAutosaveCycle();
