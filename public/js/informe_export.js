@@ -108,6 +108,147 @@ async function generarPDF() {
     }
 }
 
+async function ensurePdfLibraries() {
+    const hasJsPdf = Boolean(window.jspdf && window.jspdf.jsPDF);
+    const hasAutoTable = Boolean(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable);
+
+    if (hasJsPdf && hasAutoTable) return;
+
+    const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+        document.head.appendChild(script);
+    });
+
+    if (!hasJsPdf) {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    }
+
+    const stillMissingAutoTable = !(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable);
+    if (stillMissingAutoTable) {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+    }
+
+    const ready = Boolean(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable);
+    if (!ready) {
+        throw new Error('No se pudieron inicializar las librerias de PDF.');
+    }
+}
+
+function getInputValue(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    return String(el.value || '').trim();
+}
+
+function getSelectLabel(id) {
+    const select = document.getElementById(id);
+    if (!select) return '';
+    const selected = select.options[select.selectedIndex];
+    if (!selected) return String(select.value || '').trim();
+    return String(selected.textContent || selected.value || '').trim();
+}
+
+function normalizeCellValue(value) {
+    const text = String(value || '').trim();
+    return text || '-';
+}
+
+function normalizeWorkerLabel(value) {
+    const text = String(value || '').trim();
+    if (!text) return '-';
+
+    // Quita sufijo "(RUT)" para que el PDF muestre solo el nombre.
+    return text.replace(/\s*\([^)]*\)\s*$/, '').trim() || text;
+}
+
+function rowValuesByNames(row, names) {
+    return names.map((name) => normalizeCellValue(row.querySelector(`[name="${name}"]`)?.value || ''));
+}
+
+async function imageUrlToBase64(url) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('No se pudo convertir imagen a base64'));
+            reader.readAsDataURL(blob);
+        });
+
+        return dataUrl;
+    } catch (error) {
+        console.warn('[PDF_ENGINE] No se pudo cargar el logo para PDF:', error?.message || error);
+        return null;
+    }
+}
+
+function collectPdfData() {
+    const todayDate = getInputValue('input-fecha');
+    const grupo = getInputValue('input-turno') || getInputValue('input-turno-display');
+    const faena = getInputValue('input-faena');
+    const equipo = getInputValue('input-equipo');
+    const responsable = normalizeWorkerLabel(getSelectLabel('input-operador'));
+
+    const personalRows = [
+        ['Responsable de Turno', normalizeCellValue(responsable)]
+    ];
+    for (let index = 1; index <= 5; index += 1) {
+        const helperLabel = normalizeWorkerLabel(getSelectLabel(`input-ayudante-${index}`));
+        if (helperLabel && helperLabel !== '— Ninguno —') {
+            personalRows.push([`Ayudante ${index}`, normalizeCellValue(helperLabel)]);
+        }
+    }
+
+    const perforacionRows = Array.from(document.querySelectorAll('#tabla-perforacion tr')).map((row) =>
+        rowValuesByNames(row, ['perf_desde[]', 'perf_hasta[]', 'perf_metros[]', 'perf_tipo[]'])
+    ).filter((row) => row.some((cell) => cell !== '-'));
+
+    const actividadRows = Array.from(document.querySelectorAll('#lista-actividades tr')).map((row) =>
+        rowValuesByNames(row, ['hora_desde[]', 'hora_hasta[]', 'detalle[]', 'hrs_bd[]', 'hrs_cliente[]'])
+    ).filter((row) => row.some((cell) => cell !== '-'));
+
+    const hrsHorometro = getInputValue('input-horometro-hrs');
+    const mtsPerforados = getInputValue('input-mts-perforados');
+
+    const datos = [
+        todayDate,
+        grupo,
+        faena,
+        equipo,
+        responsable,
+        hrsHorometro,
+        mtsPerforados,
+        ...personalRows.flat(),
+        ...perforacionRows.flat(),
+        ...actividadRows.flat()
+    ].filter((value) => String(value || '').trim() !== '');
+
+    return {
+        encabezado: {
+            fecha: normalizeCellValue(todayDate),
+            grupo: normalizeCellValue(grupo),
+            faena: normalizeCellValue(faena),
+            equipo: normalizeCellValue(equipo),
+            responsable: normalizeCellValue(responsable)
+        },
+        personalRows,
+        perforacionRows,
+        actividadRows,
+        calculos: {
+            hrsHorometro: normalizeCellValue(hrsHorometro),
+            mtsPerforados: normalizeCellValue(mtsPerforados)
+        },
+        datos
+    };
+}
+
 // Generador Universal y On-Demand
 async function exportarInformeAPDF(idInforme) {
     if (!idInforme) {
@@ -115,209 +256,104 @@ async function exportarInformeAPDF(idInforme) {
     }
 
     try {
-        // 1. Fetch de datos completos
-        const res = await fetch(`/api/informes/${idInforme}/detalles`);
-        if (!res.ok) throw new Error('Error al cargar datos del informe desde la base de datos.');
-        const { informe, actividades, herramientas, perforaciones } = await res.json();
+        await ensurePdfLibraries();
 
-        // 2. Revisar logs para marca de auditoría
-        let auditDateStr = null;
-        const resLogs = await fetch('/api/logs');
-        if (resLogs.ok) {
-            const logs = await resLogs.json();
-            const logForDoc = logs.find(l => l.detalle && l.detalle.includes(`ID_${idInforme}`));
-            if (logForDoc) {
-                const dt = new Date(logForDoc.fecha);
-                auditDateStr = dt.toLocaleDateString('es-CL') + ' ' + dt.toLocaleTimeString('es-CL', { hour: '2-digit', minute:'2-digit' });
-            }
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const logoBase64 = await imageUrlToBase64('/IMG/logoBASALTO.png');
+        const { encabezado, personalRows, perforacionRows, actividadRows, calculos, datos } = collectPdfData();
+
+        let cursorY = 16;
+
+        if (logoBase64) {
+            pdf.addImage(logoBase64, 'PNG', 12, 10, 28, 18);
         }
 
-        // 3. Obtener nombres de trabajadores si están disponibles en la caché (opcional)
-        // intentamos mapear rut a nombre pero como esto debe ser on-demand, mostramos el rut si no.
-        let operadorLabel = informe.operador_rut || '-';
-        if (typeof trabajadores !== 'undefined' && trabajadores.length > 0) {
-            const ts = trabajadores.find(t => t.RUT === operadorLabel);
-            if (ts) operadorLabel = `${ts.nombres} ${ts.apellido_paterno} ${ts.apellido_materno || ''}`.trim();
-        }
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        pdf.text('Reporte Diario de Operaciones', 105, 18, { align: 'center' });
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(`Informe #${idInforme}`, 198, 14, { align: 'right' });
+        cursorY = 34;
 
-        // --- CONSTRUCTOR DEL DOM INDUSTRIAL ---
-        const wrapper = document.createElement('div');
-        wrapper.style.backgroundColor = '#ffffff';
-        wrapper.style.color = '#000000';
-        wrapper.style.width = '210mm'; // Ancho estricto A4
-        wrapper.style.padding = '10mm';
-        wrapper.style.fontFamily = 'Helvetica, Arial, sans-serif';
-        wrapper.style.fontSize = '12px';
-        wrapper.style.lineHeight = '1.4';
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('1. Antecedentes', 14, cursorY);
+        cursorY += 2;
 
-        const borderStyle = '1px solid #000000';
-        const headerBg = '#f2f2f2';
+        pdf.autoTable({
+            startY: cursorY,
+            head: [['Fecha', 'Grupo', 'Faena', 'Equipo', 'Responsable de Turno']],
+            body: [[
+                encabezado.fecha,
+                encabezado.grupo,
+                encabezado.faena,
+                encabezado.equipo,
+                encabezado.responsable
+            ]],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [31, 41, 55], textColor: 255 }
+        });
 
-        const safeStr = (val) => val == null || val === '' ? '-' : String(val);
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('2. Personal', 14, cursorY);
 
-        // A. Encabezado
-        const headerHtml = `
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle};">
-                <tr>
-                    <td style="width: 25%; padding: 10px; border: ${borderStyle}; text-align: center;">
-                        <h1 style="margin: 0; font-size: 16px; font-weight: bold; color: #000;">BASALTO DRILLING</h1>
-                        <p style="margin: 3px 0 0 0; font-size: 9px;">Servicios Perforación</p>
-                    </td>
-                    <td style="width: 50%; padding: 10px; border: ${borderStyle}; text-align: center; vertical-align: middle;">
-                        <h2 style="margin: 0; font-size: 16px; font-weight: bold;">REPORTE DIARIO DE PERFORACIÓN</h2>
-                    </td>
-                    <td style="width: 25%; padding: 10px; border: ${borderStyle};">
-                        <div style="font-weight: bold; margin-bottom: 5px;">FOLIO: <span style="color: #dc2626;">${safeStr(informe.numero_informe)}</span></div>
-                        <div style="font-weight: bold;">FECHA: <span style="font-weight: normal;">${safeStr(informe.fecha).split('T')[0]}</span></div>
-                    </td>
-                </tr>
-            </table>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
-                <tr style="background-color: ${headerBg}; font-weight: bold;">
-                    <td style="padding: 5px; border: ${borderStyle};">Turno</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Faena / C. Costo</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Lugar / Sector</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Equipo</td>
-                </tr>
-                <tr>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.turno)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.faena)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.lugar)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.equipo)}</td>
-                </tr>
-            </table>
-        `;
+        pdf.autoTable({
+            startY: cursorY + 2,
+            head: [['Rol', 'Trabajador']],
+            body: personalRows.length ? personalRows : [['Responsable de Turno', '-']],
+            theme: 'striped',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [249, 115, 22], textColor: 255 }
+        });
 
-        // B. Cuerpo Técnico
-        const techHtml = `
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
-                <tr style="background-color: ${headerBg}; font-weight: bold;">
-                    <td style="padding: 5px; border: ${borderStyle};">Pozo N°</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Diámetro</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Inclinación</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Prof. Inicial</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Prof. Final</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Mts Perforados</td>
-                </tr>
-                <tr>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.pozo_numero)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.diametro)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.inclinacion)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.profundidad_inicial)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.profundidad_final)}</td>
-                    <td style="padding: 5px; border: ${borderStyle}; font-weight: bold;">${safeStr(informe.mts_perforados)}</td>
-                </tr>
-            </table>
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('3. Operación', 14, cursorY);
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: ${borderStyle}; text-align: center; font-size: 11px;">
-                <tr style="background-color: ${headerBg}; font-weight: bold;">
-                    <td style="padding: 5px; border: ${borderStyle};">Pull Down (lbs)</td>
-                    <td style="padding: 5px; border: ${borderStyle};">RPM</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Horómetro Inicial</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Horómetro Final</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Petróleo (Gal)</td>
-                    <td style="padding: 5px; border: ${borderStyle};">Lubricantes (Ltr)</td>
-                </tr>
-                <tr>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.pull_down)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.rpm)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.horometro_inicial)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.horometro_final)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.insumo_petroleo)}</td>
-                    <td style="padding: 5px; border: ${borderStyle};">${safeStr(informe.insumo_lubricantes)}</td>
-                </tr>
-            </table>
-        `;
+        pdf.autoTable({
+            startY: cursorY + 2,
+            head: [['Desde', 'Hasta', 'Mts', 'Tipo Roca']],
+            body: perforacionRows.length ? perforacionRows : [['-', '-', '-', '-']],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [75, 85, 99], textColor: 255 }
+        });
 
-        // C. Bitácora de Actividades
-        let actsRows = '';
-        if (actividades && actividades.length > 0) {
-            actividades.forEach(a => {
-                actsRows += `<tr>
-                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hora_desde).substring(0,5)}</td>
-                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hora_hasta).substring(0,5)}</td>
-                    <td style="padding: 4px; border: ${borderStyle};">${safeStr(a.detalle)}</td>
-                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hrs_bd)}</td>
-                    <td style="padding: 4px; border: ${borderStyle}; text-align: center;">${safeStr(a.hrs_cliente)}</td>
-                </tr>`;
-            });
-        } else {
-            actsRows = `<tr><td colspan="5" style="padding: 10px; border: ${borderStyle}; text-align: center; color: #666; font-style: italic;">Sin actividades registradas</td></tr>`;
-        }
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 4;
+        pdf.autoTable({
+            startY: cursorY,
+            head: [['Desde', 'Hasta', 'Detalle', 'Hrs BD', 'Hrs Cliente']],
+            body: actividadRows.length ? actividadRows : [['-', '-', '-', '-', '-']],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [75, 85, 99], textColor: 255 }
+        });
 
-        const logHtml = `
-            <div style="font-weight: bold; background-color: ${headerBg}; border: ${borderStyle}; border-bottom: none; padding: 5px; font-size: 12px; margin-top: 20px;">
-                BITÁCORA DE ACTIVIDADES
-            </div>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: ${borderStyle}; font-size: 10px;">
-                <tr style="background-color: ${headerBg}; font-weight: bold; text-align: center;">
-                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Desde</td>
-                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hasta</td>
-                    <td style="padding: 5px; border: ${borderStyle}; width: 60%; text-align: left;">Descripción de la Tarea</td>
-                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hrs BD</td>
-                    <td style="padding: 5px; border: ${borderStyle}; width: 10%;">Hrs Cli</td>
-                </tr>
-                ${actsRows}
-            </table>
-        `;
-        
-        // Observaciones
-        let obsHtml = '';
-        if (informe.observaciones) {
-            obsHtml = `
-            <div style="font-weight: bold; margin-bottom: 5px; font-size: 11px;">OBSERVACIONES / NOVEDADES:</div>
-            <div style="border: ${borderStyle}; min-height: 40px; padding: 8px; font-size: 11px; white-space: pre-wrap; margin-bottom: 25px;">${safeStr(informe.observaciones)}</div>
-            `;
-        } else {
-            obsHtml = `<div style="height: 40px;"></div>`;
-        }
+        cursorY = (pdf.lastAutoTable?.finalY || cursorY) + 8;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('4. Cálculos', 14, cursorY);
 
-        // D. Footer (Firmas y Auditoría)
-        let auditNote = '';
-        if (auditDateStr || (informe.is_audit_edit && informe.is_audit_edit == 1)) {
-            const dateStr = auditDateStr || 'Sin Fecha';
-            auditNote = `
-                <div style="margin-top: 15px; font-size: 10px; text-align: center; font-style: italic; font-weight: bold;">
-                    📍 Documento interceptado y validado mediante auditoría interna el ${dateStr}.
-                </div>
-            `;
-        }
+        pdf.autoTable({
+            startY: cursorY + 2,
+            head: [['Concepto', 'Valor']],
+            body: [
+                ['Total Horas Horómetro', calculos.hrsHorometro],
+                ['Total Metros Perforados', calculos.mtsPerforados]
+            ],
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 3 },
+            headStyles: { fillColor: [31, 41, 55], textColor: 255 }
+        });
 
-        const sigsHtml = `
-            <div style="display: flex; justify-content: space-between; margin-top: 40px; text-align: center; font-size: 11px;">
-                <div style="width: 40%;">
-                    <div style="border-bottom: 1px solid #000; height: 50px; margin-bottom: 5px;"></div>
-                    <div style="font-weight: bold;">FIRMA RESPONSABLE</div>
-                    <div>${operadorLabel}</div>
-                </div>
-                <div style="width: 40%;">
-                    <div style="border-bottom: 1px solid #000; height: 50px; margin-bottom: 5px;"></div>
-                    <div style="font-weight: bold;">SUPERVISOR / ADMIN</div>
-                    <div>Aprobación V°B°</div>
-                </div>
-            </div>
-            ${auditNote}
-        `;
-
-        wrapper.innerHTML = headerHtml + techHtml + logHtml + obsHtml + sigsHtml;
-
-        // Montar y disparar html2pdf
-        document.body.appendChild(wrapper);
-        wrapper.style.position = 'absolute';
-        wrapper.style.left = '-9999px';
-        wrapper.style.top = '0';
-
-        const opt = {
-            margin:       10, // mm
-            filename:     `Reporte_IT_${safeStr(informe.numero_informe)}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        await html2pdf().set(opt).from(wrapper).save();
-        document.body.removeChild(wrapper);
+        pdf.save(`Reporte_IT_${idInforme}.pdf`);
+        console.log(`[PDF_ENGINE] Documento generado exitosamente con ${datos.length} campos.`);
 
     } catch (err) {
         console.error('Error generando PDF bajo demanda:', err);
