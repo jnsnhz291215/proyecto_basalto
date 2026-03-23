@@ -83,8 +83,60 @@ const InformeTurno = (() => {
     if (displayInput) displayInput.value = normalizedGroup ? `Grupo ${normalizedGroup}` : 'Sin grupo asignado';
   }
 
-  function redirectToHome() {
-    window.location.href = '/index.html';
+  function buildAccessDeniedReason(shiftContext, isInGrace) {
+    const estado = shiftContext?.estado || '';
+    const grupo = state.userGrupo || normalizeGroupValue(shiftContext?.grupo || '');
+    const graceEndsAt = shiftContext?.grace_ends_at || null;
+
+    if (isInGrace && graceEndsAt) {
+      const hora = new Date(graceEndsAt).toLocaleTimeString('es-CL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      return `Tu ventana de gracia de 30 minutos termina a las ${hora}. Para ingresar necesitas tener un borrador guardado de tu turno.`;
+    }
+
+    if (estado === 'sin_grupo') {
+      return 'Tu cuenta no tiene un grupo de turno asignado. Contacta al administrador.';
+    }
+
+    if (estado === 'sin_datos') {
+      return 'No se pudo verificar tu estado de turno. Verifica tu sesión o contacta al administrador.';
+    }
+
+    const grupoMsg = grupo ? ` El Grupo ${grupo} no tiene turno activo en este momento.` : '';
+    return `No estás en turno operativo el día de hoy.${grupoMsg} Solo puedes crear informes durante tu jornada activa.`;
+  }
+
+  function showRestrictedAccess(reason) {
+    const container = document.querySelector('.informe-container');
+    if (container) container.style.display = 'none';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'access-restricted-overlay';
+    overlay.className = 'access-restricted-overlay';
+    overlay.innerHTML = `
+      <div class="access-restricted-card">
+        <div class="access-restricted-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="access-restricted-title">Acceso Restringido</h2>
+        <p class="access-restricted-reason"></p>
+        <a href="/index.html" class="access-restricted-btn">
+          <i class="fa-solid fa-arrow-left"></i> Volver al Inicio
+        </a>
+      </div>
+    `;
+
+    overlay.querySelector('.access-restricted-reason').textContent = reason;
+
+    const main = document.querySelector('main');
+    if (main) {
+      main.appendChild(overlay);
+    } else {
+      document.body.appendChild(overlay);
+    }
   }
 
   function activarBotonPDF() {
@@ -1284,7 +1336,9 @@ const InformeTurno = (() => {
         await openExistingInforme(existingDraft.id_informe);
         reportAlreadyLoaded = true;
       } else if (!exactActive) {
-        redirectToHome();
+        const reason = buildAccessDeniedReason(shiftContext, inGrace);
+        showRestrictedAccess(reason);
+        applyPermissionMatrix();
         return;
       }
     }

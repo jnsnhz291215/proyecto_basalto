@@ -212,6 +212,70 @@ body {
 	border: 1px solid #fdba74;
 }
 
+/* ---- Acceso Restringido overlay ---- */
+.access-restricted-overlay {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 16px;
+}
+
+.access-restricted-card {
+	max-width: 560px;
+	width: 100%;
+	background: #fff;
+	border-radius: 14px;
+	border-top: 5px solid #dc2626;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.10);
+	padding: 44px 40px;
+	text-align: center;
+}
+
+.access-restricted-icon {
+	width: 72px;
+	height: 72px;
+	background: #fef2f2;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 24px;
+	color: #dc2626;
+	font-size: 2rem;
+}
+
+.access-restricted-title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	color: #111827;
+	margin: 0 0 14px;
+}
+
+.access-restricted-reason {
+	font-size: 1rem;
+	color: #4b5563;
+	line-height: 1.6;
+	margin: 0 0 30px;
+}
+
+.access-restricted-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 11px 26px;
+	background: #1e293b;
+	color: #fff;
+	text-decoration: none;
+	border-radius: 8px;
+	font-weight: 600;
+	font-size: 0.95rem;
+	transition: background 0.2s;
+}
+
+.access-restricted-btn:hover {
+	background: #334155;
+}
+
 .textarea-large {
 	min-height: 150px;
 	resize: vertical;
