@@ -1,10 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const btnPdf = document.getElementById('btn-descargar-pdf');
     const btnReabrir = document.getElementById('btn-reabrir-turno');
-
-    if (btnPdf) {
-        btnPdf.addEventListener('click', generarPDF);
-    }
 
     if (btnReabrir) {
         btnReabrir.addEventListener('click', reabrirTurno);
@@ -93,7 +88,7 @@ async function generarPDF() {
         return;
     }
     
-    const btnPdfMain = document.getElementById('btn-descargar-pdf');
+    const btnPdfMain = document.getElementById('btn-exportar-pdf');
     const btnPdfSuccess = document.getElementById('btn-success-pdf');
     if (btnPdfMain) btnPdfMain.classList.add('btn-loading');
     if (btnPdfSuccess) btnPdfSuccess.classList.add('btn-loading');

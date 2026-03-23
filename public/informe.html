@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Informe de Turno</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/informe.css">
@@ -72,26 +75,36 @@
         <!-- HEADER: Información General del Turno -->
         <div class="card-section header-section" id="section-header">
             <div class="header-iden-row">
-                <div class="header-iden-title">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    <span>Informe de Turno</span>
+                <div class="header-left-panel">
+                    <div class="header-iden-title">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <span>Informe de Turno</span>
+                    </div>
+                    <div class="folio-status-row">
+                        <div id="folio-chip" class="folio-chip">I-001</div>
+                        <div id="estado-chip" class="estado-chip estado-borrador">Borrador</div>
+                    </div>
                 </div>
+                <div class="header-right-panel" data-section-panel="antecedentes">
+                    <div class="input-group compact-field">
+                        <label>Fecha del Informe</label>
+                        <div class="date-nav-wrapper">
+                            <button type="button" id="btn-fecha-prev" class="date-nav-btn" title="Día anterior" style="display:none;">&#8249;</button>
+                            <input type="date" id="input-fecha" class="modern-input input-readonly" readonly aria-readonly="true">
+                            <button type="button" id="btn-fecha-next" class="date-nav-btn" title="Día siguiente" style="display:none;">&#8250;</button>
+                        </div>
+                    </div>
+                    <div class="input-group compact-field">
+                        <label>Grupo / Turno asignado</label>
+                        <input type="hidden" id="input-turno">
+                        <input type="text" id="input-turno-display" class="modern-input input-readonly" value="Detectando turno..." readonly aria-readonly="true">
+                    </div>
+                </div>
+            </div>
+            <div class="header-status-wrap">
                 <div id="status-badge" class="shift-badge" hidden></div>
             </div>
             <div class="header-fields-grid" data-section-panel="antecedentes">
-                <div class="input-group">
-                    <label>Fecha del Informe</label>
-                    <div class="date-nav-wrapper">
-                        <button type="button" id="btn-fecha-prev" class="date-nav-btn" title="Día anterior" style="display:none;">&#8249;</button>
-                        <input type="date" id="input-fecha" class="modern-input input-readonly" readonly aria-readonly="true">
-                        <button type="button" id="btn-fecha-next" class="date-nav-btn" title="Día siguiente" style="display:none;">&#8250;</button>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>Grupo / Turno asignado</label>
-                    <input type="hidden" id="input-turno">
-                    <input type="text" id="input-turno-display" class="modern-input input-readonly" value="Detectando turno..." readonly aria-readonly="true">
-                </div>
                 <div class="input-group">
                     <label>Hrs. Trabajadas</label>
                     <input type="number" id="input-horas-trabajadas" placeholder="12.5" class="modern-input">
@@ -109,6 +122,22 @@
                     <input type="number" id="input-horometro-hrs" class="modern-input">
                 </div>
             </div>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN FINALES -->
+        <div class="action-bar card-section">
+            <button id="btn-finalizar-turno" class="btn btn-success" type="button">
+                <i class="fa-solid fa-lock"></i> Finalizar y Bloquear Turno
+            </button>
+            <button id="btn-guardar-borrador" class="btn btn-secondary-outline" type="button">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
+            </button>
+            <button id="btn-exportar-pdf" class="btn btn-primary" type="button">
+                <i class="fa-solid fa-file-export"></i> Exportar PDF
+            </button>
+            <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
+                Re-abrir para el Operador
+            </button>
         </div>
 
         <!-- TABS NAVIGATION -->
@@ -330,28 +359,33 @@
         <!-- TAB 4: CIERRE -->
         <div id="tab-cierre" class="tab-content" data-section-panel="cierre">
             <div class="card-section">
-                <h3 class="section-title">Notas / Observaciones</h3>
-                <textarea id="notas-observaciones" class="modern-input textarea-large" placeholder="Ingresa cualquier nota, observación o comentario importante sobre el turno..."></textarea>
-            </div>
-        </div>
+                <h3 class="section-title">Resumen del Turno</h3>
+                <div class="resumen-kpi-grid">
+                    <div class="resumen-kpi-card">
+                        <div class="resumen-kpi-icon"><i class="fa-solid fa-ruler-combined"></i></div>
+                        <div class="resumen-kpi-label">Metros Totales</div>
+                        <div id="resumen-metros" class="resumen-kpi-value">0.00 m</div>
+                    </div>
+                    <div class="resumen-kpi-card">
+                        <div class="resumen-kpi-icon"><i class="fa-solid fa-gem"></i></div>
+                        <div class="resumen-kpi-label">Diamantes</div>
+                        <div id="resumen-diamantes" class="resumen-kpi-value">0</div>
+                    </div>
+                    <div class="resumen-kpi-card">
+                        <div class="resumen-kpi-icon"><i class="fa-solid fa-flask-vial"></i></div>
+                        <div class="resumen-kpi-label">Aditivos</div>
+                        <div id="resumen-aditivos" class="resumen-kpi-value">0.00</div>
+                    </div>
+                </div>
 
-        <!-- BOTONES DE ACCIÓN FINALES -->
-        <div class="action-bar">
-            <button id="btn-enviar-correo" class="btn btn-light-blue" type="button" style="display: inline-block; margin-right: auto;">
-                <i class="fas fa-envelope"></i> Enviar por Correo
-            </button>
-            <button id="btn-descargar-pdf" class="btn btn-primary" type="button" disabled title="Primero debes guardar los cambios" style="background: #e2e8f0; color: #1e293b; border-color: #cbd5e1; margin-right: 10px; cursor: not-allowed; opacity: 0.6;">
-                <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Descargar PDF
-            </button>
-            <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
-                Re-abrir para el Operador
-            </button>
-            <button id="btn-guardar-borrador" class="btn btn-secondary-outline" type="button">
-                <i class="fa-solid fa-floppy-disk"></i> Guardar Borrador
-            </button>
-            <button id="btn-finalizar-turno" class="btn btn-success" type="button">
-                <i class="fa-solid fa-lock"></i> Finalizar y Bloquear Turno
-            </button>
+                <div class="observaciones-wrapper">
+                    <div class="observaciones-head">
+                        <h3 class="section-title observaciones-title">Notas / Observaciones</h3>
+                        <span id="observaciones-estado" class="observaciones-estado disponible">Disponible para CD</span>
+                    </div>
+                    <textarea id="notas-observaciones" class="modern-input textarea-large" placeholder="Ingresa cualquier nota, observación o comentario importante sobre el turno..."></textarea>
+                </div>
+            </div>
         </div>
 
     </div>

@@ -142,6 +142,81 @@ const InformeTurno = (() => {
     return '';
   }
 
+  function getFolioLabelFromId(reportId) {
+    const numeric = Number(reportId);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return `I-${String(numeric).padStart(3, '0')}`;
+    }
+    return 'I-001';
+  }
+
+  function getEstadoVisualLabel(status) {
+    const normalized = normalizeStatus(status || '');
+    if (normalized === 'finalizado' || normalized === 'validado') return 'Finalizado';
+    if (normalized === 'cerrado') return 'Cerrado';
+    if (normalized === 'borrador') return 'Borrador';
+    return 'Borrador';
+  }
+
+  function refreshHeaderMeta() {
+    const folioChip = document.getElementById('folio-chip');
+    const estadoChip = document.getElementById('estado-chip');
+    if (folioChip) {
+      folioChip.textContent = getFolioLabelFromId(state.currentReportId);
+    }
+    if (estadoChip) {
+      const label = getEstadoVisualLabel(state.currentReportStatus);
+      estadoChip.textContent = label;
+      estadoChip.classList.remove('estado-borrador', 'estado-finalizado', 'estado-cerrado');
+      if (label === 'Finalizado') estadoChip.classList.add('estado-finalizado');
+      else if (label === 'Cerrado') estadoChip.classList.add('estado-cerrado');
+      else estadoChip.classList.add('estado-borrador');
+    }
+  }
+
+  function updateObservacionesAvailability() {
+    const estado = document.getElementById('observaciones-estado');
+    if (!estado) return;
+    const writable = !state.documentBlocked && sectionWritable('cierre');
+    if (writable) {
+      estado.textContent = 'Disponible para CD';
+      estado.classList.remove('bloqueado');
+      estado.classList.add('disponible');
+    } else {
+      estado.textContent = 'Bloqueado por CD';
+      estado.classList.remove('disponible');
+      estado.classList.add('bloqueado');
+    }
+  }
+
+  function countNonEmptyRows(tbodyId) {
+    const rows = Array.from(document.querySelectorAll(`#${tbodyId} tr`));
+    return rows.filter((row) => {
+      const values = Array.from(row.querySelectorAll('input, select, textarea'))
+        .map((node) => String(node.value || '').trim())
+        .filter(Boolean);
+      return values.length > 0;
+    }).length;
+  }
+
+  function updateResumenCards() {
+    const metrosEl = document.getElementById('resumen-metros');
+    const diamantesEl = document.getElementById('resumen-diamantes');
+    const aditivosEl = document.getElementById('resumen-aditivos');
+    if (!metrosEl && !diamantesEl && !aditivosEl) return;
+
+    const metros = parseOptionalNumber(document.getElementById('input-mts-perforados')?.value) || 0;
+    const diamantes = countNonEmptyRows('tabla-herramientas');
+    const lubricantes = parseOptionalNumber(document.getElementById('input-lubricantes')?.value) || 0;
+    const aceites = parseOptionalNumber(document.getElementById('input-aceites')?.value) || 0;
+    const otros = parseOptionalNumber(document.getElementById('input-otros')?.value) || 0;
+    const aditivos = lubricantes + aceites + otros;
+
+    if (metrosEl) metrosEl.textContent = `${metros.toFixed(2)} m`;
+    if (diamantesEl) diamantesEl.textContent = String(diamantes);
+    if (aditivosEl) aditivosEl.textContent = aditivos.toFixed(2);
+  }
+
   function ensureAdminGroupStatusBadge() {
     const row = document.querySelector('.header-iden-row');
     if (!row) return null;
@@ -185,6 +260,18 @@ const InformeTurno = (() => {
       const data = await resp.json();
       const estado = String(data.estado || '').toLowerCase();
       const jornada = String(data.jornada || 'SinJornada');
+      const isHistoricalDate = fechaIso !== getTodayIsoLocal();
+
+      // Para fechas distintas de hoy, mostrar estado histórico explícito.
+      if (isHistoricalDate) {
+        const jornadaHistorica = jornada && jornada !== 'SinJornada'
+          ? jornada
+          : (estado === 'en_turno' ? 'Día' : 'Noche');
+        badge.className = 'shift-badge shift-badge--rest';
+        badge.innerHTML = `<i class="fa-solid fa-lock"></i> Grupo ${grupoNorm}: ${jornadaHistorica} (Cerrado)`;
+        badge.hidden = false;
+        return;
+      }
 
       if (estado === 'en_turno') {
         badge.className = 'shift-badge shift-badge--active';
@@ -319,7 +406,7 @@ const InformeTurno = (() => {
   }
 
   function activarBotonPDF() {
-    const btnPdf = document.getElementById('btn-descargar-pdf');
+    const btnPdf = document.getElementById('btn-exportar-pdf');
     if (btnPdf) {
       btnPdf.disabled = false;
       btnPdf.removeAttribute('title');
@@ -633,6 +720,7 @@ const InformeTurno = (() => {
     });
 
     applyActionBarState();
+    updateResumenCards();
   }
 
   function setAutoCalculatedField(inputId) {
@@ -858,7 +946,6 @@ const InformeTurno = (() => {
     const btnGuardar = document.getElementById('btn-guardar-borrador');
     const btnFinalizar = document.getElementById('btn-finalizar-turno');
     const btnReabrir = document.getElementById('btn-reabrir-turno');
-    const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
 
     if (btnGuardar) {
       if (state.isSuperAdmin) btnGuardar.removeAttribute('disabled');
@@ -897,16 +984,8 @@ const InformeTurno = (() => {
       }
     }
 
-    if (btnEnviarCorreo) {
-      if (state.isSuperAdmin) {
-        document.getElementById('btn-enviar-correo').style.display = 'inline-block';
-        console.log('[UI_DEBUG] Botón de envío verificado. Estado: Visible.');
-      } else if (normalizeStatus(state.currentReportStatus) === 'finalizado' || normalizeStatus(state.currentReportStatus) === 'cerrado' || normalizeStatus(state.currentReportStatus) === 'validado') {
-        btnEnviarCorreo.style.display = 'inline-flex';
-      } else {
-        btnEnviarCorreo.style.display = 'none';
-      }
-    }
+    refreshHeaderMeta();
+    updateResumenCards();
   }
 
   function applyResponsableRules() {
@@ -1263,6 +1342,7 @@ const InformeTurno = (() => {
     state.currentReportId = null;
     state.currentReportStatus = '';
     state.documentBlocked = false;
+    refreshHeaderMeta();
 
     const fechaPreservada = normalizeDateInputValue(selectedDate)
       || normalizeDateInputValue(document.getElementById('input-fecha')?.value)
@@ -1274,14 +1354,6 @@ const InformeTurno = (() => {
 
     populateInforme({}, [], [], [], { preserveDate: true, forcedDate: fechaPreservada });
     setLockedTurnoValue(selectedGroup);
-
-    const btnPdf = document.getElementById('btn-descargar-pdf');
-    if (btnPdf) {
-      btnPdf.disabled = true;
-      btnPdf.title = 'Primero debes guardar los cambios';
-      btnPdf.style.cursor = 'not-allowed';
-      btnPdf.style.opacity = '0.6';
-    }
   }
 
   async function fetchInformeForAdminView(fecha, grupo) {
@@ -1670,6 +1742,7 @@ const InformeTurno = (() => {
     state.hasVisibleSections = TAB_KEYS.some((tabKey) => isElementVisible(getTabButton(tabKey)));
 
     applyResponsableRules();
+    updateObservacionesAvailability();
     applyActionBarState();
     updateStatusBanner();
     ensureVisibleActiveTab();
@@ -1806,6 +1879,7 @@ const InformeTurno = (() => {
     activarBotonPDF();
     state.currentReportStatus = result.informe.estado || '';
     state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
+    refreshHeaderMeta();
 
     populateInforme(result.informe, result.actividades, result.perforaciones, result.herramientas);
 
@@ -2046,6 +2120,7 @@ const InformeTurno = (() => {
 
     state.currentReportStatus = result.estado || estadoFinal;
     state.documentBlocked = !state.isSuperAdmin && isLockedStatus(state.currentReportStatus);
+    refreshHeaderMeta();
     applyPermissionMatrix();
 
     if (state.auditModeEnabled) {
@@ -2118,6 +2193,7 @@ const InformeTurno = (() => {
         ev.preventDefault();
         btn.closest('tr')?.remove();
         state.hasUnsavedChanges = true;
+        updateResumenCards();
       });
     });
   }
@@ -2193,8 +2269,8 @@ const InformeTurno = (() => {
       });
     }
 
-    // Modal Enviar Correo
-    const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
+    // Modal de Exportación + Envío de Correo
+    const btnExportarPdf = document.getElementById('btn-exportar-pdf');
 
     const getSessionEmail = () => {
       try {
@@ -2213,6 +2289,65 @@ const InformeTurno = (() => {
       } catch (_error) {}
 
       return '';
+    };
+
+    const normalizeJornadaLabel = (value) => {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const normalized = raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      if (normalized.includes('noche')) return 'Noche';
+      if (normalized.includes('dia')) return 'Dia';
+      return raw;
+    };
+
+    const extractGroupFromText = (value) => {
+      const text = String(value || '').trim();
+      if (!text) return '';
+      const explicit = text.match(/grupo\s*([a-z0-9]+)/i);
+      if (explicit?.[1]) return normalizeGroupValue(explicit[1]);
+      const compact = text.match(/\b([a-z])\b/i);
+      return compact?.[1] ? normalizeGroupValue(compact[1]) : '';
+    };
+
+    const getCurrentGroupForExport = () => {
+      const hiddenGroup = normalizeGroupValue(document.getElementById('input-turno')?.value || '');
+      if (hiddenGroup) return hiddenGroup;
+      const displayGroup = extractGroupFromText(document.getElementById('input-turno-display')?.value || '');
+      if (displayGroup) return displayGroup;
+      if (state.adminSelectedGroup) return normalizeGroupValue(state.adminSelectedGroup);
+      return normalizeGroupValue(state.userGrupo || '');
+    };
+
+    const inferJornadaFromUI = () => {
+      const sources = [
+        document.getElementById('status-badge')?.textContent || '',
+        document.getElementById('admin-group-status-badge')?.textContent || '',
+        document.getElementById('input-turno-display')?.value || ''
+      ];
+      for (const text of sources) {
+        const jornada = normalizeJornadaLabel(text);
+        if (jornada === 'Dia' || jornada === 'Noche') return jornada;
+      }
+      return '';
+    };
+
+    const resolveJornadaForExport = async () => {
+      const fecha = normalizeDateInputValue(document.getElementById('input-fecha')?.value) || getTodayIsoLocal();
+      const grupo = getCurrentGroupForExport();
+      if (fecha && grupo) {
+        try {
+          const response = await fetch(`/api/turnos/jornada?fecha=${encodeURIComponent(fecha)}&grupo=${encodeURIComponent(grupo)}`);
+          if (response.ok) {
+            const payload = await response.json();
+            const jornadaApi = normalizeJornadaLabel(payload?.jornada || '');
+            if (jornadaApi === 'Dia' || jornadaApi === 'Noche') return jornadaApi;
+          }
+        } catch (_error) {}
+      }
+      return inferJornadaFromUI() || 'Dia';
     };
 
     const ensureMailModal = () => {
@@ -2252,115 +2387,233 @@ const InformeTurno = (() => {
       return modal;
     };
 
-    if (btnEnviarCorreo) {
-      btnEnviarCorreo.addEventListener('click', () => {
-        const modalCorreo = ensureMailModal();
-        const btnCloseCorreo = document.getElementById('btn-close-correo');
-        const btnCancelCorreo = document.getElementById('btn-cancel-correo');
-        const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
-        const btnEnviarCorreoAdicional = document.getElementById('btn-enviar-correo-adicional');
-        const inputCorreoAdicional = document.getElementById('input-correo-adicional');
-        const errorCorreo = document.getElementById('error-correo');
+    const openMailModal = () => {
+      const modalCorreo = ensureMailModal();
+      const btnCloseCorreo = document.getElementById('btn-close-correo');
+      const btnCancelCorreo = document.getElementById('btn-cancel-correo');
+      const btnConfirmCorreo = document.getElementById('btn-confirm-correo');
+      const btnEnviarCorreoAdicional = document.getElementById('btn-enviar-correo-adicional');
+      const inputCorreoAdicional = document.getElementById('input-correo-adicional');
+      const errorCorreo = document.getElementById('error-correo');
 
-        const myEmail = getSessionEmail();
-        if (btnConfirmCorreo) {
-          btnConfirmCorreo.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar a mi correo (${myEmail || 'sin correo en sesión'})`;
+      const myEmail = getSessionEmail();
+      if (btnConfirmCorreo) {
+        btnConfirmCorreo.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar a mi correo (${myEmail || 'sin correo en sesión'})`;
+      }
+
+      const closeCorreoModal = () => {
+        modalCorreo.style.display = 'none';
+        if (window.desbloquearScroll) window.desbloquearScroll();
+      };
+
+      if (btnCloseCorreo) btnCloseCorreo.onclick = closeCorreoModal;
+      if (btnCancelCorreo) btnCancelCorreo.onclick = closeCorreoModal;
+
+      const ejecutarEnvioCorreo = async (destinatarioSeleccionado) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const destinatario = String(destinatarioSeleccionado || '').trim();
+
+        if (!destinatario || !emailRegex.test(destinatario)) {
+          if (errorCorreo) errorCorreo.style.display = 'block';
+          return;
         }
-
-        const closeCorreoModal = () => {
-          modalCorreo.style.display = 'none';
-          if (window.desbloquearScroll) window.desbloquearScroll();
-        };
-
-        if (btnCloseCorreo) btnCloseCorreo.onclick = closeCorreoModal;
-        if (btnCancelCorreo) btnCancelCorreo.onclick = closeCorreoModal;
-
-        const ejecutarEnvioCorreo = async (destinatarioSeleccionado) => {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          const destinatario = String(destinatarioSeleccionado || '').trim();
-
-          if (!destinatario || !emailRegex.test(destinatario)) {
-            if (errorCorreo) errorCorreo.style.display = 'block';
-            return;
-          }
-          if (errorCorreo) errorCorreo.style.display = 'none';
-
-          if (!state.currentReportId) {
-            closeCorreoModal();
-            showErrorModal('Debes guardar el informe antes de enviarlo por correo.');
-            return;
-          }
-
-          console.log(`[MAIL_SYSTEM] Preparando envío para: ${destinatario}.`);
-          closeCorreoModal();
-
-          const btnEnviarMain = document.getElementById('btn-enviar-correo');
-          if (btnEnviarMain) btnEnviarMain.classList.add('btn-loading');
-
-          try {
-            if (typeof generarPDFBase64ParaCorreo !== 'function') {
-              throw new Error('Motor PDF no disponible para envío por correo.');
-            }
-
-            const { pdfBase64, nombreArchivo } = await generarPDFBase64ParaCorreo(state.currentReportId);
-            console.log('[MAIL_SYSTEM] PDF generado y adjuntado exitosamente.');
-
-            const res = await fetch('/api/mail/enviar-informe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id_informe: state.currentReportId,
-                rut_solicitante: state.userRut,
-                destinatario: destinatario,
-                pdf_base64: pdfBase64,
-                nombre_archivo: nombreArchivo
-              })
-            });
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Error al enviar correo con adjunto');
-
-            showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${destinatario}`, false);
-          } catch (err) {
-            if (btnEnviarMain) btnEnviarMain.classList.remove('btn-loading');
-            console.error('[MAIL_SYSTEM] Error en envío. Spinner reseteado.', err.message);
-            showErrorModal(err.message || 'Error al enviar el correo.');
-          } finally {
-            if (btnEnviarMain) btnEnviarMain.classList.remove('btn-loading');
-          }
-        };
-
-        if (btnConfirmCorreo) {
-          btnConfirmCorreo.onclick = async () => {
-            await ejecutarEnvioCorreo(myEmail);
-          };
-        }
-
-        if (btnEnviarCorreoAdicional) {
-          btnEnviarCorreoAdicional.onclick = async () => {
-            const correoAdicional = String(inputCorreoAdicional?.value || '').trim();
-            await ejecutarEnvioCorreo(correoAdicional);
-          };
-        }
-
-        if (inputCorreoAdicional) {
-          console.log('[MAIL_SYSTEM] Tecla Enter vinculada al input de correo.');
-          inputCorreoAdicional.onkeypress = async (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              const correoAdicional = String(inputCorreoAdicional.value || '').trim();
-              console.log(`[MAIL_SYSTEM] Tecla Enter detectada. Validando correo: ${correoAdicional}.`);
-              await ejecutarEnvioCorreo(correoAdicional);
-            }
-          };
-        }
-
-        if (inputCorreoAdicional) inputCorreoAdicional.value = '';
         if (errorCorreo) errorCorreo.style.display = 'none';
-        console.log('[UI_DEBUG] Ajustando prioridad de modales para Super Admin.');
-        modalCorreo.style.display = 'flex';
-        if (window.bloquearScroll) window.bloquearScroll();
+
+        if (!state.currentReportId) {
+          closeCorreoModal();
+          showErrorModal('Debes guardar el informe antes de enviarlo por correo.');
+          return;
+        }
+
+        console.log(`[MAIL_SYSTEM] Preparando envío para: ${destinatario}.`);
+        closeCorreoModal();
+
+        const btnExportMain = document.getElementById('btn-exportar-pdf');
+        if (btnExportMain) btnExportMain.classList.add('btn-loading');
+
+        try {
+          if (typeof generarPDFBase64ParaCorreo !== 'function') {
+            throw new Error('Motor PDF no disponible para envío por correo.');
+          }
+
+          const { pdfBase64, nombreArchivo } = await generarPDFBase64ParaCorreo(state.currentReportId);
+          console.log('[MAIL_SYSTEM] PDF generado y adjuntado exitosamente.');
+
+          const res = await fetch('/api/mail/enviar-informe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id_informe: state.currentReportId,
+              rut_solicitante: state.userRut,
+              destinatario: destinatario,
+              pdf_base64: pdfBase64,
+              nombre_archivo: nombreArchivo
+            })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Error al enviar correo con adjunto');
+
+          showSuccessModal('Correo Enviado', `📧 Informe enviado correctamente a ${destinatario}`, false);
+        } catch (err) {
+          if (btnExportMain) btnExportMain.classList.remove('btn-loading');
+          console.error('[MAIL_SYSTEM] Error en envío. Spinner reseteado.', err.message);
+          showErrorModal(err.message || 'Error al enviar el correo.');
+        } finally {
+          if (btnExportMain) btnExportMain.classList.remove('btn-loading');
+        }
+      };
+
+      if (btnConfirmCorreo) {
+        btnConfirmCorreo.onclick = async () => {
+          await ejecutarEnvioCorreo(myEmail);
+        };
+      }
+
+      if (btnEnviarCorreoAdicional) {
+        btnEnviarCorreoAdicional.onclick = async () => {
+          const correoAdicional = String(inputCorreoAdicional?.value || '').trim();
+          await ejecutarEnvioCorreo(correoAdicional);
+        };
+      }
+
+      if (inputCorreoAdicional) {
+        console.log('[MAIL_SYSTEM] Tecla Enter vinculada al input de correo.');
+        inputCorreoAdicional.onkeypress = async (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            const correoAdicional = String(inputCorreoAdicional.value || '').trim();
+            console.log(`[MAIL_SYSTEM] Tecla Enter detectada. Validando correo: ${correoAdicional}.`);
+            await ejecutarEnvioCorreo(correoAdicional);
+          }
+        };
+      }
+
+      if (inputCorreoAdicional) inputCorreoAdicional.value = '';
+      if (errorCorreo) errorCorreo.style.display = 'none';
+      console.log('[UI_DEBUG] Ajustando prioridad de modales para Super Admin.');
+      modalCorreo.style.display = 'flex';
+      if (window.bloquearScroll) window.bloquearScroll();
+    };
+
+    const ensureExportModal = () => {
+      let modal = document.getElementById('modal-exportar-pdf');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-exportar-pdf';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2450;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div class="modal-content" style="background:white;padding:24px;border-radius:12px;max-width:460px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h3 style="margin:0;font-size:18px;font-weight:700;color:#0f172a;"><i class="fa-solid fa-file-export"></i> Exportar Informe</h3>
+              <button id="btn-close-export" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">&times;</button>
+            </div>
+            <div id="export-modal-body" style="color:#334155;font-size:14px;line-height:1.5;margin-bottom:18px;"></div>
+            <div id="export-modal-actions" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+              <button id="btn-cancel-export" class="btn" style="background:#e5e7eb;color:#374151;font-weight:600;">Cerrar</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+      return modal;
+    };
+
+    const getExportState = () => {
+      const statusRaw = String(state.currentReportStatus || '').trim();
+      const chipStatus = String(document.getElementById('estado-chip')?.textContent || '').trim();
+      const normalized = normalizeStatus(statusRaw || chipStatus);
+      const blockedStatuses = new Set(['finalizado', 'cerrado', 'validado']);
+      const estadoInforme = normalized || 'borrador';
+      const isBorrador = !blockedStatuses.has(estadoInforme);
+      return { estadoInforme, isBorrador };
+    };
+
+    const openExportModal = async () => {
+      const modalExport = ensureExportModal();
+      const body = document.getElementById('export-modal-body');
+      const actions = document.getElementById('export-modal-actions');
+      const closeBtn = document.getElementById('btn-close-export');
+      const cancelBtn = document.getElementById('btn-cancel-export');
+      const { estadoInforme, isBorrador } = getExportState();
+      const jornada = await resolveJornadaForExport();
+      const jornadaLabel = String(jornada || 'Dia').toLowerCase() === 'noche' ? 'noche' : 'día';
+
+      console.log(`[UI_LOGIC] Modal de exportación abierto en modo: ${estadoInforme}.`);
+      console.log(`[UI_LOGIC] Bloqueo de exportación activo para borrador: ${isBorrador}.`);
+
+      const closeExportModal = () => {
+        modalExport.style.display = 'none';
+        if (window.desbloquearScroll) window.desbloquearScroll();
+      };
+
+      if (closeBtn) closeBtn.onclick = closeExportModal;
+      if (cancelBtn) cancelBtn.onclick = closeExportModal;
+      modalExport.onclick = (event) => {
+        if (event.target === modalExport) closeExportModal();
+      };
+
+      if (!body || !actions) return;
+
+      if (isBorrador) {
+        body.innerHTML = `
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:22px;line-height:1;">⚠️</span>
+            <p style="margin:0;">El informe no ha sido cerrado. Para poder exportar se debe cerrar el informe del turno del ${jornadaLabel}.</p>
+          </div>
+        `;
+        actions.innerHTML = '<button id="btn-cancel-export" class="btn" style="background:#e5e7eb;color:#374151;font-weight:600;">Cerrar</button>';
+        const newCancel = document.getElementById('btn-cancel-export');
+        if (newCancel) newCancel.onclick = closeExportModal;
+      } else {
+        body.innerHTML = '<p style="margin:0;">El informe está cerrado y listo para exportación. Selecciona una acción:</p>';
+        actions.innerHTML = `
+          <button id="btn-export-modal-download" class="btn btn-primary" style="font-weight:600;">
+            <i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i> Descargar PDF
+          </button>
+          <button id="btn-export-modal-mail" class="btn btn-light-blue" style="font-weight:600;">
+            <i class="fa-solid fa-envelope"></i> Enviar por Correo
+          </button>
+          <button id="btn-cancel-export" class="btn" style="background:#e5e7eb;color:#374151;font-weight:600;">Cancelar</button>
+        `;
+
+        const btnDownload = document.getElementById('btn-export-modal-download');
+        const btnMail = document.getElementById('btn-export-modal-mail');
+        const btnCancelDynamic = document.getElementById('btn-cancel-export');
+
+        if (btnDownload) {
+          btnDownload.onclick = async () => {
+            closeExportModal();
+            if (typeof generarPDF === 'function') {
+              await generarPDF();
+            } else {
+              showErrorModal('Motor PDF no disponible.');
+            }
+          };
+        }
+        if (btnMail) {
+          btnMail.onclick = () => {
+            closeExportModal();
+            openMailModal();
+          };
+        }
+        if (btnCancelDynamic) btnCancelDynamic.onclick = closeExportModal;
+      }
+
+      modalExport.style.display = 'flex';
+      if (window.bloquearScroll) window.bloquearScroll();
+    };
+
+    if (btnExportarPdf) {
+      btnExportarPdf.addEventListener('click', async () => {
+        await openExportModal();
       });
+    }
+
+    const btnEnviarCorreoLegacy = document.getElementById('btn-enviar-correo');
+    if (btnEnviarCorreoLegacy) {
+      btnEnviarCorreoLegacy.addEventListener('click', openMailModal);
     }
 
     // Modales de Confirmación y Éxito
@@ -2467,6 +2720,9 @@ const InformeTurno = (() => {
     addRowHandlers();
     bindActions();
     initializeMathEngine();
+    refreshHeaderMeta();
+    updateResumenCards();
+    updateObservacionesAvailability();
     
     await loadCargoPermisosIds();
 
@@ -2539,6 +2795,7 @@ const InformeTurno = (() => {
     await runShiftHeartbeat();
     startHeartbeatCycle();
     startAutosaveCycle();
+    console.log('[UI_MODERNIZATION] Nuevos estilos aplicados exitosamente. Vista profesional activa.');
   }
 
   return {
