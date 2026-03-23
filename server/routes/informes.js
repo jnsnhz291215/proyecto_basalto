@@ -1072,60 +1072,67 @@ router.post('/mail/enviar-informe', async (req, res) => {
     const rutLimpio = limpiarRUT(sessionRut || rut_solicitante);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const [destRows] = await pool.execute(
-      `SELECT email
-       FROM trabajadores
-       WHERE REPLACE(REPLACE(REPLACE(RUT, '.', ''), '-', ''), ' ', '') = ?
+    // ── 1. Resolver Super Admin antes de cualquier otra validación ──────────
+    const [adminRows] = await pool.execute(
+      `SELECT es_super_admin, activo, email
+       FROM admin_users
+       WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
        LIMIT 1`,
       [rutLimpio]
     );
+    const isSuperAdminByDb = Boolean(
+      adminRows && adminRows.length > 0 &&
+      Number(adminRows[0].activo) === 1 &&
+      Number(adminRows[0].es_super_admin) === 1
+    );
+    const isSuperAdmin = sessionIsSuperAdmin || isSuperAdminByDb;
 
-    const encontrado = destRows && destRows.length > 0;
-    console.log(`[MAIL_BACKEND] Buscando correo para RUT: ${rutLimpio}. Resultado: ${encontrado ? 'OK' : 'Bypass Admin'}.`);
-
+    // ── 2. Resolver correo base ─────────────────────────────────────────────
     let emailDb = '';
-    if (encontrado) {
-      emailDb = String(destRows[0].email || '').trim();
-    } else if (sessionIsSuperAdmin) {
-      // Super Admin puede no estar en trabajadores; usar email de sesión o admin_users
+    if (isSuperAdmin) {
+      console.log('[MAIL_BACKEND] Super Admin detectado. Omitiendo validación en tabla trabajadores.');
+      // Prioridad: sesión → admin_users → trabajadores (por si coincide)
       emailDb = String(req.session?.userEmail || '').trim();
       if (!emailDb || !emailRegex.test(emailDb)) {
-        const [adminEmailRows] = await pool.execute(
-          `SELECT email FROM admin_users
-           WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
-           AND activo = 1 LIMIT 1`,
-          [rutLimpio]
-        );
-        emailDb = adminEmailRows && adminEmailRows.length > 0
-          ? String(adminEmailRows[0].email || '').trim()
+        emailDb = adminRows && adminRows.length > 0
+          ? String(adminRows[0].email || '').trim()
           : '';
       }
-      console.log(`[MAIL_BACKEND] Correo de Super Admin resuelto desde session/admin_users: ${emailDb || 'NO ENCONTRADO'}.`);
+      if (!emailDb || !emailRegex.test(emailDb)) {
+        // Último recurso: tal vez sí está en trabajadores con otro RUT format
+        const [tRows] = await pool.execute(
+          `SELECT email FROM trabajadores
+           WHERE REPLACE(REPLACE(REPLACE(RUT, '.', ''), '-', ''), ' ', '') = ?
+           LIMIT 1`,
+          [rutLimpio]
+        );
+        emailDb = tRows && tRows.length > 0 ? String(tRows[0].email || '').trim() : '';
+      }
+      console.log(`[MAIL_BACKEND] Correo de Super Admin resuelto: ${emailDb || 'NO ENCONTRADO'}.`);
     } else {
-      return res.status(404).json({ error: 'No se encontró trabajador para el RUT de sesión' });
+      console.log(`[MAIL_BACKEND] Buscando correo para RUT: ${rutLimpio} en tabla trabajadores.`);
+      const [destRows] = await pool.execute(
+        `SELECT email FROM trabajadores
+         WHERE REPLACE(REPLACE(REPLACE(RUT, '.', ''), '-', ''), ' ', '') = ?
+         LIMIT 1`,
+        [rutLimpio]
+      );
+      if (!destRows || destRows.length === 0) {
+        return res.status(404).json({ error: 'No se encontró trabajador para el RUT de sesión' });
+      }
+      emailDb = String(destRows[0].email || '').trim();
     }
 
     if (!emailDb || !emailRegex.test(emailDb)) {
       return res.status(400).json({ error: 'El correo del usuario en DB es inválido o está vacío' });
     }
 
-    const [adminRows] = await pool.execute(
-      `SELECT es_super_admin, activo
-       FROM admin_users
-       WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?
-       LIMIT 1`,
-      [rutLimpio]
-    );
-    const isSuperAdminByDb = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1 && Number(adminRows[0].es_super_admin) === 1);
-    const isSuperAdmin = sessionIsSuperAdmin || isSuperAdminByDb;
-
+    // ── 3. Resolver destinatario final ─────────────────────────────────────
     let destinatarioFinal = emailDb;
     const destinatarioFrontend = String(destinatario || '').trim();
-    if (sessionIsSuperAdmin || isSuperAdmin) {
+    if (isSuperAdmin) {
       if (destinatarioFrontend && emailRegex.test(destinatarioFrontend)) {
         destinatarioFinal = destinatarioFrontend;
-      } else {
-        destinatarioFinal = emailDb;
       }
       console.log('[MAIL_SYSTEM] Bypass de validación activado para Super Admin.');
     } else if (destinatarioFrontend) {
@@ -1135,9 +1142,7 @@ router.post('/mail/enviar-informe', async (req, res) => {
       destinatarioFinal = destinatarioFrontend;
     }
 
-    console.log(`[MAIL_SYSTEM] Usando correo oficial de DB para envío: ${emailDb}.`);
-
-    console.log(`[MAIL_SYSTEM] Intento de envío a: ${destinatarioFinal}`);
+    console.log(`[MAIL_BACKEND] Enviando reporte a: ${destinatarioFinal}.`);
 
     const [rows] = await pool.execute(
       'SELECT estado, fecha, turno FROM informes_turno WHERE id_informe = ? LIMIT 1',
