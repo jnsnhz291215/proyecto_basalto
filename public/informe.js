@@ -22,6 +22,14 @@ const InformeTurno = (() => {
   };
   const BLOCKED_STATUSES = new Set(['cerrado', 'validado', 'finalizado']);
   const CLOSE_TURNO_PERMISSION_ALIASES = ['cerrar_turno', 'finalizar_turno', 'inf_cerrar_turno'];
+  const SHIFT_BYPASS_PERMISSION_ALIASES = [
+    'editar_informes_anteriores',
+    'editar_informe_anterior',
+    'inf_editar_historico',
+    'bypass_turno',
+    'super_usuario',
+    'inf_admin_historial'
+  ];
   const MAX_AYUDANTES = 5;
   const AUTOSAVE_INTERVAL_MS = 2 * 60 * 1000;
   const HEARTBEAT_INTERVAL_MS = 30 * 1000;
@@ -87,6 +95,9 @@ const InformeTurno = (() => {
     auditModeRequested: false,
     auditModeEnabled: false,
     adminBypass: false,
+    hasUnsavedChanges: false,
+    suppressDirtyTracking: false,
+    beforeUnloadBound: false,
     adminSelectedGroup: '',
     mathValidationErrors: {
       hrs_horometro: false,
@@ -465,6 +476,17 @@ const InformeTurno = (() => {
 
   function hasElevatedAccess() {
     return state.isSuperAdmin || normalizePerm(state.role) === 'admin';
+  }
+
+  function hasShiftHeartbeatBypassPermission() {
+    if (state.isSuperAdmin) return true;
+    const permisos = cargoPermSet();
+    if (permisos.size === 0) return false;
+    return SHIFT_BYPASS_PERMISSION_ALIASES.some((alias) => permisos.has(normalizePerm(alias)));
+  }
+
+  function shouldBypassShiftHeartbeat() {
+    return state.adminBypass || hasElevatedAccess() || hasShiftHeartbeatBypassPermission();
   }
 
   function sectionAccess(sectionKey) {
@@ -1088,6 +1110,7 @@ const InformeTurno = (() => {
     }
 
     console.log(`[DRAFT_ENGINE] Ayudante ${helperIndex} eliminado del informe`);
+    state.hasUnsavedChanges = true;
     refreshWorkerLists();
     applyActionBarState();
   }
@@ -1236,16 +1259,20 @@ const InformeTurno = (() => {
     ensureAdminGroupStatusBadge();
   }
 
-  function clearInformeForGroupChange(selectedGroup) {
+  function clearInformeForGroupChange(selectedGroup, selectedDate = '') {
     state.currentReportId = null;
     state.currentReportStatus = '';
     state.documentBlocked = false;
+
+    const fechaPreservada = normalizeDateInputValue(selectedDate)
+      || normalizeDateInputValue(document.getElementById('input-fecha')?.value)
+      || getTodayIsoLocal();
 
     const params = new URLSearchParams(window.location.search);
     params.delete('id');
     window.history.replaceState({}, '', params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname);
 
-    populateInforme({}, [], [], []);
+    populateInforme({}, [], [], [], { preserveDate: true, forcedDate: fechaPreservada });
     setLockedTurnoValue(selectedGroup);
 
     const btnPdf = document.getElementById('btn-descargar-pdf');
@@ -1259,11 +1286,11 @@ const InformeTurno = (() => {
 
   async function fetchInformeForAdminView(fecha, grupo) {
     if (!fecha || !grupo) {
-      clearInformeForGroupChange(grupo);
+      clearInformeForGroupChange(grupo, fecha);
       return;
     }
 
-    clearInformeForGroupChange(grupo);
+    clearInformeForGroupChange(grupo, fecha);
     await populatePersonalSelects([grupo]);
 
     const existing = await fetchExistingInformeForShift(fecha, grupo);
@@ -1538,7 +1565,7 @@ const InformeTurno = (() => {
   }
 
   async function runShiftHeartbeat() {
-    if (!state.userRut || state.auditModeEnabled || state.accessRestricted || state.adminBypass) return;
+    if (!state.userRut || state.auditModeEnabled || state.accessRestricted || shouldBypassShiftHeartbeat()) return;
 
     try {
       const previousShiftContext = state.userShiftContext;
@@ -1596,7 +1623,7 @@ const InformeTurno = (() => {
   }
 
   function startHeartbeatCycle() {
-    if (state.auditModeEnabled || state.accessRestricted || state.adminBypass) return;
+    if (state.auditModeEnabled || state.accessRestricted || shouldBypassShiftHeartbeat()) return;
     if (state.heartbeatIntervalId) window.clearInterval(state.heartbeatIntervalId);
     state.heartbeatIntervalId = window.setInterval(runShiftHeartbeat, HEARTBEAT_INTERVAL_MS);
   }
@@ -1708,8 +1735,23 @@ const InformeTurno = (() => {
     });
   }
 
-  function populateInforme(informe = {}, actividades = [], perforaciones = [], herramientas = []) {
-    document.getElementById('input-fecha').value = informe.fecha ? String(informe.fecha).split('T')[0] : '';
+  function populateInforme(informe = {}, actividades = [], perforaciones = [], herramientas = [], options = {}) {
+    const { preserveDate = false, forcedDate = '' } = options;
+    state.suppressDirtyTracking = true;
+    const fechaInput = document.getElementById('input-fecha');
+    const fechaActual = normalizeDateInputValue(fechaInput?.value);
+    const fechaInforme = informe.fecha ? String(informe.fecha).split('T')[0] : '';
+
+    if (fechaInput) {
+      if (fechaInforme) {
+        fechaInput.value = fechaInforme;
+      } else if (preserveDate) {
+        fechaInput.value = normalizeDateInputValue(forcedDate) || fechaActual || getTodayIsoLocal();
+      } else {
+        fechaInput.value = '';
+      }
+    }
+
     ensureSelectOption('input-turno', informe.turno || '', `Grupo ${informe.turno || ''}`);
     document.getElementById('input-horas-trabajadas').value = informe.horas_trabajadas ?? '';
     document.getElementById('input-horometro-inicial').value = informe.horometro_inicial ?? '';
@@ -1744,6 +1786,8 @@ const InformeTurno = (() => {
     renderPerforaciones(perforaciones);
     renderHerramientas(herramientas);
     runLiveMathEngine();
+    state.suppressDirtyTracking = false;
+    state.hasUnsavedChanges = false;
   }
 
   async function loadExistingReportIfNeeded() {
@@ -1986,6 +2030,8 @@ const InformeTurno = (() => {
         showErrorModal(`Error al guardar: ${result.error || 'Error desconocido'}`);
         return;
       }
+
+      state.hasUnsavedChanges = false;
     } finally {
       setLoading(btnId, false);
     }
@@ -2027,6 +2073,7 @@ const InformeTurno = (() => {
           <td style="text-align:center;"><button class="btn-delete" type="button"><i class="fa-solid fa-trash"></i></button></td>
         </tr>
       `);
+      state.hasUnsavedChanges = true;
       applyPermissionMatrix();
     });
 
@@ -2043,6 +2090,7 @@ const InformeTurno = (() => {
           <td style="text-align:center;"><button class="btn-delete" type="button"><i class="fa-solid fa-trash"></i></button></td>
         </tr>
       `);
+      state.hasUnsavedChanges = true;
       applyPermissionMatrix();
     });
 
@@ -2059,6 +2107,7 @@ const InformeTurno = (() => {
           <td style="text-align:center;"><button class="btn-delete" type="button"><i class="fa-solid fa-trash"></i></button></td>
         </tr>
       `);
+      state.hasUnsavedChanges = true;
       applyPermissionMatrix();
     });
 
@@ -2068,6 +2117,7 @@ const InformeTurno = (() => {
         if (!btn || btn.disabled) return;
         ev.preventDefault();
         btn.closest('tr')?.remove();
+        state.hasUnsavedChanges = true;
       });
     });
   }
@@ -2088,6 +2138,7 @@ const InformeTurno = (() => {
       if (state.helperSelectCount >= MAX_AYUDANTES) return;
       state.helperSelectCount += 1;
       renderExtraAyudanteFields();
+      state.hasUnsavedChanges = true;
       applyActionBarState();
     });
 
@@ -2111,6 +2162,9 @@ const InformeTurno = (() => {
 
     document.addEventListener('input', (event) => {
       if (event.target.closest('.informe-container')) {
+        if (!state.suppressDirtyTracking) {
+          state.hasUnsavedChanges = true;
+        }
         if (event.target.matches('#input-horometro-inicial, #input-horometro-final, #input-profundidad-inicial, #input-profundidad')) {
           runLiveMathEngine();
         }
@@ -2120,12 +2174,24 @@ const InformeTurno = (() => {
 
     document.addEventListener('change', (event) => {
       if (event.target.closest('.informe-container')) {
+        if (!state.suppressDirtyTracking) {
+          state.hasUnsavedChanges = true;
+        }
         if (event.target.matches('#input-operador, [id^="input-ayudante-"]')) {
           refreshWorkerLists();
         }
         applyActionBarState();
       }
     });
+
+    if (!state.beforeUnloadBound) {
+      state.beforeUnloadBound = true;
+      window.addEventListener('beforeunload', (event) => {
+        if (!state.hasUnsavedChanges) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+    }
 
     // Modal Enviar Correo
     const btnEnviarCorreo = document.getElementById('btn-enviar-correo');
@@ -2404,14 +2470,11 @@ const InformeTurno = (() => {
     
     await loadCargoPermisosIds();
 
-    const session = {
-      isSuperAdmin: state.isSuperAdmin,
-      userRole: normalizePerm(state.role)
-    };
-
-    if (session.isSuperAdmin === true || session.userRole === 'admin') {
-      console.log('[SECURITY] Acceso concedido por privilegios de Super Admin.');
-      console.log('[AUTH_DEBUG] Usuario Juan Sanhueza detectado como Admin. Omitiendo restricciones de tiempo real.');
+    const hasShiftBypassAccess = hasElevatedAccess() || hasShiftHeartbeatBypassPermission();
+    if (hasShiftBypassAccess) {
+      state.adminBypass = true;
+      console.log('[SECURITY] Acceso concedido por privilegios elevados.');
+      console.log('[AUTH_DEBUG] Restricciones de tiempo real desactivadas para este perfil.');
       await loadInformeFull();
       return;
     }
