@@ -162,10 +162,16 @@
                         </div>
                         <div class="input-group">
                             <label>Ayudante 2</label>
-                            <select id="input-ayudante-2" class="modern-input">
-                                <option value="">— Ninguno —</option>
-                            </select>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="input-ayudante-2" class="modern-input" style="flex:1 1 auto;">
+                                    <option value="">— Ninguno —</option>
+                                </select>
+                                <button id="btn-add-ayudante" type="button" class="btn-add-row" style="width:auto; padding:8px 12px; flex:0 0 auto;">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
+                        <div id="extra-ayudantes-container" class="full-width"></div>
                     </div>
                 </div>
 

@@ -22,6 +22,9 @@ const InformeTurno = (() => {
   };
   const BLOCKED_STATUSES = new Set(['cerrado', 'validado', 'finalizado']);
   const CLOSE_TURNO_PERMISSION_ALIASES = ['cerrar_turno', 'finalizar_turno', 'inf_cerrar_turno'];
+  const MAX_AYUDANTES = 5;
+  const AUTOSAVE_INTERVAL_MS = 2 * 60 * 1000;
+  const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 
   const SECTION_ID_MAP = {
     antecedentes: { r: 22, w: 12 },
@@ -49,6 +52,11 @@ const InformeTurno = (() => {
     userShiftStatus: null,
     userShiftContext: null,
     shiftBadgeTimerId: null,
+    autosaveIntervalId: null,
+    heartbeatIntervalId: null,
+    helperSelectCount: 2,
+    activeHelperWorkers: [],
+    accessRestricted: false,
     auditModeRequested: false,
     auditModeEnabled: false
   };
@@ -75,6 +83,18 @@ const InformeTurno = (() => {
     state.shiftBadgeTimerId = null;
   }
 
+  function stopBackgroundTimers() {
+    stopShiftBadgeTimer();
+    if (state.autosaveIntervalId) {
+      window.clearInterval(state.autosaveIntervalId);
+      state.autosaveIntervalId = null;
+    }
+    if (state.heartbeatIntervalId) {
+      window.clearInterval(state.heartbeatIntervalId);
+      state.heartbeatIntervalId = null;
+    }
+  }
+
   function setLockedTurnoValue(grupo) {
     const normalizedGroup = normalizeGroupValue(grupo);
     const hiddenInput = document.getElementById('input-turno');
@@ -97,6 +117,15 @@ const InformeTurno = (() => {
       return `Tu ventana de gracia de 30 minutos termina a las ${hora}. Para ingresar necesitas tener un borrador guardado de tu turno.`;
     }
 
+    if (!isInGrace && graceEndsAt) {
+      const hora = new Date(graceEndsAt).toLocaleTimeString('es-CL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      return `Tu ventana de gracia de 30 minutos terminó a las ${hora}. Los cambios quedaron bloqueados.`;
+    }
+
     if (estado === 'sin_grupo') {
       return 'Tu cuenta no tiene un grupo de turno asignado. Contacta al administrador.';
     }
@@ -110,6 +139,8 @@ const InformeTurno = (() => {
   }
 
   function showRestrictedAccess(reason) {
+    state.accessRestricted = true;
+    stopBackgroundTimers();
     console.warn('[DEBUG_SECURITY] Bloqueo activado por informe.js. Motivo:', reason);
     console.trace('[DEBUG_TRACE] Origen de la llamada al bloqueo:');
 
@@ -330,6 +361,37 @@ const InformeTurno = (() => {
     setStatusBanner('', '');
   }
 
+  function getFinalizeRequiredFields() {
+    return [
+      { id: 'input-horometro-inicial', name: 'Horóm. Inicial' },
+      { id: 'input-horometro-final', name: 'Horóm. Final' },
+      { id: 'input-faena', name: 'Faena / C. Costo' },
+      { id: 'input-lugar', name: 'Lugar' },
+      { id: 'input-equipo', name: 'Equipo' },
+      { id: 'input-operador', name: 'Responsable de Turno' },
+      { id: 'input-pozo-num', name: 'Pozo N°' }
+    ];
+  }
+
+  function validateFinalizeRequirements(markInvalid = false) {
+    const missing = [];
+    getFinalizeRequiredFields().forEach((field) => {
+      const input = document.getElementById(field.id);
+      const value = String(input?.value || '').trim();
+      if (!value) {
+        missing.push(field.name);
+        if (markInvalid && input) input.classList.add('input-error');
+      } else if (input) {
+        input.classList.remove('input-error');
+      }
+    });
+
+    return {
+      isValid: missing.length === 0,
+      missing
+    };
+  }
+
   function syncAuditModeFromURL() {
     const params = new URLSearchParams(window.location.search);
     state.auditModeRequested = normalizePerm(params.get('mode')) === 'admin';
@@ -398,7 +460,8 @@ const InformeTurno = (() => {
     }
 
     if (btnFinalizar) {
-      if (state.documentBlocked || !state.canCloseTurno) {
+      const finalizeReady = validateFinalizeRequirements(false).isValid;
+      if (state.documentBlocked || !state.canCloseTurno || !finalizeReady || state.accessRestricted) {
         btnFinalizar.setAttribute('disabled', 'disabled');
       } else {
         btnFinalizar.removeAttribute('disabled');
@@ -541,6 +604,52 @@ const InformeTurno = (() => {
     if (prevValue) select.value = prevValue;
   }
 
+  function renderExtraAyudanteFields() {
+    const container = document.getElementById('extra-ayudantes-container');
+    const addButton = document.getElementById('btn-add-ayudante');
+    if (!container) return;
+
+    container.innerHTML = '';
+    for (let index = 3; index <= state.helperSelectCount; index += 1) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'input-group';
+      wrapper.dataset.helperIndex = String(index);
+      wrapper.innerHTML = `
+        <label>Ayudante ${index}</label>
+        <select id="input-ayudante-${index}" class="modern-input">
+          <option value="">— Ninguno —</option>
+        </select>
+      `;
+      container.appendChild(wrapper);
+    }
+
+    if (addButton) {
+      addButton.disabled = state.helperSelectCount >= MAX_AYUDANTES;
+      addButton.style.opacity = state.helperSelectCount >= MAX_AYUDANTES ? '0.6' : '1';
+      addButton.style.cursor = state.helperSelectCount >= MAX_AYUDANTES ? 'not-allowed' : 'pointer';
+    }
+
+    syncAyudanteSelects();
+  }
+
+  function syncAyudanteSelects() {
+    const workers = state.activeHelperWorkers || [];
+    for (let index = 1; index <= state.helperSelectCount; index += 1) {
+      const select = document.getElementById(`input-ayudante-${index}`);
+      if (select && select.tagName === 'SELECT') {
+        buildSelectOptions(select, workers, '— Ninguno —');
+      }
+    }
+  }
+
+  function collectAyudantesData() {
+    const ayudantes = {};
+    for (let index = 1; index <= MAX_AYUDANTES; index += 1) {
+      ayudantes[`ayudante_${index}`] = document.getElementById(`input-ayudante-${index}`)?.value || '';
+    }
+    return ayudantes;
+  }
+
   function detectGrupoActivo(activeGroups) {
     return normalizeGroupValue(
       state.userShiftContext?.grupo
@@ -596,10 +705,8 @@ const InformeTurno = (() => {
       : (activeGroups && activeGroups.length > 0
       ? trabajadores.filter((t) => perteneceAGruposActivos(t, activeGroups))
       : trabajadores);
-    const sel1 = document.getElementById('input-ayudante-1');
-    const sel2 = document.getElementById('input-ayudante-2');
-    if (sel1 && sel1.tagName === 'SELECT') buildSelectOptions(sel1, ayudantes, '— Ninguno —');
-    if (sel2 && sel2.tagName === 'SELECT') buildSelectOptions(sel2, ayudantes, '— Ninguno —');
+    state.activeHelperWorkers = ayudantes;
+    syncAyudanteSelects();
   }
 
   async function initAuditContext() {
@@ -625,6 +732,20 @@ const InformeTurno = (() => {
     }
   }
 
+  async function fetchDraftForCurrentShift(fecha, grupo, rut) {
+    try {
+      const url = `/api/informes/por-turno?fecha=${encodeURIComponent(fecha)}&grupo=${encodeURIComponent(grupo)}&rut=${encodeURIComponent(rut)}&estado=Borrador`;
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (!data.existe || !data.id_informe) return null;
+      console.log('[DRAFT_ENGINE] Borrador detectado y cargado automáticamente.');
+      return data;
+    } catch (_error) {
+      return null;
+    }
+  }
+
   async function openExistingInforme(reportId) {
     const params = new URLSearchParams(window.location.search);
     params.set('id', String(reportId));
@@ -636,6 +757,10 @@ const InformeTurno = (() => {
     try {
       const data = await fetchExistingInformeForShift(fecha, grupo);
       if (!data) return;
+      if (normalizeStatus(data.estado) === 'borrador') {
+        await openExistingInforme(data.id_informe);
+        return;
+      }
       const continuar = confirm(
         `Ya existe un Informe para el Grupo ${grupo} el ${fecha} (estado: ${data.estado || '—'}).\n¿Desea abrirlo?`
       );
@@ -693,6 +818,56 @@ const InformeTurno = (() => {
 
     // 5. Poblar selects de personal filtrado
     await populatePersonalSelects(state.userGrupo ? [state.userGrupo] : activeGroups);
+  }
+
+  async function runShiftHeartbeat() {
+    if (!state.userRut || state.auditModeEnabled || state.accessRestricted) return;
+
+    try {
+      const previousShiftContext = state.userShiftContext;
+      const resp = await fetch(`/api/estado-turno/${encodeURIComponent(state.userRut)}`);
+      if (!resp.ok) return;
+
+      const shiftData = await resp.json();
+      state.userShiftContext = shiftData;
+      state.userShiftStatus = shiftData.estado || null;
+      state.userGrupo = normalizeGroupValue(shiftData.grupo || state.userGrupo);
+      updateShiftStatusBadge(shiftData);
+
+      const inGrace = Boolean(shiftData.in_grace ?? shiftData.inGrace);
+      const exactActive = Boolean(shiftData.exact_active ?? shiftData.exactActive);
+      const secondsRemaining = Number(shiftData.seconds_remaining ?? shiftData.secondsRemaining ?? 0);
+
+      if (inGrace && secondsRemaining <= 300 && !state.documentBlocked) {
+        setStatusBanner('warning', '⚠️ Atención: Quedan 5 min para el cierre automático del sistema.');
+      } else if (!state.documentBlocked) {
+        updateStatusBanner();
+      }
+
+      if (!exactActive && !inGrace) {
+        const expiredContext = previousShiftContext?.grace_ends_at
+          ? { ...shiftData, grace_ends_at: previousShiftContext.grace_ends_at }
+          : shiftData;
+        showRestrictedAccess(buildAccessDeniedReason(expiredContext, false));
+      }
+    } catch (error) {
+      console.warn('[INFORME][HEARTBEAT] Error consultando estado-turno:', error?.message || error);
+    }
+  }
+
+  function startHeartbeatCycle() {
+    if (state.auditModeEnabled || state.accessRestricted) return;
+    if (state.heartbeatIntervalId) window.clearInterval(state.heartbeatIntervalId);
+    state.heartbeatIntervalId = window.setInterval(runShiftHeartbeat, HEARTBEAT_INTERVAL_MS);
+  }
+
+  function startAutosaveCycle() {
+    if (state.auditModeEnabled || state.accessRestricted) return;
+    if (state.autosaveIntervalId) window.clearInterval(state.autosaveIntervalId);
+    state.autosaveIntervalId = window.setInterval(async () => {
+      if (state.documentBlocked || !state.canWriteAnySection || state.accessRestricted) return;
+      await persistInforme('Borrador', { silent: true, autoSave: true });
+    }, AUTOSAVE_INTERVAL_MS);
   }
 
   function applyPermissionMatrix() {
@@ -806,6 +981,12 @@ const InformeTurno = (() => {
     ensureSelectOption('input-operador', informe.operador_rut || state.userRut || '', informe.operador_rut || '');
     ensureSelectOption('input-ayudante-1', informe.ayudante_1 || '', informe.ayudante_1 || '');
     ensureSelectOption('input-ayudante-2', informe.ayudante_2 || '', informe.ayudante_2 || '');
+    const maxVisibleHelpers = [3, 4, 5].reduce((count, index) => (informe[`ayudante_${index}`] ? index : count), 2);
+    state.helperSelectCount = Math.max(2, maxVisibleHelpers);
+    renderExtraAyudanteFields();
+    [3, 4, 5].forEach((index) => {
+      ensureSelectOption(`input-ayudante-${index}`, informe[`ayudante_${index}`] || '', informe[`ayudante_${index}`] || '');
+    });
     document.getElementById('input-pozo-num').value = informe.pozo_numero || '';
     document.getElementById('input-sector').value = informe.sector || '';
     document.getElementById('input-diametro').value = informe.diametro || '';
@@ -851,22 +1032,7 @@ const InformeTurno = (() => {
   let informeCerrado = false;
 
   function iniciarTemporizadorCierre(fechaApertura) {
-      const finTurno = new Date(new Date(fechaApertura).getTime() + 12 * 60 * 60 * 1000);
-      
-      const interval = setInterval(async () => {
-          const ahora = new Date();
-          const difMinutos = (finTurno - ahora) / 1000 / 60;
-
-          if (difMinutos <= 10 && difMinutos > 5) {
-              setStatusBanner('warning', '⚠️ Quedan menos de 10 min para el cierre automático del turno.');
-          }
-
-          if (difMinutos <= 5 && difMinutos > 0 && !informeCerrado) {
-              clearInterval(interval);
-              console.log('🚀 Iniciando secuencia de guardado y cierre forzado...');
-              await ejecutarCierreEmergencia();
-          }
-      }, 60000);
+      return fechaApertura;
   }
 
   async function ejecutarCierreEmergencia() {
@@ -963,6 +1129,7 @@ const InformeTurno = (() => {
 
   function buildDatosGenerales(estadoFinal) {
     const operadorVal = document.getElementById('input-operador')?.value || '';
+    const ayudantes = collectAyudantesData();
     return {
       fecha: document.getElementById('input-fecha')?.value || '',
       turno: normalizeGroupValue(document.getElementById('input-turno')?.value || state.userGrupo || ''),
@@ -971,8 +1138,7 @@ const InformeTurno = (() => {
       lugar: document.getElementById('input-lugar')?.value || '',
       equipo: document.getElementById('input-equipo')?.value || '',
       operador_rut: operadorVal,
-      ayudante_1: document.getElementById('input-ayudante-1')?.value || '',
-      ayudante_2: document.getElementById('input-ayudante-2')?.value || '',
+      ...ayudantes,
       pozo_numero: document.getElementById('input-pozo-num')?.value || '',
       sector: document.getElementById('input-sector')?.value || '',
       diametro: document.getElementById('input-diametro')?.value || '',
@@ -992,8 +1158,10 @@ const InformeTurno = (() => {
     };
   }
 
-  async function persistInforme(estadoFinal) {
-    if (state.documentBlocked) {
+  async function persistInforme(estadoFinal, options = {}) {
+    const { silent = false, autoSave = false } = options;
+
+    if (state.documentBlocked || state.accessRestricted) {
       alert('Documento bloqueado. Solo un Superadmin puede modificar este informe.');
       return;
     }
@@ -1007,31 +1175,11 @@ const InformeTurno = (() => {
     
     // Validar siempre campos críticos básicos si finalizamos
     if (estadoFinal === 'Finalizado') {
-      const requiredFields = [
-        { key: 'fecha', name: 'Fecha del Informe', id: 'input-fecha' },
-        { key: 'turno', name: 'Turno', id: 'input-turno' },
-        { key: 'faena', name: 'Faena / C. Costo', id: 'input-faena' },
-        { key: 'equipo', name: 'Equipo', id: 'input-equipo' },
-        { key: 'operador_rut', name: 'Operador', id: 'input-operador' },
-        { key: 'horometro_inicial', name: 'Horóm. Inicial', id: 'input-horometro-inicial' },
-        { key: 'horometro_final', name: 'Horóm. Final', id: 'input-horometro-final' },
-      ];
-
-      const faltantes = [];
-
-      // Limpiar errores previos
       document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 
-      for (const field of requiredFields) {
-        if (!datosGenerales[field.key]) {
-          faltantes.push(`&bull; ${field.name}`);
-          const inputEl = document.getElementById(field.id);
-          if (inputEl) inputEl.classList.add('input-error');
-        }
-      }
-
-      if (faltantes.length > 0) {
-        showErrorModal(`Por favor complete los siguientes campos obligatorios para finalizar:<br><br>${faltantes.join('<br>')}`);
+      const validation = validateFinalizeRequirements(true);
+      if (!validation.isValid) {
+        showErrorModal(`Por favor complete los siguientes campos obligatorios para finalizar: ${validation.missing.join(', ')}`);
         return;
       }
     }
@@ -1063,6 +1211,10 @@ const InformeTurno = (() => {
       result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (response.status === 403) {
+          showErrorModal('Error: Tiempo de turno expirado. Los cambios no se guardaron.');
+          return;
+        }
         showErrorModal(`Error al guardar: ${result.error || 'Error desconocido'}`);
         return;
       }
@@ -1086,10 +1238,11 @@ const InformeTurno = (() => {
       showSuccessModal('Auditoría', 'Cambios de auditoría guardados y registrados en la bitácora.', false);
     } else if (estadoFinal === 'Finalizado') {
       showSuccessModal('Turno Finalizado', 'Turno Finalizado con Éxito', true);
-    } else {
+    } else if (!silent) {
       showSuccessModal('Borrador', 'Borrador guardado correctamente', false);
-      // Auto cerramos después de unos segundos
       setTimeout(hideSuccessModal, 2500);
+    } else if (autoSave) {
+      console.log('[DRAFT_ENGINE] Borrador guardado automáticamente.');
     }
   }
 
@@ -1152,6 +1305,14 @@ const InformeTurno = (() => {
   }
 
   function bindActions() {
+    document.getElementById('btn-add-ayudante')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.helperSelectCount >= MAX_AYUDANTES) return;
+      state.helperSelectCount += 1;
+      renderExtraAyudanteFields();
+      applyActionBarState();
+    });
+
     document.getElementById('btn-guardar-borrador')?.addEventListener('click', async (e) => {
       e.preventDefault();
       if (!state.canWriteAnySection && !state.isSuperAdmin && !state.auditModeEnabled) {
@@ -1168,6 +1329,18 @@ const InformeTurno = (() => {
         return;
       }
       showFinalizeModal();
+    });
+
+    document.addEventListener('input', (event) => {
+      if (event.target.closest('.informe-container')) {
+        applyActionBarState();
+      }
+    });
+
+    document.addEventListener('change', (event) => {
+      if (event.target.closest('.informe-container')) {
+        applyActionBarState();
+      }
     });
 
     // Modal Enviar Correo
@@ -1265,15 +1438,9 @@ const InformeTurno = (() => {
 
   // --- Helpers Modales ---
   function showFinalizeModal() {
-    const missing = [];
-    if (!document.getElementById('input-horometro-inicial').value) missing.push('Horómetro Inicial');
-    if (!document.getElementById('input-horometro-final').value) missing.push('Horómetro Final');
-    
-    const mts = document.getElementById('input-mts-perforados').value;
-    if (mts === '' || mts === null || mts === undefined) missing.push('Metros Perforados');
-
-    if (missing.length > 0) {
-      showErrorModal(`No se puede finalizar. Faltan datos obligatorios: ${missing.join(', ')}`);
+    const validation = validateFinalizeRequirements(true);
+    if (!validation.isValid) {
+      showErrorModal(`No se puede finalizar. Faltan datos obligatorios: ${validation.missing.join(', ')}`);
       return;
     }
 
@@ -1331,6 +1498,9 @@ const InformeTurno = (() => {
 
   async function init() {
     refreshSessionContext();
+    state.accessRestricted = false;
+    state.helperSelectCount = 2;
+    renderExtraAyudanteFields();
     syncAuditModeFromURL();
     updateAuditModeBanner();
 
@@ -1351,6 +1521,7 @@ const InformeTurno = (() => {
 
     let reportAlreadyLoaded = false;
     let existingShiftReport = null;
+    let currentShiftDraft = null;
 
     if (!state.isSuperAdmin && !state.auditModeEnabled && !isEditing) {
       const fechaInput = document.getElementById('input-fecha');
@@ -1358,16 +1529,17 @@ const InformeTurno = (() => {
       const fecha = fechaInput?.value || '';
 
       if (fecha && state.userGrupo) {
+        currentShiftDraft = await fetchDraftForCurrentShift(fecha, state.userGrupo, state.userRut);
         existingShiftReport = await fetchExistingInformeForShift(fecha, state.userGrupo);
       }
 
-      const existingDraft = existingShiftReport && normalizeStatus(existingShiftReport.estado) === 'borrador'
+      const existingDraft = currentShiftDraft || (existingShiftReport && normalizeStatus(existingShiftReport.estado) === 'borrador'
         ? existingShiftReport
-        : null;
+        : null);
       const exactActive = Boolean(shiftContext.exact_active ?? shiftContext.exactActive);
       const inGrace = Boolean(shiftContext.in_grace ?? shiftContext.inGrace);
 
-      if (inGrace && existingDraft?.id_informe) {
+      if ((exactActive || inGrace) && existingDraft?.id_informe) {
         await openExistingInforme(existingDraft.id_informe);
         reportAlreadyLoaded = true;
       } else if (!exactActive) {
@@ -1396,6 +1568,9 @@ const InformeTurno = (() => {
     }
 
     applyPermissionMatrix();
+    await runShiftHeartbeat();
+    startHeartbeatCycle();
+    startAutosaveCycle();
   }
 
   return {
