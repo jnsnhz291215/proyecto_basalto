@@ -255,6 +255,7 @@ const InformeTurno = (() => {
     const grupoNorm = normalizeGroupValue(grupo);
     if (!fechaIso || !grupoNorm) {
       badge.hidden = true;
+      setJornadaDisplay('Por definir');
       return;
     }
 
@@ -275,6 +276,7 @@ const InformeTurno = (() => {
         badge.className = 'shift-badge shift-badge--rest';
         badge.innerHTML = `<i class="fa-solid fa-lock"></i> Grupo ${grupoNorm}: ${jornadaHistorica} (Cerrado)`;
         badge.hidden = false;
+        syncJornadaDisplayFromBadge();
         return;
       }
 
@@ -289,10 +291,12 @@ const InformeTurno = (() => {
         badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Grupo ${grupoNorm}: Fuera de Jornada`;
       }
       badge.hidden = false;
+      syncJornadaDisplayFromBadge();
     } catch (error) {
       badge.className = 'shift-badge shift-badge--unknown';
       badge.innerHTML = `<i class="fa-solid fa-circle-question"></i> Estado de grupo no disponible`;
       badge.hidden = false;
+      syncJornadaDisplayFromBadge();
       console.warn('[ADMIN_GROUP_BADGE] Error consultando estado de grupo:', error?.message || error);
     }
   }
@@ -332,6 +336,44 @@ const InformeTurno = (() => {
     if (adminGroupSelect && normalizedGroup && Array.from(adminGroupSelect.options).some((opt) => opt.value === normalizedGroup)) {
       adminGroupSelect.value = normalizedGroup;
     }
+  }
+
+  function setJornadaDisplay(value) {
+    const jornadaInput = document.getElementById('input-jornada-display');
+    if (!jornadaInput) return;
+    jornadaInput.value = value || 'Por definir';
+  }
+
+  function syncJornadaDisplayFromBadge() {
+    const badge = getShiftStatusBadge();
+    const badgeText = String(badge?.textContent || '').toLowerCase();
+
+    if (!badgeText) {
+      setJornadaDisplay('Por definir');
+      return;
+    }
+
+    if (badgeText.includes('administrador') || badgeText.includes('acceso total')) {
+      setJornadaDisplay('Admin');
+      return;
+    }
+
+    if (badgeText.includes('noche')) {
+      setJornadaDisplay('Noche');
+      return;
+    }
+
+    if (badgeText.includes('dia') || badgeText.includes('día') || badgeText.includes('turno activo') || badgeText.includes('en turno')) {
+      setJornadaDisplay('Día');
+      return;
+    }
+
+    if (badgeText.includes('descanso') || badgeText.includes('fuera de turno') || badgeText.includes('sin grupo')) {
+      setJornadaDisplay('Sin jornada');
+      return;
+    }
+
+    setJornadaDisplay('Por definir');
   }
 
   function buildAccessDeniedReason(shiftContext, isInGrace) {
@@ -1021,12 +1063,14 @@ const InformeTurno = (() => {
           badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Fuera de Turno${normalizedGroup ? ` — Grupo ${escapeAttribute(normalizedGroup)}` : ''}`;
           badge.className = 'shift-badge shift-badge--rest';
           badge.hidden = false;
+          syncJornadaDisplayFromBadge();
           return;
         }
 
         badge.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Cierre de turno en: ${formatCountdown(remaining)}`;
         badge.className = 'shift-badge shift-badge--grace';
         badge.hidden = false;
+        syncJornadaDisplayFromBadge();
       };
 
       renderCountdown();
@@ -1051,6 +1095,7 @@ const InformeTurno = (() => {
       || `<i class="fa-solid fa-circle-question"></i> ${escapeAttribute(shiftData?.mensaje || 'Estado desconocido')}`;
     badge.className = `shift-badge ${cls[estado] || 'shift-badge--unknown'}`;
     badge.hidden = false;
+    syncJornadaDisplayFromBadge();
   }
 
   function populateTurnoDropdown(activeGroups, userGrupo) {
@@ -1338,6 +1383,7 @@ const InformeTurno = (() => {
       badge.hidden = false;
       badge.className = 'shift-badge shift-badge--unknown';
       badge.innerHTML = '<i class="fa-solid fa-user-shield"></i> Modo Administrador - Acceso Total';
+      syncJornadaDisplayFromBadge();
     }
 
     ensureAdminGroupStatusBadge();
@@ -2742,6 +2788,7 @@ const InformeTurno = (() => {
     refreshHeaderMeta();
     updateResumenCards();
     updateObservacionesAvailability();
+    syncJornadaDisplayFromBadge();
     console.log('[UI_FIX] Cabecera unificada. Separaciones corregidas.');
     console.log('[UI_FIX] Barra de acciones integrada en Header Card.');
     console.log('[UI_CLEANUP] Reajustando grilla de Antecedentes a 4 columnas.');

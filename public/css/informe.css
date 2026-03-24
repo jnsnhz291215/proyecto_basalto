@@ -1238,3 +1238,133 @@ body {
 		padding-top: 8px;
 	}
 }
+
+/* === Header Unificado + Grilla Técnica Estricta === */
+.header-section {
+	padding: 12px 14px 10px;
+}
+
+.header-iden-row {
+	display: grid;
+	grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+	gap: 10px;
+	align-items: end;
+}
+
+.header-iden-title {
+	margin-bottom: 2px;
+}
+
+.folio-status-row {
+	margin-top: 4px;
+}
+
+.header-right-panel {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	align-items: end;
+	margin-left: 0;
+	width: 100%;
+}
+
+.header-right-panel .input-group.compact-field {
+	min-width: 0;
+	max-width: none;
+}
+
+.header-right-panel .input-group.compact-field .modern-input,
+.header-right-panel .input-group.compact-field select {
+	min-height: 36px;
+	height: 36px;
+}
+
+.header-status-wrap {
+	margin-top: 4px;
+}
+
+.header-fields-grid {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.header-fields-grid .input-group label {
+	font-size: 0.8rem;
+}
+
+.header-fields-grid .modern-input {
+	min-height: 36px;
+	height: 36px;
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+
+.action-bar {
+	margin-top: 8px;
+	padding-top: 6px;
+	gap: 8px;
+}
+
+.action-bar .btn {
+	min-height: 34px;
+	padding: 7px 12px;
+	font-size: 0.86rem;
+	gap: 6px;
+}
+
+.action-bar .btn-warning-soft {
+	background: #fffbeb;
+	color: #92400e;
+	border: 1px solid #fcd34d;
+	font-weight: 600;
+}
+
+.action-bar .btn-warning-soft:hover {
+	background: #fef3c7;
+	border-color: #f59e0b;
+}
+
+.form-grid-faena-operador-strict > .input-group {
+	min-height: 66px;
+}
+
+#extra-ayudantes-container {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 10px;
+}
+
+#extra-ayudantes-container .input-group {
+	grid-column: span 6;
+}
+
+.form-grid-pozo > .input-group.col-3 {
+	grid-column: span 3;
+}
+
+.form-grid-pozo > .input-group.col-6 {
+	grid-column: span 6;
+}
+
+@media (max-width: 900px) {
+	.header-iden-row {
+		grid-template-columns: 1fr;
+	}
+
+	.header-right-panel {
+		grid-template-columns: 1fr;
+	}
+
+	.header-fields-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.action-bar .btn {
+		width: 100%;
+	}
+
+	#extra-ayudantes-container .input-group {
+		grid-column: span 12;
+	}
+}

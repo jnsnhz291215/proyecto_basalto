@@ -48,9 +48,13 @@
                         </div>
                     </div>
                     <div class="input-group compact-field">
-                        <label>Grupo / Turno asignado</label>
+                        <label>Grupo</label>
                         <input type="hidden" id="input-turno">
                         <input type="text" id="input-turno-display" class="modern-input input-readonly" value="Detectando turno..." readonly aria-readonly="true">
+                    </div>
+                    <div class="input-group compact-field">
+                        <label>Jornada</label>
+                        <input type="text" id="input-jornada-display" class="modern-input input-readonly" value="Por definir" readonly aria-readonly="true">
                     </div>
                 </div>
             </div>
@@ -85,7 +89,7 @@
                 <button id="btn-exportar-pdf" class="btn btn-primary" type="button">
                     <i class="fa-solid fa-file-export"></i> Exportar PDF
                 </button>
-                <button id="btn-reabrir-turno" class="btn btn-warning" type="button" style="display: none; background: #fef08a; color: #854d0e; border-color: #fde047; font-weight: 600;">
+                <button id="btn-reabrir-turno" class="btn btn-warning btn-warning-soft" type="button" style="display: none;">
                     Re-abrir para el Operador
                 </button>
             </div>
@@ -109,86 +113,78 @@
 
         <!-- TAB 1: ANTECEDENTES -->
         <div id="tab-antecedentes" class="tab-content active" data-section-panel="antecedentes">
-            <div class="grid-2-col">
-                <div class="card-section">
-                    <h3 class="section-title">Antecedentes de Faena</h3>
-                    <div class="form-grid form-grid-faena">
-                        <div class="input-group full-width">
-                            <label>Faena / C. Costo</label>
-                            <input type="text" id="input-faena" placeholder="Ej: Centinela" class="modern-input">
-                        </div>
-                        <div class="input-group col-6">
-                            <label>Lugar</label>
-                            <input type="text" id="input-lugar" placeholder="Ej: Sector 1" class="modern-input">
-                        </div>
-                        <div class="input-group col-6">
-                            <label>Equipo</label>
-                            <input type="text" id="input-equipo" placeholder="Ej: ED-1200" class="modern-input">
-                        </div>
+            <div class="card-section">
+                <h3 class="section-title">Antecedentes Faena / Operador</h3>
+                <div class="form-grid form-grid-faena-operador-strict">
+                    <div class="input-group col-6">
+                        <label>Contrato / Faena</label>
+                        <input type="text" id="input-faena" placeholder="Ej: Centinela" class="modern-input">
                     </div>
-                </div>
-
-                <div class="card-section">
-                    <h3 class="section-title">Operador y Ayudantes</h3>
-                    <div class="form-grid form-grid-operador">
-                        <div class="input-group col-6">
-                            <label id="label-operador">Operador</label>
-                            <select id="input-operador" class="modern-input">
-                                <option value="">— Cargando personal —</option>
-                            </select>
-                        </div>
-                        <div class="input-group col-6">
-                            <label>Ayudante 1</label>
-                            <select id="input-ayudante-1" class="modern-input">
+                    <div class="input-group col-3">
+                        <label>Lugar</label>
+                        <input type="text" id="input-lugar" placeholder="Ej: Sector 1" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Equipo</label>
+                        <input type="text" id="input-equipo" placeholder="Ej: ED-1200" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label id="label-operador">Operador</label>
+                        <select id="input-operador" class="modern-input">
+                            <option value="">— Cargando personal —</option>
+                        </select>
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Ayudante 1</label>
+                        <select id="input-ayudante-1" class="modern-input">
+                            <option value="">— Ninguno —</option>
+                        </select>
+                    </div>
+                    <div class="input-group col-6">
+                        <label>Ayudante 2</label>
+                        <div class="helper-inline-row">
+                            <select id="input-ayudante-2" class="modern-input helper-select-inline">
                                 <option value="">— Ninguno —</option>
                             </select>
+                            <button id="btn-add-ayudante" type="button" class="btn-inline-control" title="Agregar ayudante">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
                         </div>
-                        <div class="input-group col-6">
-                            <label>Ayudante 2</label>
-                            <div class="helper-inline-row">
-                                <select id="input-ayudante-2" class="modern-input helper-select-inline">
-                                    <option value="">— Ninguno —</option>
-                                </select>
-                                <button id="btn-add-ayudante" type="button" class="btn-inline-control" title="Agregar ayudante">
-                                    <i class="fa-solid fa-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="extra-ayudantes-container" class="full-width"></div>
                     </div>
+                    <div id="extra-ayudantes-container" class="full-width"></div>
                 </div>
+            </div>
 
-                <div class="card-section">
-                    <h3 class="section-title">Antecedentes del Pozo</h3>
-                    <div class="form-grid form-grid-pozo">
-                        <div class="input-group col-3">
-                            <label>Pozo N°</label>
-                            <input type="text" id="input-pozo-num" class="modern-input">
-                        </div>
-                        <div class="input-group col-3">
-                            <label>Sector</label>
-                            <input type="text" id="input-sector" class="modern-input">
-                        </div>
-                        <div class="input-group col-3">
-                            <label>Diámetro</label>
-                            <input type="text" id="input-diametro" placeholder="Ej: 26 pulg" class="modern-input">
-                        </div>
-                        <div class="input-group col-3">
-                            <label>Inclinación</label>
-                            <input type="text" id="input-inclinacion" placeholder="Ej: 90°" class="modern-input">
-                        </div>
-                        <div class="input-group col-3">
-                            <label>Prof. Inicial</label>
-                            <input type="number" id="input-profundidad-inicial" placeholder="Ej: 500" class="modern-input">
-                        </div>
-                        <div class="input-group col-3">
-                            <label>Prof. Final</label>
-                            <input type="number" id="input-profundidad" placeholder="Ej: 600" class="modern-input">
-                        </div>
-                        <div class="input-group col-6">
-                            <label>Mts. Perforados</label>
-                            <input type="number" id="input-mts-perforados" placeholder="Ej: 100" class="modern-input">
-                        </div>
+            <div class="card-section">
+                <h3 class="section-title">Antecedentes del Pozo</h3>
+                <div class="form-grid form-grid-pozo">
+                    <div class="input-group col-3">
+                        <label>Pozo N°</label>
+                        <input type="text" id="input-pozo-num" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Sector</label>
+                        <input type="text" id="input-sector" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Diámetro</label>
+                        <input type="text" id="input-diametro" placeholder="Ej: 26 pulg" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Inclinación</label>
+                        <input type="text" id="input-inclinacion" placeholder="Ej: 90°" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Prof. Inicial</label>
+                        <input type="number" id="input-profundidad-inicial" placeholder="Ej: 500" class="modern-input">
+                    </div>
+                    <div class="input-group col-3">
+                        <label>Prof. Final</label>
+                        <input type="number" id="input-profundidad" placeholder="Ej: 600" class="modern-input">
+                    </div>
+                    <div class="input-group col-6">
+                        <label>Mts. Perforados</label>
+                        <input type="number" id="input-mts-perforados" placeholder="Ej: 100" class="modern-input">
                     </div>
                 </div>
             </div>
