@@ -1765,6 +1765,7 @@ const InformeTurno = (() => {
 
       // Evita degradar estados cerrados por autosave (ej. Finalizado -> Borrador).
       const currentStatus = String(state.currentReportStatus || '').trim();
+      if (isLockedStatus(currentStatus)) return;
       const targetStatus = isLockedStatus(currentStatus) ? currentStatus : 'Borrador';
       await persistInforme(targetStatus, { silent: true, autoSave: true });
     }, AUTOSAVE_INTERVAL_MS);
@@ -2190,7 +2191,7 @@ const InformeTurno = (() => {
 
     if (state.auditModeEnabled) {
       showSuccessModal('Auditoría', 'Cambios de auditoría guardados y registrados en la bitácora.', false);
-    } else if (estadoFinal === 'Finalizado') {
+    } else if (estadoFinal === 'Finalizado' && !autoSave) {
       showSuccessModal('Turno Finalizado', 'Turno Finalizado con Éxito', true);
     } else if (!silent) {
       showSuccessModal('Borrador', 'Borrador guardado correctamente', false);
