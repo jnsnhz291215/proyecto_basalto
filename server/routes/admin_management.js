@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../../ejemploconexion');
+const { pool } = require('../database');
 
 const ADMIN_PERMISSION_GROUPS = {
   admin_trabajadores_v: ['admin_trabajadores_v'],

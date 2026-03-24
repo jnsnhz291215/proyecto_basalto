@@ -1716,7 +1716,11 @@ const InformeTurno = (() => {
     if (state.autosaveIntervalId) window.clearInterval(state.autosaveIntervalId);
     state.autosaveIntervalId = window.setInterval(async () => {
       if (state.documentBlocked || !state.canWriteAnySection || state.accessRestricted) return;
-      await persistInforme('Borrador', { silent: true, autoSave: true });
+
+      // Evita degradar estados cerrados por autosave (ej. Finalizado -> Borrador).
+      const currentStatus = String(state.currentReportStatus || '').trim();
+      const targetStatus = isLockedStatus(currentStatus) ? currentStatus : 'Borrador';
+      await persistInforme(targetStatus, { silent: true, autoSave: true });
     }, AUTOSAVE_INTERVAL_MS);
   }
 
@@ -2030,6 +2034,10 @@ const InformeTurno = (() => {
 
   async function persistInforme(estadoFinal, options = {}) {
     const { silent = false, autoSave = false } = options;
+
+    if (autoSave && normalizeStatus(estadoFinal) === 'borrador' && isLockedStatus(state.currentReportStatus)) {
+      estadoFinal = state.currentReportStatus;
+    }
 
     if (state.documentBlocked || state.accessRestricted) {
       alert('Documento bloqueado. Solo un Superadmin puede modificar este informe.');

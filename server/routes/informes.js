@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../../ejemploconexion.js');
+const { pool } = require('../database.js');
 const puppeteer = require('puppeteer');
 const nodemailer = require('nodemailer');
 const fs = require('fs');

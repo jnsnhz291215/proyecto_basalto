@@ -1,11 +1,11 @@
 // ============================================
-// NAVBAR - Funcionalidad del menú (SIMPLIFICADO)
+// NAVBAR - Cargador del header compartido (SIMPLIFICADO)
 // La autenticación es manejada por auth_guard.js
 // ============================================
 (function(){
   'use strict';
 
-  let menuObserver = null;
+  let navbarObserver = null;
   let navbarInitialized = false;
 
   function ensureNavbarStylesheet() {
@@ -18,14 +18,14 @@
     document.head.appendChild(link);
   }
 
-  function bindMobileMenuHandlers() {
+  function bindMobileNavbarHandlers() {
     const navToggle = document.getElementById('nav-toggle');
     const navItems = document.getElementById('nav-items');
     const navRight = document.getElementById('usuario-container');
 
-    if (!navToggle || !navItems || navToggle.dataset.boundMenuToggle === '1') return;
+    if (!navToggle || !navItems || navToggle.dataset.boundNavbarToggle === '1') return;
 
-    navToggle.dataset.boundMenuToggle = '1';
+    navToggle.dataset.boundNavbarToggle = '1';
     navToggle.addEventListener('click', () => {
       navItems.classList.toggle('show');
       if (navRight) navRight.classList.toggle('show');
@@ -40,7 +40,14 @@
     });
   }
 
-  async function ensureSharedMenuLoaded() {
+  function dispatchNavbarReady() {
+    window.__basaltoNavbarReady = true;
+    window.__basaltoMenuReady = true;
+    window.dispatchEvent(new CustomEvent('basalto:navbar-ready'));
+    window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+  }
+
+  async function ensureSharedNavbarLoaded() {
     const placeholder = document.getElementById('shared-menu-placeholder');
     if (!placeholder) return false;
 
@@ -49,48 +56,46 @@
 
     if (document.querySelector('.top-menu')) {
       ensureNavbarStylesheet();
-      bindMobileMenuHandlers();
+      bindMobileNavbarHandlers();
       console.log(`[NAVBAR_LOADER] Navbar ya presente en ${page}.`);
-      if (!window.__basaltoMenuReady) {
-        window.__basaltoMenuReady = true;
-        window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+      if (!window.__basaltoNavbarReady) {
+        dispatchNavbarReady();
       }
       return true;
     }
 
-    if (window.__basaltoMenuLoaderPromise) {
-      return window.__basaltoMenuLoaderPromise;
+    if (window.__basaltoNavbarLoaderPromise) {
+      return window.__basaltoNavbarLoaderPromise;
     }
 
-    window.__basaltoMenuLoaderPromise = (async () => {
+    window.__basaltoNavbarLoaderPromise = (async () => {
       ensureNavbarStylesheet();
-      const response = await fetch('menu.html');
+      const response = await fetch('navbar.html');
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status} cargando menu.html`);
+        throw new Error(`HTTP ${response.status} cargando navbar.html`);
       }
 
       const html = await response.text();
       placeholder.innerHTML = html;
-      bindMobileMenuHandlers();
+      bindMobileNavbarHandlers();
       console.log(`[NAVBAR_LOADER] Navbar inyectado correctamente en ${page}.`);
 
       try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch (_e) {}
       try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch (_e) {}
 
-      window.__basaltoMenuReady = true;
-      window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+      dispatchNavbarReady();
       return true;
     })().catch((error) => {
       console.error('[NAVBAR] No se pudo cargar el menú compartido:', error?.message || error);
       return false;
     }).finally(() => {
-      window.__basaltoMenuLoaderPromise = null;
+      window.__basaltoNavbarLoaderPromise = null;
     });
 
-    return window.__basaltoMenuLoaderPromise;
+    return window.__basaltoNavbarLoaderPromise;
   }
 
-  // Función para abrir el modal de login (para compatibilidad con menu.html)
+  // Función para abrir el modal de login (para compatibilidad con navbar.html)
   function abrirLoginModal() {
     const dm = document.getElementById('dual-login-modal');
     if (dm) {
@@ -108,7 +113,7 @@
     return window.location.pathname.endsWith('gestionadmins.html');
   }
 
-  function getGestionarMenuContainer() {
+  function getGestionarNavbarContainer() {
     const gestionarToggle = document.getElementById('navbarDropdownGestionar');
     const nextMenu = gestionarToggle?.nextElementSibling;
 
@@ -119,8 +124,8 @@
     return document.querySelector('#nav-gestionar-parent .dropdown-menu');
   }
 
-  function ensureAdminDivider(menu) {
-    let dividerLi = menu.querySelector('#nav-admins');
+  function ensureAdminDivider(navbarContainer) {
+    let dividerLi = navbarContainer.querySelector('#nav-admins');
     if (!dividerLi) {
       dividerLi = document.createElement('li');
       dividerLi.id = 'nav-admins';
@@ -128,17 +133,17 @@
       const divider = document.createElement('hr');
       divider.className = 'dropdown-divider';
       dividerLi.appendChild(divider);
-      menu.appendChild(dividerLi);
+      navbarContainer.appendChild(dividerLi);
     }
     return dividerLi;
   }
 
-  function ensureAdminItem(menu) {
-    let itemLi = menu.querySelector('#nav-admins-item');
+  function ensureAdminItem(navbarContainer) {
+    let itemLi = navbarContainer.querySelector('#nav-admins-item');
     if (!itemLi) {
       itemLi = document.createElement('li');
       itemLi.id = 'nav-admins-item';
-      menu.appendChild(itemLi);
+      navbarContainer.appendChild(itemLi);
     }
 
     let link = itemLi.querySelector('a[href="gestionadmins.html"], a[href="/gestionadmins.html"]');
@@ -160,8 +165,8 @@
   }
 
   function renderAdminLink() {
-    const menu = getGestionarMenuContainer();
-    if (!menu) {
+    const navbarContainer = getGestionarNavbarContainer();
+    if (!navbarContainer) {
       return false;
     }
 
@@ -170,9 +175,9 @@
     // KPIs Dashboard Check
     const permisosStr = localStorage.getItem('user_permisos');
     const hasKpiPerms = valor === '1' || (permisosStr && permisosStr.includes('admin_v_kpis'));
-    const dashboardMenuItem = menu.querySelector('#nav-dashboard');
+    const dashboardMenuItem = navbarContainer.querySelector('#nav-dashboard');
     if (dashboardMenuItem) {
-      menu.appendChild(dashboardMenuItem);
+      navbarContainer.appendChild(dashboardMenuItem);
       dashboardMenuItem.style.display = hasKpiPerms ? 'block' : 'none';
       const kpiLink = dashboardMenuItem.querySelector('a');
       if (kpiLink) {
@@ -185,8 +190,8 @@
     }
 
     const forceVisible = valor === '1' || isGestionAdminsPage();
-    const dividerLi = ensureAdminDivider(menu);
-    const itemLi = ensureAdminItem(menu);
+    const dividerLi = ensureAdminDivider(navbarContainer);
+    const itemLi = ensureAdminItem(navbarContainer);
     const link = itemLi.querySelector('a[href="gestionadmins.html"], a[href="/gestionadmins.html"]');
 
     dividerLi.style.display = forceVisible ? 'block' : 'none';
@@ -203,10 +208,10 @@
     return true;
   }
 
-  function stopMenuObserver() {
-    if (!menuObserver) return;
-    menuObserver.disconnect();
-    menuObserver = null;
+  function stopNavbarObserver() {
+    if (!navbarObserver) return;
+    navbarObserver.disconnect();
+    navbarObserver = null;
   }
 
   function syncNavbarAfterRender() {
@@ -280,19 +285,19 @@
     const rendered = renderAdminLink();
     if (rendered) {
       navbarInitialized = true;
-      stopMenuObserver();
+      stopNavbarObserver();
       syncNavbarAfterRender();
     }
   }
 
-  function startMenuObserver() {
-    if (menuObserver) return;
+  function startNavbarObserver() {
+    if (navbarObserver) return;
 
-    menuObserver = new MutationObserver(() => {
+    navbarObserver = new MutationObserver(() => {
       initSuperAdminOption();
     });
 
-    menuObserver.observe(document.body, { childList: true, subtree: true });
+    navbarObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   function waitForNavbarAndInit(retries = 0) {
@@ -301,10 +306,9 @@
     if (renderAdminLink()) {
       navbarInitialized = true;
       renderShiftIndicator();
-      window.__basaltoMenuReady = true;
-      stopMenuObserver();
+      dispatchNavbarReady();
+      stopNavbarObserver();
       syncNavbarAfterRender();
-      window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
       return;
     }
 
@@ -317,7 +321,7 @@
 
   function initializeNavbar() {
     waitForNavbarAndInit();
-    startMenuObserver();
+    startNavbarObserver();
   }
 
   function whenAuthReady(callback) {
@@ -351,7 +355,7 @@
     window.__basaltoNavbarBooting = true;
 
     try {
-      await ensureSharedMenuLoaded();
+      await ensureSharedNavbarLoaded();
       whenAuthReady(initializeNavbar);
     } finally {
       window.__basaltoNavbarBooting = false;

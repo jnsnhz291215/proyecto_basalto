@@ -1,5 +1,5 @@
 const path = require('path');
-const { pool } = require(path.join(__dirname, '../../ejemploconexion.js'));
+const { pool } = require(path.join(__dirname, '../database.js'));
 
 // ============================================
 // ALGORITMO MAESTRO DE TURNOS (Fórmula Compartida Backend)

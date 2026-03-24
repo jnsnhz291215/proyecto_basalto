@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../../ejemploconexion');
+const { pool } = require('../database');
 
 function toSlug(value) {
   return String(value || '')

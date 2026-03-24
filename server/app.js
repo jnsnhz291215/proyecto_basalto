@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require("express");
-const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador } = require("../ejemploconexion.js");
+const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador } = require("./database.js");
 
 const app = express();
 

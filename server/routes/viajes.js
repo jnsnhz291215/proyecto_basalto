@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../../ejemploconexion.js');
+const { pool } = require('../database.js');
 
 function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();

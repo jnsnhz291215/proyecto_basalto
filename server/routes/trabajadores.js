@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool, obtenerTrabajadores } = require('../../ejemploconexion.js');
+const { pool, obtenerTrabajadores } = require('../database.js');
 
 const router = express.Router();
 
