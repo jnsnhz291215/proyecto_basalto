@@ -248,7 +248,7 @@ body {
 .input-group textarea::placeholder,
 .modern-input::placeholder,
 .input-compact::placeholder {
-	color: #9ca3af;
+	color: #c0c7d2;
 }
 
 .modern-input:focus {
@@ -259,7 +259,7 @@ body {
 
 .numeric-spinner {
 	display: grid;
-	grid-template-columns: 30px 1fr 30px;
+	grid-template-columns: 28px 1fr 28px;
 	gap: 0;
 	align-items: center;
 }
@@ -278,10 +278,10 @@ body {
 
 .spinner-btn {
 	height: 38px;
-	width: 30px;
+	width: 28px;
 	border: 1px solid #cbd5e1;
-	background: #f8fafc;
-	color: #334155;
+	background: #ffffff;
+	color: #475569;
 	font-size: 0.92rem;
 	font-weight: 600;
 	line-height: 1;
@@ -290,7 +290,7 @@ body {
 }
 
 .spinner-btn:hover {
-	background: #eef2f7;
+	background: #f8fafc;
 	border-color: #94a3b8;
 }
 
@@ -309,6 +309,53 @@ body {
 .form-grid-faena .input-group,
 .form-grid-operador .input-group {
 	min-height: 69px;
+}
+
+.form-grid-parametros > .input-group,
+.form-grid-insumos > .input-group {
+	min-width: 0;
+}
+
+.form-grid-parametros > .input-group.col-6 {
+	grid-column: span 6;
+}
+
+.form-grid-insumos > .input-group.col-3 {
+	grid-column: span 3;
+}
+
+.helper-inline-row {
+	display: grid;
+	grid-template-columns: 1fr 36px;
+	gap: 8px;
+	align-items: stretch;
+}
+
+.helper-select-inline {
+	min-width: 0;
+	height: 38px;
+}
+
+.btn-inline-control {
+	height: 38px;
+	width: 36px;
+	min-width: 36px;
+	padding: 0;
+	border: 1px solid #cbd5e1;
+	border-radius: 6px;
+	background: #ffffff;
+	color: #475569;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-inline-control:hover {
+	background: #f8fafc;
+	border-color: #94a3b8;
+	color: #334155;
 }
 
 .form-grid-pozo,
@@ -496,21 +543,25 @@ body {
 }
 
 .btn-remove-helper {
-	background: #fee2e2;
-	color: #b91c1c;
-	border: 1px solid #fecaca;
+	background: #ffffff;
+	color: #64748b;
+	border: 1px solid #cbd5e1;
 	border-radius: 6px;
-	padding: 8px 10px;
+	padding: 0;
 	cursor: pointer;
 	line-height: 1;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	height: 38px;
+	width: 36px;
+	min-width: 36px;
 }
 
 .btn-remove-helper:hover {
-	background: #fecaca;
-	border-color: #fca5a5;
+	background: #f8fafc;
+	border-color: #94a3b8;
+	color: #334155;
 }
 
 .btn-add-row-small {
@@ -747,12 +798,22 @@ body {
 	}
 
 	.numeric-spinner {
-		grid-template-columns: 28px 1fr 28px;
+		grid-template-columns: 26px 1fr 26px;
 	}
 
 	.spinner-btn {
 		height: 38px;
-		width: 28px;
+		width: 26px;
+	}
+
+	.helper-inline-row {
+		grid-template-columns: 1fr 34px;
+	}
+
+	.btn-inline-control,
+	.btn-remove-helper {
+		width: 34px;
+		min-width: 34px;
 	}
 
 	.materiales-grid {

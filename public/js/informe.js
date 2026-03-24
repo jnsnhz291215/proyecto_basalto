@@ -1211,11 +1211,11 @@ const InformeTurno = (() => {
       wrapper.dataset.helperIndex = String(index);
       wrapper.innerHTML = `
         <label>Ayudante ${index}</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <select id="input-ayudante-${index}" class="modern-input" style="flex:1 1 auto;">
+        <div class="helper-inline-row">
+          <select id="input-ayudante-${index}" class="modern-input helper-select-inline">
             <option value="">— Ninguno —</option>
           </select>
-          <button type="button" class="btn-remove-helper" data-helper-index="${index}" title="Quitar ayudante ${index}">
+          <button type="button" class="btn-inline-control btn-remove-helper" data-helper-index="${index}" title="Quitar ayudante ${index}">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
