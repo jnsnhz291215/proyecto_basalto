@@ -18,53 +18,6 @@
 </head>
 <body>
   <div id="shared-menu-placeholder"></div>
-  <script>
-    fetch('menu.html').then(r => r.text()).then(html => {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      document.body.insertBefore(wrapper, document.body.firstChild);
-      // Inicializar menú (toggle y activo)
-      const btn = wrapper.querySelector('#nav-toggle');
-      const items = wrapper.querySelector('#nav-items');
-      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
-            try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
-                // Menu hamburguesa en móvil: toggle nav-items y nav-right
-                if (btn && items) {
-                    btn.addEventListener('click', () => {
-                        items.classList.toggle('show');
-                        const navRight = wrapper.querySelector('#usuario-container');
-                        if (navRight) navRight.classList.toggle('show');
-                    });
-                    const navLinks = items.querySelectorAll('a');
-                    navLinks.forEach(link => {
-                        link.addEventListener('click', () => {
-                            items.classList.remove('show');
-                            const navRight = wrapper.querySelector('#usuario-container');
-                            if (navRight) navRight.classList.remove('show');
-                        });
-                    });
-                }
-                // init user dropdown + session visibility
-            try {
-                const userToggle = wrapper.querySelector('.user-toggle');
-                const userMenu = wrapper.querySelector('.user-menu');
-                if (userToggle && userMenu) {
-                    userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
-                    document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
-                }
-                const logoutBtn = wrapper.querySelector('.user-menu .danger');
-                if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
-                try {
-                    const s = localStorage.getItem('usuarioActivo');
-                    if (s) {
-                        const u = JSON.parse(s);
-                        const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-                    }
-                } catch(e){}
-                        } catch(e){}
-            try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
-    }).catch(err => console.error('No se pudo cargar el menú:', err));
-  </script>
 
   <main>
     <div class="informe-container">
@@ -159,16 +112,16 @@
             <div class="grid-2-col">
                 <div class="card-section">
                     <h3 class="section-title">Antecedentes de Faena</h3>
-                    <div class="form-grid">
+                    <div class="form-grid form-grid-faena">
                         <div class="input-group full-width">
                             <label>Faena / C. Costo</label>
                             <input type="text" id="input-faena" placeholder="Ej: Centinela" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-6">
                             <label>Lugar</label>
                             <input type="text" id="input-lugar" placeholder="Ej: Sector 1" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-6">
                             <label>Equipo</label>
                             <input type="text" id="input-equipo" placeholder="Ej: ED-1200" class="modern-input">
                         </div>
@@ -177,20 +130,20 @@
 
                 <div class="card-section">
                     <h3 class="section-title">Operador y Ayudantes</h3>
-                    <div class="form-grid">
-                        <div class="input-group">
+                    <div class="form-grid form-grid-operador">
+                        <div class="input-group col-6">
                             <label id="label-operador">Operador</label>
                             <select id="input-operador" class="modern-input">
                                 <option value="">— Cargando personal —</option>
                             </select>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-6">
                             <label>Ayudante 1</label>
                             <select id="input-ayudante-1" class="modern-input">
                                 <option value="">— Ninguno —</option>
                             </select>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-6">
                             <label>Ayudante 2</label>
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <select id="input-ayudante-2" class="modern-input" style="flex:1 1 auto;">
@@ -207,32 +160,32 @@
 
                 <div class="card-section">
                     <h3 class="section-title">Antecedentes del Pozo</h3>
-                    <div class="form-grid">
-                        <div class="input-group">
+                    <div class="form-grid form-grid-pozo">
+                        <div class="input-group col-3">
                             <label>Pozo N°</label>
                             <input type="text" id="input-pozo-num" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-3">
                             <label>Sector</label>
                             <input type="text" id="input-sector" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-3">
                             <label>Diámetro</label>
                             <input type="text" id="input-diametro" placeholder="Ej: 26 pulg" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-3">
                             <label>Inclinación</label>
                             <input type="text" id="input-inclinacion" placeholder="Ej: 90°" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-3">
                             <label>Prof. Inicial</label>
                             <input type="number" id="input-profundidad-inicial" placeholder="Ej: 500" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-3">
                             <label>Prof. Final</label>
                             <input type="number" id="input-profundidad" placeholder="Ej: 600" class="modern-input">
                         </div>
-                        <div class="input-group">
+                        <div class="input-group col-6">
                             <label>Mts. Perforados</label>
                             <input type="number" id="input-mts-perforados" placeholder="Ej: 100" class="modern-input">
                         </div>
@@ -242,12 +195,12 @@
 
             <div class="card-section">
                 <h3 class="section-title">Parámetros</h3>
-                <div class="form-grid">
-                    <div class="input-group">
+                <div class="form-grid form-grid-parametros">
+                    <div class="input-group col-6">
                         <label>Pull Down (Lbs)</label>
                         <input type="number" id="input-pulldown" placeholder="Ej: 15000" class="modern-input">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group col-6">
                         <label>RPM</label>
                         <input type="number" id="input-rpm" placeholder="Ej: 85" class="modern-input">
                     </div>
@@ -256,20 +209,20 @@
 
             <div class="card-section">
                 <h3 class="section-title">Insumos</h3>
-                <div class="form-grid">
-                    <div class="input-group">
+                <div class="form-grid form-grid-insumos">
+                    <div class="input-group col-3">
                         <label>Petróleo (Gal)</label>
                         <input type="number" id="input-petroleo" placeholder="Ej: 150" class="modern-input">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group col-3">
                         <label>Lubricantes (Ltr)</label>
                         <input type="number" id="input-lubricantes" placeholder="Ej: 50" class="modern-input">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group col-3">
                         <label>Aceites (Ltr)</label>
                         <input type="number" id="input-aceites" placeholder="Ej: 30" class="modern-input">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group col-3">
                         <label>Otros (Kg)</label>
                         <input type="number" id="input-otros" placeholder="Ej: 100" class="modern-input">
                     </div>

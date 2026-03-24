@@ -11,39 +11,10 @@
     <script src="js/common.js"></script>
     <script src="js/route-guard.js"></script>
     <script src="js/auth_guard.js"></script>
+    <script src="js/navbar.js"></script>
 </head>
 <body>
     <div id="shared-menu-placeholder"></div>
-    <script>
-        fetch('menu.html').then(r => r.text()).then(html => {
-          const wrapper = document.createElement('div');
-          wrapper.innerHTML = html;
-          document.body.insertBefore(wrapper, document.body.firstChild);
-          
-          const btn = wrapper.querySelector('#nav-toggle');
-          const items = wrapper.querySelector('#nav-items');
-          if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
-          try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
-          
-          try {
-              const userToggle = wrapper.querySelector('.user-toggle');
-              const userMenu = wrapper.querySelector('.user-menu');
-              if (userToggle && userMenu) {
-                  userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
-                  document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
-              }
-              const logoutBtn = wrapper.querySelector('.user-menu .danger');
-              if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
-              const s = localStorage.getItem('usuarioActivo');
-              if (s) {
-                  const u = JSON.parse(s);
-                  const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-              }
-          } catch(e){}
-          try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
-        }).catch(err => console.error('No se pudo cargar el menú:', err));
-    </script>
-    <script src="js/navbar.js"></script>
 
     <main class="page-container dashboard-container">
         <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">

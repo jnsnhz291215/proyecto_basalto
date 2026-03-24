@@ -8,6 +8,88 @@
   let menuObserver = null;
   let navbarInitialized = false;
 
+  function ensureNavbarStylesheet() {
+    if (document.querySelector('link[data-basalto-navbar-css="1"]')) return;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'css/navbar.css';
+    link.setAttribute('data-basalto-navbar-css', '1');
+    document.head.appendChild(link);
+  }
+
+  function bindMobileMenuHandlers() {
+    const navToggle = document.getElementById('nav-toggle');
+    const navItems = document.getElementById('nav-items');
+    const navRight = document.getElementById('usuario-container');
+
+    if (!navToggle || !navItems || navToggle.dataset.boundMenuToggle === '1') return;
+
+    navToggle.dataset.boundMenuToggle = '1';
+    navToggle.addEventListener('click', () => {
+      navItems.classList.toggle('show');
+      if (navRight) navRight.classList.toggle('show');
+    });
+
+    const navLinks = navItems.querySelectorAll('a');
+    navLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        navItems.classList.remove('show');
+        if (navRight) navRight.classList.remove('show');
+      });
+    });
+  }
+
+  async function ensureSharedMenuLoaded() {
+    const placeholder = document.getElementById('shared-menu-placeholder');
+    if (!placeholder) return false;
+
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    console.log(`[NAVBAR_LOADER] Verificando carga en ${page}.`);
+
+    if (document.querySelector('.top-menu')) {
+      ensureNavbarStylesheet();
+      bindMobileMenuHandlers();
+      console.log(`[NAVBAR_LOADER] Navbar ya presente en ${page}.`);
+      if (!window.__basaltoMenuReady) {
+        window.__basaltoMenuReady = true;
+        window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+      }
+      return true;
+    }
+
+    if (window.__basaltoMenuLoaderPromise) {
+      return window.__basaltoMenuLoaderPromise;
+    }
+
+    window.__basaltoMenuLoaderPromise = (async () => {
+      ensureNavbarStylesheet();
+      const response = await fetch('menu.html');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} cargando menu.html`);
+      }
+
+      const html = await response.text();
+      placeholder.innerHTML = html;
+      bindMobileMenuHandlers();
+      console.log(`[NAVBAR_LOADER] Navbar inyectado correctamente en ${page}.`);
+
+      try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch (_e) {}
+      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch (_e) {}
+
+      window.__basaltoMenuReady = true;
+      window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
+      return true;
+    })().catch((error) => {
+      console.error('[NAVBAR] No se pudo cargar el menú compartido:', error?.message || error);
+      return false;
+    }).finally(() => {
+      window.__basaltoMenuLoaderPromise = null;
+    });
+
+    return window.__basaltoMenuLoaderPromise;
+  }
+
   // Función para abrir el modal de login (para compatibilidad con menu.html)
   function abrirLoginModal() {
     const dm = document.getElementById('dual-login-modal');
@@ -264,46 +346,24 @@
     }, 600);
   }
 
-  // Funcionalidad del menú móvil (toggle hamburguesa)
-  document.addEventListener('DOMContentLoaded', () => {
-    const navToggle = document.getElementById('nav-toggle');
-    const navItems = document.getElementById('nav-items');
-    
-    if (navToggle && navItems) {
-      navToggle.addEventListener('click', function() {
-        navItems.classList.toggle('show');
-      });
-    }
-    
-    // Toggle del menú de usuario
-    const userToggle = document.getElementById('user-toggle');
-    const userMenu = document.querySelector('.user-menu');
-    
-    if (userToggle && userMenu) {
-      userToggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        userMenu.classList.toggle('show');
-        const isExpanded = userMenu.classList.contains('show');
-        userToggle.setAttribute('aria-expanded', isExpanded);
-        userMenu.setAttribute('aria-hidden', !isExpanded);
-      });
-      
-      // Cerrar menú al hacer click fuera
-      document.addEventListener('click', function(e) {
-        if (!userToggle.contains(e.target) && !userMenu.contains(e.target)) {
-          userMenu.classList.remove('show');
-          userToggle.setAttribute('aria-expanded', 'false');
-          userMenu.setAttribute('aria-hidden', 'true');
-        }
-      });
-    }
+  async function bootNavbar() {
+    if (window.__basaltoNavbarBooting) return;
+    window.__basaltoNavbarBooting = true;
 
-    // Esperar validación de sesión y luego renderizar el link en el dropdown correcto.
-    whenAuthReady(initializeNavbar);
+    try {
+      await ensureSharedMenuLoaded();
+      whenAuthReady(initializeNavbar);
+    } finally {
+      window.__basaltoNavbarBooting = false;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    bootNavbar();
   });
 
   if (document.readyState !== 'loading') {
-    whenAuthReady(initializeNavbar);
+    bootNavbar();
   }
 
 })();

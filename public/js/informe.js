@@ -2736,6 +2736,8 @@ const InformeTurno = (() => {
     updateObservacionesAvailability();
     console.log('[UI_FIX] Cabecera unificada. Separaciones corregidas.');
     console.log('[UI_FIX] Barra de acciones integrada en Header Card.');
+    console.log('[UI_CLEANUP] Reajustando grilla de Antecedentes a 4 columnas.');
+    console.log('[UI_CLEANUP] Compactando controles de entrada numéricos.');
     
     await loadCargoPermisosIds();
 

@@ -140,18 +140,6 @@
   </div>
 
   <div id="notification" class="notification"></div>
-
-  <script>
-    fetch('menu.html')
-      .then(r => r.text())
-      .then(html => {
-        document.getElementById('shared-menu-placeholder').innerHTML = html;
-        if (window.syncNavbarActive) window.syncNavbarActive();
-        if (window.actualizarInterfaz) window.actualizarInterfaz();
-        window.dispatchEvent(new CustomEvent('basalto:menu-ready'));
-      })
-      .catch(err => console.error('Error cargando menú:', err));
-  </script>
   <script src="js/gestioncargos.js"></script>
 </body>
 </html>

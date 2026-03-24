@@ -15,59 +15,6 @@
 <body>
   <!-- Shared menu will be injected here -->
   <div id="shared-menu-placeholder"></div>
-  <script>
-    fetch('menu.html').then(r => r.text()).then(html => {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      document.body.insertBefore(wrapper, document.body.firstChild);
-      const btn = wrapper.querySelector('#nav-toggle');
-      const items = wrapper.querySelector('#nav-items');
-      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
-      try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
-      // Menu hamburguesa en móvil: toggle nav-items y nav-right
-      if (btn && items) {
-        btn.addEventListener('click', () => {
-          items.classList.toggle('show');
-          const navRight = wrapper.querySelector('#usuario-container');
-          if (navRight) navRight.classList.toggle('show');
-        });
-        const navLinks = items.querySelectorAll('a');
-        navLinks.forEach(link => {
-          link.addEventListener('click', () => {
-            items.classList.remove('show');
-            const navRight = wrapper.querySelector('#usuario-container');
-            if (navRight) navRight.classList.remove('show');
-          });
-        });
-      }
-      // user dropdown init + session visibility
-      try {
-        const userToggle = wrapper.querySelector('.user-toggle');
-        const userMenu = wrapper.querySelector('.user-menu');
-        if (userToggle && userMenu) {
-          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
-          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
-        }
-        const logoutBtn = wrapper.querySelector('.user-menu .danger');
-        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
-        try {
-          const s = localStorage.getItem('usuarioActivo');
-          const navGest = wrapper.querySelector('#nav-gestionar');
-          const navRight = wrapper.querySelector('.nav-right');
-          if (!s) {
-            if (navRight) navRight.style.display = 'none';
-            if (navGest) navGest.style.display = 'none';
-          } else {
-            const u = JSON.parse(s);
-            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-            if (navRight) navRight.style.display = '';
-            if (navGest) navGest.style.display = (u && u.rol === 'admin') ? '' : 'none';
-          }
-        } catch(e){}
-      } catch(e){}
-      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
-    }).catch(err => console.error('No se pudo cargar el menú:', err));
-  </script>
 
   <main style="max-width:900px;margin:40px auto;padding:0 16px;">
     <h1>Datos personales</h1>

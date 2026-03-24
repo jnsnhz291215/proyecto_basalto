@@ -14,60 +14,6 @@
 <body>
   <!-- Shared menu will be injected here -->
   <div id="shared-menu-placeholder"></div>
-  <script>
-    fetch('menu.html').then(r => r.text()).then(html => {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      document.body.insertBefore(wrapper, document.body.firstChild);
-      // Inicializar comportamiento del menú (toggle y link activo)
-      const btn = wrapper.querySelector('#nav-toggle');
-      const items = wrapper.querySelector('#nav-items');
-      if (btn && items) btn.addEventListener('click', () => items.classList.toggle('show'));
-      // marcar link activo
-      try { if (window.syncNavbarActive) window.syncNavbarActive(); } catch(e) {}
-      // Inicializar dropdown de usuario (toggle + click outside)
-      try {
-        const userToggle = wrapper.querySelector('.user-toggle');
-        const userMenu = wrapper.querySelector('.user-menu');
-        if (userToggle && userMenu) {
-          userToggle.addEventListener('click', (ev) => { ev.stopPropagation(); userMenu.classList.toggle('show'); userToggle.setAttribute('aria-expanded', userMenu.classList.contains('show')); });
-          document.addEventListener('click', (ev) => { if (!userMenu.contains(ev.target) && !userToggle.contains(ev.target)) { userMenu.classList.remove('show'); userToggle.setAttribute('aria-expanded', 'false'); } });
-        }
-        
-                // Menu hamburguesa en móvil
-                const navToggle = wrapper.querySelector('#nav-toggle');
-                const navItems = wrapper.querySelector('#nav-items');
-                const navRight = wrapper.querySelector('#usuario-container');
-                if (navToggle && navItems) {
-                  navToggle.addEventListener('click', () => {
-                    navItems.classList.toggle('show');
-                    if (navRight) navRight.classList.toggle('show');
-                  });
-                  // Cerrar menú cuando se hace click en un link
-                  const navLinks = navItems.querySelectorAll('a');
-                  navLinks.forEach(link => {
-                    link.addEventListener('click', () => {
-                      navItems.classList.remove('show');
-                      if (navRight) navRight.classList.remove('show');
-                    });
-                  });
-                }
-        
-        const logoutBtn = wrapper.querySelector('.user-menu .danger');
-        if (logoutBtn) logoutBtn.addEventListener('click', (ev) => { ev.preventDefault(); localStorage.removeItem('usuarioActivo'); window.location.href = '/index.html'; });
-        // Actualizar nombre de usuario si existe sesión
-        try {
-          const s = localStorage.getItem('usuarioActivo');
-          if (s) {
-            const u = JSON.parse(s);
-            const nameEl = wrapper.querySelector('.user-name'); if (nameEl && u && u.nombre) nameEl.textContent = u.nombre;
-          }
-        } catch(e){}
-      } catch(e){}
-      // Actualizar interfaz ahora que el menú está inyectado
-      try { if (window.actualizarInterfaz) window.actualizarInterfaz(); } catch(e){}
-    }).catch(err => console.error('No se pudo cargar el menú:', err));
-  </script>
   <div class="container">
     <!-- (botones laterales eliminados: ahora usar menú superior) -->
 
