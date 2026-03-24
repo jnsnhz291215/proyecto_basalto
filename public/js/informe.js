@@ -115,6 +115,11 @@ const InformeTurno = (() => {
     return String(value || '').replace(/^grupo\s+/i, '').trim().toUpperCase();
   }
 
+  function isTruthyFlag(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
   function getTodayIsoLocal() {
     const now = new Date();
     const year = now.getFullYear();
@@ -431,7 +436,7 @@ const InformeTurno = (() => {
     state.userEmail = localStorage.getItem('user_email') || '';
     state.cargoName = localStorage.getItem('user_cargo_name') || '';
     state.permisosCargo = parseJSONArray('user_permissions_cargo');
-    state.isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+    state.isSuperAdmin = isTruthyFlag(localStorage.getItem('user_super_admin'));
     // Leer grupo desde localStorage para que el check de turno en init() tenga el valor correcto
     // antes de que initShiftContext() lo asigne a través de la API.
     if (!state.userGrupo) {
@@ -446,7 +451,7 @@ const InformeTurno = (() => {
 
   async function syncUserSession() {
     const rutActual = localStorage.getItem('user_rut') || state.userRut || '';
-    const isSuperAdminLocal = localStorage.getItem('user_super_admin') === '1' || state.isSuperAdmin;
+    const isSuperAdminLocal = isTruthyFlag(localStorage.getItem('user_super_admin')) || state.isSuperAdmin;
 
     if (!rutActual) return;
 
@@ -1637,7 +1642,7 @@ const InformeTurno = (() => {
   }
 
   async function runShiftHeartbeat() {
-    if (!state.userRut || state.auditModeEnabled || state.accessRestricted || shouldBypassShiftHeartbeat()) return;
+    if (!state.userRut || state.auditModeEnabled || state.accessRestricted || state.isSuperAdmin || shouldBypassShiftHeartbeat()) return;
 
     try {
       const previousShiftContext = state.userShiftContext;
@@ -1695,7 +1700,13 @@ const InformeTurno = (() => {
   }
 
   function startHeartbeatCycle() {
-    if (state.auditModeEnabled || state.accessRestricted || shouldBypassShiftHeartbeat()) return;
+    if (state.auditModeEnabled || state.accessRestricted || state.isSuperAdmin || shouldBypassShiftHeartbeat()) {
+      if (state.heartbeatIntervalId) {
+        window.clearInterval(state.heartbeatIntervalId);
+        state.heartbeatIntervalId = null;
+      }
+      return;
+    }
     if (state.heartbeatIntervalId) window.clearInterval(state.heartbeatIntervalId);
     state.heartbeatIntervalId = window.setInterval(runShiftHeartbeat, HEARTBEAT_INTERVAL_MS);
   }
@@ -2723,6 +2734,8 @@ const InformeTurno = (() => {
     refreshHeaderMeta();
     updateResumenCards();
     updateObservacionesAvailability();
+    console.log('[UI_FIX] Cabecera unificada. Separaciones corregidas.');
+    console.log('[UI_FIX] Barra de acciones integrada en Header Card.');
     
     await loadCargoPermisosIds();
 
