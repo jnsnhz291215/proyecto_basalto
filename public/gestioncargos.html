@@ -21,6 +21,38 @@
     .btn-primary { border: 0; background: #7c3aed; color: #fff; border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
     .btn-primary:hover { background: #6d28d9; }
 
+    .view-switch-card {
+      margin-top: 14px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 10px;
+      display: inline-flex;
+      gap: 8px;
+    }
+
+    .view-switch-btn {
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      color: #4b5563;
+      background: #f3f4f6;
+      transition: background .2s ease, color .2s ease;
+    }
+
+    .view-switch-btn:hover {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .view-switch-btn.active {
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+
     .table-card { margin-top: 14px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .table-top { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
     .table-title { font-weight: 700; color: #374151; }
@@ -65,6 +97,9 @@
     .notification.show { opacity: 1; transform: translateY(0); }
     .notification.error { background: #b91c1c; }
     .notification.success { background: #166534; }
+
+    .danger-btn { background: #fee2e2; color: #991b1b; }
+    .danger-btn:hover { background: #fecaca; }
   </style>
 </head>
 <body>
@@ -77,6 +112,11 @@
         <p class="subtitle">Configura plantillas de permisos para administración y operación.</p>
       </div>
       <button id="btnNuevoCargo" class="btn-primary" data-permission="gestionar_cargos"><i class="fa-solid fa-plus"></i> Nuevo cargo</button>
+    </div>
+
+    <div class="view-switch-card" role="tablist" aria-label="Seleccionar vista de gestión">
+      <button id="btnViewCargos" class="view-switch-btn active" type="button" role="tab" aria-selected="true">Cargos</button>
+      <button id="btnViewCiudades" class="view-switch-btn" type="button" role="tab" aria-selected="false">Ciudades</button>
     </div>
 
     <section class="table-card">
@@ -135,6 +175,23 @@
       <div class="modal-actions">
         <button id="cancelCargoModal" class="btn-outline">Cancelar</button>
         <button id="saveCargoModal" class="btn-primary">Guardar Cargo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteCargoModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" style="width:min(520px,95vw);">
+      <div class="modal-head">
+        <strong>Eliminar cargo</strong>
+        <button id="closeDeleteCargoModal" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteCargoText" style="margin:0;color:#4b5563;line-height:1.6;"></p>
+        <div id="deleteCargoAlert" style="display:none;margin-top:14px;padding:12px 14px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;line-height:1.5;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelDeleteCargoModal" class="btn-outline">Cancelar</button>
+        <button id="confirmDeleteCargoModal" class="btn-primary danger-btn">Eliminar cargo</button>
       </div>
     </div>
   </div>

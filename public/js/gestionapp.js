@@ -826,10 +826,8 @@ async function abrirEditar(rut) {
   }
   const selectEditCiudad = document.getElementById('edit-ciudad');
   if (selectEditCiudad) {
-    const ciudadNombre = (trabajador.ciudad || '').trim();
-    const optionMatch = Array.from(selectEditCiudad.options)
-      .find(opt => opt.textContent.trim() === ciudadNombre);
-    selectEditCiudad.value = optionMatch ? optionMatch.value : '';
+    const ciudadId = trabajador.id_ciudad ? String(trabajador.id_ciudad) : '';
+    selectEditCiudad.value = ciudadId;
   }
   const fechaNacimiento = trabajador.fecha_nacimiento
     ? String(trabajador.fecha_nacimiento).split('T')[0]
@@ -846,6 +844,7 @@ async function abrirEditar(rut) {
     el.formEditar.dataset.originalCargoId = trabajador.id_cargo ? String(trabajador.id_cargo) : '';
     el.formEditar.dataset.originalGrupoId = trabajador.id_grupo ? String(trabajador.id_grupo) : '';
     el.formEditar.dataset.originalCiudad = trabajador.ciudad || '';
+    el.formEditar.dataset.originalCiudadId = trabajador.id_ciudad ? String(trabajador.id_ciudad) : '1';
     el.formEditar.dataset.originalFechaNacimiento = fechaNacimiento || '';
   }
   
@@ -868,7 +867,6 @@ async function enviarAgregar(e) {
   const telefonoRaw = (fd.get('telefono') || '').trim();
   const idGrupoRaw = (fd.get('grupo') || '').trim();
   const ciudadId = (fd.get('ciudad') || '').trim();
-  const ciudadNombre = obtenerNombreCiudadSeleccionada('ciudad', ciudadId);
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim();
 
   if (!nombre || !apellido || !rutRaw || !email || !telefonoRaw || !idGrupoRaw) {
@@ -903,7 +901,7 @@ async function enviarAgregar(e) {
     id_grupo: idGrupo
   };
   if (cargoNombre) obj.cargo = cargoNombre.trim();
-  if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
+  obj.id_ciudad = ciudadId ? parseInt(ciudadId, 10) : 1;
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case en frontend para mostrar inmediatamente
@@ -949,8 +947,7 @@ async function enviarEdicion(e) {
   const email = (fd.get('email') || '').trim() || (original.originalEmail || '');
   const telefonoRaw = (fd.get('telefono') || '').trim() || (original.originalTelefono || '');
   const idGrupoRaw = (fd.get('grupo') || '').trim() || (original.originalGrupoId || '');
-  const ciudadId = (fd.get('ciudad') || '').trim();
-  const ciudadNombre = obtenerNombreCiudadSeleccionada('edit-ciudad', ciudadId) || (original.originalCiudad || '');
+  const ciudadId = (fd.get('ciudad') || '').trim() || (original.originalCiudadId || '1');
   const fecha_nacimiento = (fd.get('fecha_nacimiento') || '').trim() || (original.originalFechaNacimiento || '');
 
   if (!nombre || !apellido || !email || !telefonoRaw || !idGrupoRaw) {
@@ -984,7 +981,7 @@ async function enviarEdicion(e) {
   };
   if (cargoId) obj.id_cargo = cargoId;
   if (cargoNombre) obj.cargo = cargoNombre.trim();
-  if (ciudadNombre) obj.ciudad = ciudadNombre.trim();
+  obj.id_ciudad = ciudadId ? parseInt(ciudadId, 10) : 1;
   if (fecha_nacimiento) obj.fecha_nacimiento = fecha_nacimiento;
 
   // Normalizar a Title Case

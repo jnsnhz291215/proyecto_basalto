@@ -20,7 +20,8 @@
   const state = {
     cargos: [],
     permisos: [],
-    editingCargoId: null
+    editingCargoId: null,
+    deletingCargo: null
   };
 
   const el = {
@@ -34,8 +35,29 @@
     saveModal: document.getElementById('saveCargoModal'),
     cargoNombre: document.getElementById('cargoNombre'),
     permisosOperacion: document.getElementById('permisosOperacion'),
-    notification: document.getElementById('notification')
+    notification: document.getElementById('notification'),
+    btnViewCargos: document.getElementById('btnViewCargos'),
+    btnViewCiudades: document.getElementById('btnViewCiudades'),
+    deleteModal: document.getElementById('deleteCargoModal'),
+    deleteModalClose: document.getElementById('closeDeleteCargoModal'),
+    deleteModalCancel: document.getElementById('cancelDeleteCargoModal'),
+    deleteModalConfirm: document.getElementById('confirmDeleteCargoModal'),
+    deleteCargoText: document.getElementById('deleteCargoText'),
+    deleteCargoAlert: document.getElementById('deleteCargoAlert')
   };
+
+  function setupViewSwitcher() {
+    el.btnViewCargos?.addEventListener('click', () => {
+      el.btnViewCargos.classList.add('active');
+      el.btnViewCargos.setAttribute('aria-selected', 'true');
+      el.btnViewCiudades?.classList.remove('active');
+      el.btnViewCiudades?.setAttribute('aria-selected', 'false');
+    });
+
+    el.btnViewCiudades?.addEventListener('click', () => {
+      window.location.href = '/ciudades.html';
+    });
+  }
 
   function notify(message, type = 'success') {
     if (!el.notification) return;
@@ -158,15 +180,44 @@
         <td><strong>${cargo.nombre_cargo}</strong></td>
         <td><div class="chips">${chips}</div></td>
         <td>
-          <button class="btn-icon" data-id="${cargo.id_cargo}" title="Editar cargo" data-permission="gestionar_cargos">
+          <button class="btn-icon" data-action="edit" data-id="${cargo.id_cargo}" title="Editar cargo" data-permission="gestionar_cargos">
             <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="btn-icon danger-btn" data-action="delete" data-id="${cargo.id_cargo}" title="Eliminar cargo" data-permission="gestionar_cargos" style="margin-left:8px;">
+            <i class="fa-solid fa-trash"></i>
           </button>
         </td>
       `;
 
-      row.querySelector('.btn-icon')?.addEventListener('click', () => openModal(cargo.id_cargo));
+      row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openModal(cargo.id_cargo));
+      row.querySelector('[data-action="delete"]')?.addEventListener('click', () => openDeleteModal(cargo.id_cargo));
       el.cargosBody.appendChild(row);
     });
+  }
+
+  function openDeleteModal(cargoId) {
+    state.deletingCargo = state.cargos.find((item) => Number(item.id_cargo) === Number(cargoId)) || null;
+    if (!state.deletingCargo) return;
+
+    if (el.deleteCargoText) {
+      el.deleteCargoText.textContent = `Se eliminará el cargo ${state.deletingCargo.nombre_cargo} de forma definitiva.`;
+    }
+
+    if (el.deleteCargoAlert) {
+      el.deleteCargoAlert.style.display = 'none';
+      el.deleteCargoAlert.textContent = '';
+    }
+
+    openManagedModal(el.deleteModal);
+  }
+
+  function closeDeleteModal() {
+    state.deletingCargo = null;
+    if (el.deleteCargoAlert) {
+      el.deleteCargoAlert.style.display = 'none';
+      el.deleteCargoAlert.textContent = '';
+    }
+    closeManagedModal(el.deleteModal);
   }
 
   function renderSectionMatrix(selectedSet) {
@@ -311,6 +362,55 @@
     }
   }
 
+  async function deleteCargo() {
+    if (!state.deletingCargo) return;
+
+    try {
+      const response = await fetch(`/api/cargos/${state.deletingCargo.id_cargo}`, {
+        method: 'DELETE',
+        headers: buildHeaders()
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 409 && data.requires_confirmation) {
+          if (el.deleteCargoText) {
+            el.deleteCargoText.textContent = 'La eliminación afectará trabajadores que actualmente tienen este cargo asignado.';
+          }
+          if (el.deleteCargoAlert) {
+            el.deleteCargoAlert.style.display = 'block';
+            el.deleteCargoAlert.textContent = `${state.deletingCargo.nombre_cargo} tiene ${data.total_trabajadores} trabajador${data.total_trabajadores !== 1 ? 'es' : ''} asignado${data.total_trabajadores !== 1 ? 's' : ''}. Si confirmas de nuevo, esos trabajadores quedarán sin cargo asignado.`;
+          }
+
+          const retryResponse = await fetch(`/api/cargos/${state.deletingCargo.id_cargo}?force=true`, {
+            method: 'DELETE',
+            headers: buildHeaders()
+          });
+          const retryData = await retryResponse.json().catch(() => ({}));
+          if (!retryResponse.ok) {
+            throw new Error(retryData.message || retryData.error || 'No fue posible eliminar el cargo');
+          }
+
+          closeDeleteModal();
+          invalidateCargoCatalogCache();
+          await loadCargos();
+          notify(`Cargo eliminado. ${retryData.affected_workers || 0} trabajador(es) quedaron sin cargo asignado.`, 'success');
+          return;
+        }
+
+        throw new Error(data.message || data.error || 'No fue posible eliminar el cargo');
+      }
+
+      closeDeleteModal();
+      invalidateCargoCatalogCache();
+      await loadCargos();
+      notify('Cargo eliminado exitosamente', 'success');
+    } catch (error) {
+      notify(error.message || 'No fue posible eliminar el cargo', 'error');
+    }
+  }
+
   function verificarAcceso() {
     const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
     const hasCargosViewPermission = typeof window.hasAdminPermission === 'function'
@@ -344,6 +444,15 @@
     el.modal?.addEventListener('click', (ev) => {
       if (ev.target === el.modal) closeModal();
     });
+
+    el.deleteModalClose?.addEventListener('click', closeDeleteModal);
+    el.deleteModalCancel?.addEventListener('click', closeDeleteModal);
+    el.deleteModalConfirm?.addEventListener('click', deleteCargo);
+    el.deleteModal?.addEventListener('click', (ev) => {
+      if (ev.target === el.deleteModal) closeDeleteModal();
+    });
+
+    setupViewSwitcher();
   }
 
   document.addEventListener('DOMContentLoaded', init);

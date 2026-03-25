@@ -507,10 +507,12 @@ router.get('/perfil/:rut', async (req, res) => {
         c.nombre_cargo AS cargo,
         t.activo,
         t.fecha_nacimiento,
-        t.ciudad
+        t.id_ciudad,
+        ci.nombre_ciudad AS ciudad
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
       LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
+      LEFT JOIN ciudades ci ON t.id_ciudad = ci.id_ciudad
       WHERE REPLACE(REPLACE(REPLACE(t.RUT, ".", ""), "-", ""), " ", "") = ?
       LIMIT 1
     `;
@@ -536,6 +538,7 @@ router.get('/perfil/:rut', async (req, res) => {
         cargo: trabajador.cargo,
         activo: trabajador.activo === 1,
         fecha_nacimiento: trabajador.fecha_nacimiento,
+        id_ciudad: trabajador.id_ciudad || null,
         ciudad: trabajador.ciudad
       };
 

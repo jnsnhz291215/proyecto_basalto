@@ -16,6 +16,22 @@ function dedupeNumberArray(values) {
   return [...new Set(values.map(v => parseInt(v, 10)).filter(Number.isInteger))];
 }
 
+function limpiarRUT(rut) {
+  return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+}
+
+async function validarAdminSolicitante(rutSolicitante, connection = pool) {
+  const rutLimpio = limpiarRUT(rutSolicitante);
+  if (!rutLimpio) return null;
+
+  const [rows] = await connection.execute(
+    'SELECT rut, es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+    [rutLimpio]
+  );
+
+  return rows && rows[0] ? rows[0] : null;
+}
+
 function clasificarPermiso(clavePermiso) {
   const slug = toSlug(clavePermiso);
   const gestionKeywords = [
@@ -198,6 +214,93 @@ router.post('/cargos', async (req, res) => {
 
     console.error('[CARGOS] Error en POST /api/cargos:', error);
     res.status(500).json({ success: false, message: 'Error al guardar cargo' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ============================================
+// DELETE /api/cargos/:id - Hard delete de cargo
+// ============================================
+router.delete('/cargos/:id', async (req, res) => {
+  let connection;
+
+  try {
+    const cargoId = Number.parseInt(req.params.id, 10);
+    const force = String(req.query.force || req.body?.force || '').trim().toLowerCase() === 'true';
+    const rutSolicitante = req.headers['rut_solicitante'] || req.headers['x-admin-rut'] || req.body?.rut_solicitante || req.query?.rut_solicitante;
+
+    if (!Number.isInteger(cargoId)) {
+      return res.status(400).json({ success: false, message: 'Identificador de cargo inválido' });
+    }
+
+    connection = await pool.getConnection();
+    const admin = await validarAdminSolicitante(rutSolicitante, connection);
+
+    if (!admin) {
+      return res.status(401).json({ success: false, message: 'Administrador solicitante no encontrado' });
+    }
+
+    if (Number(admin.activo) === 0) {
+      return res.status(403).json({ success: false, message: 'Cuenta de administrador inactiva' });
+    }
+
+    await connection.beginTransaction();
+
+    const [cargoRows] = await connection.execute(
+      'SELECT id_cargo, nombre_cargo FROM cargos WHERE id_cargo = ? LIMIT 1',
+      [cargoId]
+    );
+
+    if (!cargoRows || cargoRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Cargo no encontrado' });
+    }
+
+    const cargo = cargoRows[0];
+
+    const [trabajadoresRows] = await connection.execute(
+      'SELECT COUNT(*) AS total FROM trabajadores WHERE id_cargo = ?',
+      [cargoId]
+    );
+
+    const totalTrabajadores = Number(trabajadoresRows?.[0]?.total || 0);
+    if (totalTrabajadores > 0 && !force) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: 'El cargo tiene trabajadores asignados',
+        requires_confirmation: true,
+        total_trabajadores: totalTrabajadores
+      });
+    }
+
+    if (totalTrabajadores > 0) {
+      await connection.execute(
+        'UPDATE trabajadores SET id_cargo = NULL WHERE id_cargo = ?',
+        [cargoId]
+      );
+    }
+
+    await connection.execute('DELETE FROM cargo_permisos WHERE id_cargo = ?', [cargoId]);
+    await connection.execute('DELETE FROM cargos WHERE id_cargo = ?', [cargoId]);
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      deleted_cargo: cargo.nombre_cargo,
+      affected_workers: totalTrabajadores
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_rollbackError) {}
+    }
+
+    console.error('[CARGOS] Error en DELETE /api/cargos/:id:', error);
+    return res.status(500).json({ success: false, message: 'Error al eliminar cargo' });
   } finally {
     if (connection) connection.release();
   }

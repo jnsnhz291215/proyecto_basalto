@@ -76,6 +76,80 @@ const AUTO_CIERRE_MS = 60 * 60 * 1000; // 1 hora
 let ultimoEstado = null;
 let autoCierreTimeout = null;
 
+function normalizarTextoSimple(valor) {
+  return String(valor || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizarNombreCiudad(valor) {
+  return normalizarTextoSimple(valor)
+    .split(' ')
+    .filter(Boolean)
+    .map((segmento) => segmento.charAt(0).toUpperCase() + segmento.slice(1).toLowerCase())
+    .join(' ');
+}
+
+async function obtenerAdminSolicitante(rutSolicitante, connection = pool) {
+  const rutLimpio = String(rutSolicitante || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+  if (!rutLimpio) return null;
+
+  const [rows] = await connection.execute(
+    'SELECT rut, es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+    [rutLimpio]
+  );
+
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function requireCityAdminAccess(req, res, next) {
+  try {
+    const rutSolicitante = req.headers['rut_solicitante'] || req.headers['x-admin-rut'] || req.body?.rut_solicitante || req.query?.rut_solicitante;
+    const admin = await obtenerAdminSolicitante(rutSolicitante);
+
+    if (!admin) {
+      return res.status(401).json({ error: 'Administrador solicitante no encontrado' });
+    }
+
+    if (Number(admin.activo) === 0) {
+      return res.status(403).json({ error: 'Cuenta de administrador inactiva' });
+    }
+
+    req.adminSolicitante = admin;
+    next();
+  } catch (error) {
+    console.error('[CIUDADES] Error validando administrador solicitante:', error);
+    res.status(500).json({ error: 'Error validando permisos administrativos' });
+  }
+}
+
+async function ensureSinCiudad(connection = pool) {
+  const nombreSinCiudad = 'sin ciudad';
+  const [rows] = await connection.execute(
+    'SELECT id_ciudad, nombre_ciudad FROM ciudades WHERE id_ciudad = 1 LIMIT 1'
+  );
+
+  if (rows && rows[0]) {
+    if (String(rows[0].nombre_ciudad || '').trim().toLowerCase() !== nombreSinCiudad) {
+      await connection.execute(
+        'UPDATE ciudades SET nombre_ciudad = ? WHERE id_ciudad = 1',
+        [nombreSinCiudad]
+      );
+      rows[0].nombre_ciudad = nombreSinCiudad;
+    }
+    return rows[0];
+  }
+
+  throw new Error('La ciudad base con id_ciudad=1 no existe. Debe existir como Sin ciudad.');
+}
+
+async function normalizarTrabajadoresSinCiudad(connection = pool) {
+  const sinCiudad = await ensureSinCiudad(connection);
+  await connection.execute(
+    'UPDATE trabajadores SET id_ciudad = ? WHERE id_ciudad IS NULL OR id_ciudad = 0',
+    [sinCiudad.id_ciudad]
+  );
+  return sinCiudad;
+}
+
 // ============================================
 // FUNCIÓN HELPER: REGISTRAR LOG DE AUDITORÍA
 // ============================================
@@ -295,10 +369,32 @@ app.get('/api/admin-logs', async (req, res) => {
 // GET /api/ciudades - Obtener lista de ciudades
 app.get('/api/ciudades', async (req, res) => {
   try {
+    await normalizarTrabajadoresSinCiudad();
     const [rows] = await pool.execute(
-      'SELECT id_ciudad, nombre_ciudad FROM ciudades ORDER BY nombre_ciudad ASC'
+      `SELECT 
+        c.id_ciudad,
+        c.nombre_ciudad,
+        COUNT(t.RUT) AS total_trabajadores
+      FROM ciudades c
+      LEFT JOIN trabajadores t
+        ON t.id_ciudad = c.id_ciudad
+      GROUP BY c.id_ciudad, c.nombre_ciudad
+      ORDER BY CASE WHEN LOWER(TRIM(c.nombre_ciudad)) = 'sin ciudad' THEN 0 ELSE 1 END, c.nombre_ciudad ASC`
     );
-    res.json(rows);
+
+    const detalle = String(req.query.detalle || '').trim().toLowerCase() === 'true';
+    if (detalle) {
+      return res.json(rows.map((row) => ({
+        id_ciudad: row.id_ciudad,
+        nombre_ciudad: row.nombre_ciudad,
+        total_trabajadores: Number(row.total_trabajadores || 0)
+      })));
+    }
+
+    res.json(rows.map((row) => ({
+      id_ciudad: row.id_ciudad,
+      nombre_ciudad: row.nombre_ciudad
+    })));
   } catch (error) {
     console.error('Error al obtener ciudades:', error);
     res.status(500).json({ error: 'Error al obtener ciudades' });
@@ -306,7 +402,7 @@ app.get('/api/ciudades', async (req, res) => {
 });
 
 // POST /api/ciudades - Crear nueva ciudad
-app.post('/api/ciudades', async (req, res) => {
+app.post('/api/ciudades', requireCityAdminAccess, async (req, res) => {
   try {
     const { nombre_ciudad } = req.body;
     
@@ -314,7 +410,10 @@ app.post('/api/ciudades', async (req, res) => {
       return res.status(400).json({ error: 'El nombre de la ciudad es requerido' });
     }
 
-    const ciudadNormalizada = nombre_ciudad.trim();
+    const ciudadNormalizada = String(nombre_ciudad || '').trim().toLowerCase();
+    if (!ciudadNormalizada) {
+      return res.status(400).json({ error: 'El nombre de la ciudad es requerido' });
+    }
 
     // Insertar la nueva ciudad
     await pool.execute(
@@ -333,6 +432,175 @@ app.post('/api/ciudades', async (req, res) => {
     
     console.error('Error al crear ciudad:', error);
     res.status(500).json({ error: 'Error al crear la ciudad' });
+  }
+});
+
+// PUT /api/ciudades/:id - Editar nombre de ciudad
+app.put('/api/ciudades/:id', requireCityAdminAccess, async (req, res) => {
+  let connection;
+
+  try {
+    const cityId = Number.parseInt(req.params.id, 10);
+    const nuevoNombre = String(req.body?.nombre_ciudad || '').trim().toLowerCase();
+
+    if (!Number.isInteger(cityId)) {
+      return res.status(400).json({ error: 'Identificador de ciudad inválido' });
+    }
+
+    if (!nuevoNombre) {
+      return res.status(400).json({ error: 'El nombre de la ciudad es requerido' });
+    }
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    await normalizarTrabajadoresSinCiudad(connection);
+
+    const [cityRows] = await connection.execute(
+      'SELECT id_ciudad, nombre_ciudad FROM ciudades WHERE id_ciudad = ? LIMIT 1',
+      [cityId]
+    );
+
+    if (!cityRows || cityRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Ciudad no encontrada' });
+    }
+
+    const ciudadActual = cityRows[0];
+    const esSinCiudad = Number(ciudadActual.id_ciudad) === 1;
+
+    if (esSinCiudad && nuevoNombre.toLowerCase() !== 'sin ciudad') {
+      await connection.rollback();
+      return res.status(403).json({ error: 'La ciudad Sin ciudad no puede renombrarse' });
+    }
+
+    const [duplicadas] = await connection.execute(
+      'SELECT id_ciudad FROM ciudades WHERE LOWER(TRIM(nombre_ciudad)) = LOWER(TRIM(?)) AND id_ciudad <> ? LIMIT 1',
+      [nuevoNombre, cityId]
+    );
+
+    if (duplicadas && duplicadas.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({ error: 'Ya existe una ciudad con ese nombre' });
+    }
+
+    await connection.execute(
+      'UPDATE ciudades SET nombre_ciudad = ? WHERE id_ciudad = ?',
+      [nuevoNombre, cityId]
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      id_ciudad: cityId,
+      nombre_ciudad: nuevoNombre
+    });
+  } catch (error) {
+    if (connection) {
+      try { await connection.rollback(); } catch (_rollbackError) {}
+    }
+
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Ya existe una ciudad con ese nombre' });
+    }
+
+    console.error('[CIUDADES] Error al editar ciudad:', error);
+    res.status(500).json({ error: 'Error al editar la ciudad' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// DELETE /api/ciudades/:id - Hard delete con reasignación de trabajadores a Sin ciudad
+app.delete('/api/ciudades/:id', requireCityAdminAccess, async (req, res) => {
+  let connection;
+
+  try {
+    const cityId = Number.parseInt(req.params.id, 10);
+    const force = String(req.query.force || req.body?.force || '').trim().toLowerCase() === 'true';
+    const admin = req.adminSolicitante;
+
+    if (!Number.isInteger(cityId)) {
+      return res.status(400).json({ error: 'Identificador de ciudad inválido' });
+    }
+
+    if (!admin || (Number(admin.es_super_admin) !== 1 && String(localStorage) === '__never__')) {
+      // no-op placeholder to keep branch shape explicit without changing runtime behavior
+    }
+
+    if (!admin || Number(admin.es_super_admin) !== 1) {
+      return res.status(403).json({ error: 'Solo administradores o super administradores pueden borrar ciudades' });
+    }
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const sinCiudad = await normalizarTrabajadoresSinCiudad(connection);
+
+    const [cityRows] = await connection.execute(
+      'SELECT id_ciudad, nombre_ciudad FROM ciudades WHERE id_ciudad = ? LIMIT 1',
+      [cityId]
+    );
+
+    if (!cityRows || cityRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Ciudad no encontrada' });
+    }
+
+    const ciudadActual = cityRows[0];
+    const nombreActual = String(ciudadActual.nombre_ciudad || '').trim().toLowerCase();
+
+    if (Number(ciudadActual.id_ciudad) === 1) {
+      await connection.rollback();
+      return res.status(403).json({ error: 'La ciudad Sin ciudad no puede eliminarse' });
+    }
+
+    const [trabajadoresRows] = await connection.execute(
+      'SELECT COUNT(*) AS total FROM trabajadores WHERE id_ciudad = ?',
+      [cityId]
+    );
+
+    const totalTrabajadores = Number(trabajadoresRows?.[0]?.total || 0);
+    if (totalTrabajadores > 0 && !force) {
+      await connection.rollback();
+      return res.status(409).json({
+        error: 'La ciudad tiene trabajadores asignados',
+        requires_confirmation: true,
+        total_trabajadores: totalTrabajadores,
+        fallback_city: sinCiudad.nombre_ciudad
+      });
+    }
+
+    if (totalTrabajadores > 0) {
+      await connection.execute(
+        'UPDATE trabajadores SET id_ciudad = ? WHERE id_ciudad = ?',
+        [sinCiudad.id_ciudad, cityId]
+      );
+    }
+
+    await connection.execute(
+      'DELETE FROM ciudades WHERE id_ciudad = ?',
+      [cityId]
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      deleted_city: nombreActual,
+      reassigned_workers: totalTrabajadores,
+      fallback_city: sinCiudad.nombre_ciudad
+    });
+  } catch (error) {
+    if (connection) {
+      try { await connection.rollback(); } catch (_rollbackError) {}
+    }
+
+    console.error('[CIUDADES] Error al eliminar ciudad:', error);
+    res.status(500).json({ error: 'Error al eliminar la ciudad' });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
@@ -646,7 +914,7 @@ const handleAgregarTrabajador = async (req, res) => {
     const nombresNorm = titleCase(nuevoTrabajador.nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
-    const ciudadNorm = nuevoTrabajador.ciudad ? titleCase(nuevoTrabajador.ciudad) : null;
+    const ciudadId = Number.parseInt(nuevoTrabajador.id_ciudad || nuevoTrabajador.ciudad || '1', 10) || 1;
     const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
 
     // Limpieza de RUT para password inicial en users
@@ -657,7 +925,7 @@ const handleAgregarTrabajador = async (req, res) => {
 
     // INSERT 1: trabajadores
     await connection.execute(
-      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, id_cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, id_cargo, id_ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         nombresNorm,
         apellidoPaternoNorm,
@@ -667,7 +935,7 @@ const handleAgregarTrabajador = async (req, res) => {
         nuevoTrabajador.telefono,
         id_grupo,
         id_cargo,
-        ciudadNorm,
+        ciudadId,
         fechaNacimiento
       ]
     );
@@ -790,7 +1058,7 @@ const handleEditarTrabajador = async (req, res) => {
         trabajador.telefono,
         id_grupo,
         id_cargo || null,
-        trabajador.ciudad || null,
+        Number.parseInt(trabajador.id_ciudad || trabajador.ciudad || '1', 10) || 1,
         trabajador.fecha_nacimiento || null
       );
     } catch (e) {
