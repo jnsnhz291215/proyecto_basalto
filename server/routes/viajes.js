@@ -537,4 +537,35 @@ router.delete('/viajes/:id', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/viajes/ruts-por-mes?mes=YYYY-MM
+ * Retorna los RUTs de trabajadores con al menos un viaje (no cancelado) en el mes indicado.
+ */
+router.get('/viajes/ruts-por-mes', async (req, res) => {
+  let connection;
+  try {
+    const { mes } = req.query;
+    if (!mes || !/^\d{4}-\d{2}$/.test(mes)) {
+      return res.status(400).json({ error: 'Parámetro mes inválido. Formato requerido: YYYY-MM' });
+    }
+
+    connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `SELECT DISTINCT v.rut_trabajador
+       FROM viajes v
+       INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
+       WHERE v.estado != 'Cancelado'
+         AND DATE_FORMAT(vt.fecha_salida, '%Y-%m') = ?`,
+      [mes]
+    );
+
+    res.json({ ruts: rows.map(r => r.rut_trabajador) });
+  } catch (error) {
+    console.error('[ERROR] Error al obtener RUTs por mes:', error);
+    res.status(500).json({ error: 'Error al obtener datos de viajes por mes' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;

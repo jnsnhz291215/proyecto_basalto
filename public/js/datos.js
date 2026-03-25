@@ -5,6 +5,15 @@
 (async function() {
   'use strict';
 
+  function titleCase(value) {
+    return String(value || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   // Elementos del DOM
   const perfilCard = document.getElementById('perfil-card');
   const perfilNombre = document.getElementById('perfil-nombre');
@@ -172,7 +181,7 @@
         }
       }
       perfilFechaNacimiento.textContent = fechaNacimientoFormateada;
-      perfilCiudad.textContent = perfil.ciudad || '---';
+      perfilCiudad.textContent = perfil.ciudad ? titleCase(perfil.ciudad) : '---';
 
       //Grupo
       const grupoText = perfil.grupo ? `Grupo: ${perfil.grupo}` : 'Sin grupo asignado';
@@ -207,7 +216,7 @@
       hideIfEmpty(perfilTelefono, perfil.telefono);
       hideIfEmpty(perfilEmail, perfil.email);
       hideIfEmpty(perfilFechaNacimiento, perfil.fecha_nacimiento);
-      hideIfEmpty(perfilCiudad, perfil.ciudad);
+      hideIfEmpty(perfilCiudad, perfil.ciudad ? titleCase(perfil.ciudad) : perfil.ciudad);
 
       perfilCard.style.display = 'block';
       

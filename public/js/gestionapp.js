@@ -5,6 +5,8 @@ let gruposDisponibles = [];
 let rutParaBorrar = null;
 let rutParaOcultar = null;
 let esReactivar = false;
+let rutsTienenViajeEnMes = new Set();
+let soloSinViajes = false;
 const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
 
 const el = {
@@ -16,6 +18,9 @@ const el = {
   inputBuscar: null,
   selectGrupo: null,
   selectCargo: null,
+  selectCiudad: null,
+  selectMes: null,
+  btnSinViajes: null,
   modalAgregar: null,
   modalConfirm: null,
   modalResult: null,
@@ -97,6 +102,10 @@ function formatearTelefono(val) {
 // Normalizar a Title Case: primera letra en mayúscula por palabra
 function titleCase(s) {
   return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+function formatCiudad(value) {
+  return titleCase(value || '');
 }
 
 // Configuración de pistas y grupos para Basalto Drilling
@@ -279,7 +288,8 @@ async function cargar(incluirInactivos = false) {
       ...t,
       nombres: titleCase(t.nombres),
       apellidos: titleCase(t.apellidos),
-      cargo: t.cargo ? titleCase(t.cargo) : t.cargo
+      cargo: t.cargo ? titleCase(t.cargo) : t.cargo,
+      ciudad: t.ciudad ? formatCiudad(t.ciudad) : t.ciudad
     }));
   } catch (e) {
     console.error(e);
@@ -292,6 +302,7 @@ function getFiltrados() {
   const buscar = (el.inputBuscar && el.inputBuscar.value || '').trim().toLowerCase();
   const grupo = (el.selectGrupo && el.selectGrupo.value || '');
   const cargo = (el.selectCargo && el.selectCargo.value || '').trim().toLowerCase();
+  const ciudad = (el.selectCiudad && el.selectCiudad.value || '').trim().toLowerCase();
   let list = trabajadores;
   if (buscar) {
     list = list.filter(t => {
@@ -315,7 +326,20 @@ function getFiltrados() {
   if (cargo) {
     list = list.filter(t => String(t.cargo || '').toLowerCase() === cargo);
   }
-  
+
+  if (ciudad) {
+    list = list.filter(t => String(t.ciudad || '').toLowerCase() === ciudad);
+  }
+
+  const mes = (el.selectMes && el.selectMes.value || '');
+  if (mes) {
+    if (soloSinViajes) {
+      list = list.filter(t => !rutsTienenViajeEnMes.has(t.RUT));
+    } else {
+      list = list.filter(t => rutsTienenViajeEnMes.has(t.RUT));
+    }
+  }
+
   return list;
 }
 
@@ -346,7 +370,7 @@ function render() {
     const grupo = t.grupo || 'Sin grupo';
     const email = t.email || '-';
     const direccion = t.direccion || '-';
-    const ciudad = t.ciudad || '-';
+    const ciudad = t.ciudad ? formatCiudad(t.ciudad) : '-';
     const fechaNacimiento = t.fecha_nacimiento ? new Date(t.fecha_nacimiento).toLocaleDateString('es-CL') : '-';
 
     const item = document.createElement('div');
@@ -1192,6 +1216,41 @@ function showAdminLoginError(msg) {
 /* ============================================================ */
 
 // ============================================
+// FILTRO DE VIAJES POR MES
+// ============================================
+
+function poblarSelectMes() {
+  const select = el.selectMes;
+  if (!select) return;
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const hoy = new Date();
+  for (let offset = -3; offset <= 5; offset++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() + offset, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    select.appendChild(opt);
+  }
+}
+
+async function cargarRutsConViajes(mes) {
+  if (!mes) {
+    rutsTienenViajeEnMes = new Set();
+    return;
+  }
+  try {
+    const res = await fetch(`/api/viajes/ruts-por-mes?mes=${encodeURIComponent(mes)}`);
+    if (!res.ok) throw new Error('Error al cargar viajes del mes');
+    const data = await res.json();
+    rutsTienenViajeEnMes = new Set(Array.isArray(data.ruts) ? data.ruts : []);
+  } catch (e) {
+    console.error(e);
+    rutsTienenViajeEnMes = new Set();
+  }
+}
+
+// ============================================
 // GESTIÓN DE CARGOS
 // ============================================
 
@@ -1343,6 +1402,7 @@ async function cargarCiudades(seleccionarValor = '') {
     const ciudades = await res.json();
     const selectCiudad = document.getElementById('ciudad');
     const selectEditCiudad = document.getElementById('edit-ciudad');
+    const selectFiltroCiudad = el.selectCiudad || document.getElementById('filtro-ciudad');
 
     const renderizarSelect = (select) => {
       if (!select) return;
@@ -1351,7 +1411,7 @@ async function cargarCiudades(seleccionarValor = '') {
       ciudades.forEach(ciudad => {
         const option = document.createElement('option');
         option.value = ciudad.id_ciudad;
-        option.textContent = ciudad.nombre_ciudad;
+        option.textContent = formatCiudad(ciudad.nombre_ciudad);
         select.appendChild(option);
       });
     };
@@ -1359,10 +1419,20 @@ async function cargarCiudades(seleccionarValor = '') {
     renderizarSelect(selectCiudad);
     renderizarSelect(selectEditCiudad);
 
+    if (selectFiltroCiudad) {
+      selectFiltroCiudad.innerHTML = '<option value="">Todas las ciudades</option>';
+      ciudades.forEach((ciudad) => {
+        const option = document.createElement('option');
+        option.value = String(ciudad.nombre_ciudad || '').trim().toLowerCase();
+        option.textContent = formatCiudad(ciudad.nombre_ciudad);
+        selectFiltroCiudad.appendChild(option);
+      });
+    }
+
     if (seleccionarValor) {
       const valorNormalizado = String(seleccionarValor).trim();
       const ciudadEncontrada = ciudades.find(
-        ciudad => String(ciudad.id_ciudad) === valorNormalizado || ciudad.nombre_ciudad === valorNormalizado
+        ciudad => String(ciudad.id_ciudad) === valorNormalizado || formatCiudad(ciudad.nombre_ciudad) === formatCiudad(valorNormalizado) || ciudad.nombre_ciudad === valorNormalizado
       );
 
       if (ciudadEncontrada) {
@@ -1416,7 +1486,7 @@ async function guardarNuevaCiudad(nombreCiudad) {
 
     await cargarCiudades(data.nombre_ciudad);
     showResult('Éxito', 'Ciudad creada exitosamente');
-    return data.nombre_ciudad;
+    return formatCiudad(data.nombre_ciudad);
   } catch (error) {
     console.error('Error al guardar ciudad:', error);
     showResult('Error', 'Error al crear la ciudad: ' + (error.message || 'Error desconocido'), true);
@@ -1514,6 +1584,9 @@ document.addEventListener('DOMContentLoaded', () => {
   el.inputBuscar = document.getElementById('input-buscar');
   el.selectGrupo = document.getElementById('filtro-grupo');
   el.selectCargo = document.getElementById('filtro-cargo');
+  el.selectCiudad = document.getElementById('filtro-ciudad');
+  el.selectMes = document.getElementById('filtro-mes-viaje');
+  el.btnSinViajes = document.getElementById('btn-sin-viajes');
   el.modalAgregar = document.getElementById('modal-agregar');
   el.modalEditar = document.getElementById('modal-editar');
   el.modalConfirm = document.getElementById('modal-confirm');
@@ -1586,6 +1659,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   console.log('[UI_FIX] Modal de nueva ciudad vinculado y operativo.');
   console.log('[CLEANUP] \'N/a\' eliminado de la visualización de nombres.');
+
+  if (el.selectCiudad) {
+    el.selectCiudad.addEventListener('change', render);
+  }
+
+  poblarSelectMes();
+
+  if (el.selectMes) {
+    el.selectMes.addEventListener('change', async () => {
+      await cargarRutsConViajes(el.selectMes.value);
+      render();
+    });
+  }
+
+  if (el.btnSinViajes) {
+    el.btnSinViajes.addEventListener('click', () => {
+      soloSinViajes = !soloSinViajes;
+      el.btnSinViajes.classList.toggle('active', soloSinViajes);
+      render();
+    });
+  }
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) {

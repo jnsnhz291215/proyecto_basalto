@@ -145,6 +145,28 @@
       padding-top: 18px;
     }
 
+    .btn-toggle-sin-viajes {
+      border: 2px solid #d1d5db;
+      background: #ffffff;
+      color: #6b7280;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-toggle-sin-viajes.active {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
     .accordion-wrapper {
       background: transparent;
     }
@@ -471,11 +493,29 @@
           <option value="">Todos los cargos</option>
         </select>
       </div>
+
+        <div class="filter-group">
+          <label for="filtro-ciudad">Ciudad</label>
+          <select id="filtro-ciudad" class="filter-select">
+            <option value="">Todas las ciudades</option>
+          </select>
+        </div>
       <div class="filter-group">
         <label for="filtro-grupo">Grupo</label>
         <select id="filtro-grupo" class="filter-select">
           <option value="">Todos los grupos</option>
         </select>
+      </div>
+      <div class="filter-group">
+        <label for="filtro-mes-viaje">Mes de viaje</label>
+        <select id="filtro-mes-viaje" class="filter-select">
+          <option value="">Todos los meses</option>
+        </select>
+      </div>
+      <div class="filter-group" style="justify-content: flex-end; padding-top: 18px;">
+        <button id="btn-sin-viajes" type="button" class="btn-toggle-sin-viajes">
+          <i class="fa-solid fa-plane-slash"></i> Sin viajes asignados
+        </button>
       </div>
       <label class="toggle-inactivos" for="mostrar-inactivos">
         <input type="checkbox" id="mostrar-inactivos">

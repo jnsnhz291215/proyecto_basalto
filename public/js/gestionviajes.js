@@ -4,6 +4,15 @@
 
 let trabajadores = [];
 let ciudades = [];
+
+function titleCase(value) {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 let viajes = [];
 let trabajadorSeleccionado = null;
 let tramoCounter = 0;
@@ -161,7 +170,10 @@ async function cargarCiudades() {
   try {
     const response = await fetch('/api/ciudades');
     if (!response.ok) throw new Error('Error al cargar ciudades');
-    ciudades = await response.json();
+    ciudades = (await response.json()).map((ciudad) => ({
+      ...ciudad,
+      nombre_ciudad: titleCase(ciudad.nombre_ciudad)
+    }));
     console.log('[VIAJES] Ciudades cargadas:', ciudades.length);
   } catch (error) {
     console.error('[VIAJES] Error cargando ciudades:', error);

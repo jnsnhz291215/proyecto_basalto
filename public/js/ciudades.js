@@ -29,6 +29,15 @@
     return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
   }
 
+  function titleCase(value) {
+    return String(value || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   function getHeaders() {
     const rut = sanitizeRut(localStorage.getItem('user_rut'));
     return {
@@ -90,6 +99,7 @@
 
     el.citiesTableBody.innerHTML = state.cities.map((city) => {
       const isSinCiudad = String(city.nombre_ciudad || '').trim().toLowerCase() === 'sin ciudad';
+      const ciudadLabel = titleCase(city.nombre_ciudad);
       const totalTrabajadores = Number(city.total_trabajadores || 0);
       const deleteDisabled = isSinCiudad || !allowDelete;
       const editDisabled = isSinCiudad || !allowEdit;
@@ -100,7 +110,7 @@
       return `
         <tr>
           <td>
-            <span class="city-name">${escapeHtml(city.nombre_ciudad)}</span>
+            <span class="city-name">${escapeHtml(ciudadLabel)}</span>
             <span class="city-meta">${escapeHtml(cityMeta)}</span>
           </td>
           <td>
@@ -161,7 +171,7 @@
     if (!state.editingCity) return;
 
     if (el.editCityInput) {
-      el.editCityInput.value = state.editingCity.nombre_ciudad || '';
+      el.editCityInput.value = titleCase(state.editingCity.nombre_ciudad || '');
       setTimeout(() => el.editCityInput.focus(), 40);
     }
     openModal(el.editCityModal);
@@ -210,7 +220,7 @@
     if (el.deleteCityAlert) {
       el.deleteCityAlert.classList.toggle('show', totalTrabajadores > 0);
       el.deleteCityAlert.textContent = totalTrabajadores > 0
-        ? state.deletingCity.nombre_ciudad + ' tiene ' + totalTrabajadores + ' trabajador' + (totalTrabajadores !== 1 ? 'es' : '') + ' asignado' + (totalTrabajadores !== 1 ? 's' : '') + '. Confirma si quieres reasignarlos a Sin ciudad y borrar la ciudad.'
+        ? titleCase(state.deletingCity.nombre_ciudad) + ' tiene ' + totalTrabajadores + ' trabajador' + (totalTrabajadores !== 1 ? 'es' : '') + ' asignado' + (totalTrabajadores !== 1 ? 's' : '') + '. Confirma si quieres reasignarlos a Sin ciudad y borrar la ciudad.'
         : '';
     }
     openModal(el.deleteCityModal);
@@ -232,7 +242,7 @@
           state.deleteForce = true;
           if (el.deleteCityAlert) {
             el.deleteCityAlert.classList.add('show');
-            el.deleteCityAlert.textContent = state.deletingCity.nombre_ciudad + ' tiene ' + data.total_trabajadores + ' trabajador' + (data.total_trabajadores !== 1 ? 'es' : '') + ' asignado' + (data.total_trabajadores !== 1 ? 's' : '') + '. Vuelve a confirmar para reasignarlos a ' + (data.fallback_city || 'Sin ciudad') + ' y eliminar la ciudad.';
+            el.deleteCityAlert.textContent = titleCase(state.deletingCity.nombre_ciudad) + ' tiene ' + data.total_trabajadores + ' trabajador' + (data.total_trabajadores !== 1 ? 'es' : '') + ' asignado' + (data.totalTrabajadores !== 1 ? 's' : '') + '. Vuelve a confirmar para reasignarlos a ' + titleCase(data.fallback_city || 'Sin ciudad') + ' y eliminar la ciudad.';
           }
           if (el.deleteCityText) {
             el.deleteCityText.textContent = 'La eliminación requiere confirmación adicional porque afectará trabajadores existentes.';
@@ -248,7 +258,7 @@
           closeModal(el.deleteCityModal);
           state.deletingCity = null;
           await loadCities();
-          alert('Ciudad eliminada. Los trabajadores afectados fueron reasignados a ' + (retryData.fallback_city || 'Sin ciudad') + '.');
+          alert('Ciudad eliminada. Los trabajadores afectados fueron reasignados a ' + titleCase(retryData.fallback_city || 'Sin ciudad') + '.');
           return;
         }
 
@@ -259,7 +269,7 @@
       state.deletingCity = null;
       await loadCities();
       if (Number(data.reassigned_workers || 0) > 0) {
-        alert('Ciudad eliminada. ' + data.reassigned_workers + ' trabajador' + (data.reassigned_workers !== 1 ? 'es fueron' : ' fue') + ' reasignado' + (data.reassigned_workers !== 1 ? 's' : '') + ' a ' + (data.fallback_city || 'Sin ciudad') + '.');
+        alert('Ciudad eliminada. ' + data.reassigned_workers + ' trabajador' + (data.reassigned_workers !== 1 ? 'es fueron' : ' fue') + ' reasignado' + (data.reassigned_workers !== 1 ? 's' : '') + ' a ' + titleCase(data.fallback_city || 'Sin ciudad') + '.');
       } else {
         alert('Ciudad eliminada correctamente.');
       }
