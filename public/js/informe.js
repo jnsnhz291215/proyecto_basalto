@@ -1361,6 +1361,7 @@ const InformeTurno = (() => {
     if (cargoCatalogChanged) {
       await syncUserSession();
       await loadCargoPermisosIds();
+      console.log('[UI_SYNC] Lista de cargos refrescada tras edición.');
     }
 
     try {

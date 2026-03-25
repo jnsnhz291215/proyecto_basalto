@@ -12,16 +12,53 @@
   let permisosDisponibles = [];
   let currentAdminRut = null;
   let currentAdminPermisos = [];
+  let currentEditAdminRut = null;
   let pageInitialized = false;
-  const ADMIN_PERMISSION_ALIASES = {
-    admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes']
-  };
-  const ADMIN_VIEW_MODULES = [
-    { label: 'Trabajadores', key: 'admin_trabajadores_v' },
-    { label: 'Viajes', key: 'admin_viajes_v' },
-    { label: 'Informes', key: 'admin_informes_v' }
+  const ADMIN_PERMISSION_MATRIX = [
+    {
+      id: 'trabajadores',
+      label: 'Trabajadores',
+      viewKeys: ['admin_v_trabajadores', 'admin_trabajadores_v'],
+      editKeys: ['admin_trabajadores_e'],
+      softDeleteKeys: ['admin_trabajadores_d']
+    },
+    {
+      id: 'viajes',
+      label: 'Viajes',
+      viewKeys: ['admin_v_viajes', 'admin_viajes_v'],
+      editKeys: ['admin_viajes_g', 'admin_viajes_e'],
+      softDeleteKeys: ['admin_viajes_d']
+    },
+    {
+      id: 'informes',
+      label: 'Informes (Gestión + Turno)',
+      viewKeys: ['admin_v_informes', 'admin_informes_v', 'informes_ver'],
+      editKeys: ['informes_editar', 'admin_informes_e'],
+      softDeleteKeys: ['informes_soft_delete', 'admin_informes_d']
+    },
+    {
+      id: 'cargos',
+      label: 'Cargos',
+      viewKeys: ['gestionar_cargos', 'admin_v_cargos'],
+      editKeys: ['admin_cargos_e'],
+      softDeleteKeys: ['admin_cargos_d']
+    },
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      viewKeys: ['admin_v_kpis'],
+      editKeys: [],
+      softDeleteKeys: []
+    }
   ];
-  const ADMIN_SOFTDELETE_KEY = 'admin_softdelete';
+
+  const ADMIN_PERMISSION_ALLOWED_KEYS = new Set(
+    ADMIN_PERMISSION_MATRIX.flatMap((module) => [
+      ...module.viewKeys,
+      ...module.editKeys,
+      ...module.softDeleteKeys
+    ])
+  );
 
   const userRut = localStorage.getItem('user_rut');
   const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
@@ -47,10 +84,24 @@
   const btnCloseCreateModal = document.getElementById('btnCloseCreateModal');
   const btnCancelCreateModal = document.getElementById('btnCancelCreateModal');
   const btnSaveCreateAdmin = document.getElementById('btnSaveCreateAdmin');
+  const crearAdminErrorModal = document.getElementById('crearAdminErrorModal');
+  const createAdminErrorTitle = document.getElementById('createAdminErrorTitle');
+  const btnCloseCreateErrorModal = document.getElementById('btnCloseCreateErrorModal');
+  const btnAcceptCreateErrorModal = document.getElementById('btnAcceptCreateErrorModal');
+  const createAdminErrorMessage = document.getElementById('createAdminErrorMessage');
+  const editarAdminModal = document.getElementById('editarAdminModal');
+  const editAdminForm = document.getElementById('editAdminForm');
+  const btnCloseEditModal = document.getElementById('btnCloseEditModal');
+  const btnCancelEditModal = document.getElementById('btnCancelEditModal');
+  const btnSaveEditAdmin = document.getElementById('btnSaveEditAdmin');
+  const editAdminRutOriginalInput = document.getElementById('editAdminRutOriginal');
+  const editAdminRutInput = document.getElementById('editAdminRut');
+  const editAdminNombresInput = document.getElementById('editAdminNombres');
+  const editAdminApellidosInput = document.getElementById('editAdminApellidos');
+  const editAdminEmailInput = document.getElementById('editAdminEmail');
   const adminRutInput = document.getElementById('adminRut');
   const adminNombresInput = document.getElementById('adminNombres');
-  const adminApellidoPaternoInput = document.getElementById('adminApellidoPaterno');
-  const adminApellidoMaternoInput = document.getElementById('adminApellidoMaterno');
+  const adminApellidosInput = document.getElementById('adminApellidos');
   const adminEmailInput = document.getElementById('adminEmail');
   const createPermissionsList = document.getElementById('createPermissionsList');
   
@@ -165,7 +216,10 @@
         payload
       });
 
-      throw new Error(obtenerMensajeError(defaultMessage, response.status, payload || { message: backendMessage }));
+      const error = new Error(obtenerMensajeError(defaultMessage, response.status, payload || { message: backendMessage }));
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
 
     return payload;
@@ -217,7 +271,27 @@
   }
 
   function sanitizarRUT(rut) {
-    return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+    // Conserva solo dígitos y K para tolerar guiones Unicode u otros separadores pegados/copypaste.
+    return String(rut || '').replace(/[^0-9kK]/g, '').trim().toUpperCase();
+  }
+
+  function forceSafeCloseFallback(modalElement) {
+    if (!modalElement) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement && modalElement.contains(activeElement)) {
+      if (typeof activeElement.blur === 'function') activeElement.blur();
+      if (document.body && typeof document.body.focus === 'function') {
+        document.body.setAttribute('tabindex', '-1');
+        document.body.focus({ preventScroll: true });
+        document.body.removeAttribute('tabindex');
+      }
+    }
+
+    modalElement.classList.remove('show');
+    modalElement.setAttribute('aria-hidden', 'true');
+    modalElement.inert = true;
+    document.body.classList.remove('overflow-hidden', 'modal-open');
   }
 
   function formatearRUT(rut) {
@@ -264,40 +338,13 @@
     return emailRegex.test(String(email || '').trim());
   }
 
-  function humanizarClavePermiso(clave, descripcion = '') {
-    if (descripcion && descripcion.trim()) return descripcion.trim();
-    if (clave === 'admin_softdelete') return 'Borrar / Soft Delete';
-    if (clave === 'admin_trabajadores_v') return 'Ver Trabajadores';
-    if (['admin_viajes_v', 'admin_v_viajes'].includes(clave)) return 'Ver Viajes';
-    if (clave === 'admin_informes_v') return 'Ver Informes';
-    return String(clave || '')
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+  function getPermissionByKeys(keys = []) {
+    const aliasSet = new Set(keys);
+    return permisosDisponibles.find((permiso) => aliasSet.has(String(permiso.clave_permiso || ''))) || null;
   }
 
-  function getPermissionAliases(clave) {
-    return ADMIN_PERMISSION_ALIASES[clave] || [clave];
-  }
-
-  function canonicalizeAdminPermissionKey(clave) {
-    const normalizedKey = String(clave || '');
-    const aliasEntry = Object.entries(ADMIN_PERMISSION_ALIASES)
-      .find(([, aliases]) => aliases.includes(normalizedKey));
-    return aliasEntry ? aliasEntry[0] : normalizedKey;
-  }
-
-  function obtenerOrdenClave(clave) {
-    const orden = [
-      ...ADMIN_VIEW_MODULES.map((item) => item.key),
-      ADMIN_SOFTDELETE_KEY
-    ];
-    const index = orden.indexOf(canonicalizeAdminPermissionKey(clave));
-    return index === -1 ? 999 : index;
-  }
-
-  function getAdminPermissionByKey(clave) {
-    const aliases = new Set(getPermissionAliases(clave));
-    return permisosDisponibles.find((permiso) => aliases.has(permiso.clave_permiso)) || null;
+  function hasPermissionKey(keySet, keys = []) {
+    return keys.some((key) => keySet.has(String(key)));
   }
 
   function currentPermissionIdSet() {
@@ -309,40 +356,62 @@
     return new Set(
       permisosDisponibles
         .filter((permiso) => selectedIds.has(String(permiso.id_permiso)))
-        .map((permiso) => canonicalizeAdminPermissionKey(permiso.clave_permiso))
+        .map((permiso) => String(permiso.clave_permiso || ''))
     );
   }
 
   function selectedPermissionIdsFromContainer(container) {
     if (!container) return [];
 
-    const selectedPermissions = [];
-    container.querySelectorAll('.admin-view-checkbox:checked').forEach((checkbox) => {
-      const id = parseInt(checkbox.value, 10);
-      if (Number.isInteger(id)) selectedPermissions.push(id);
+    const selectedPermissions = new Set();
+
+    container.querySelectorAll('.admin-module-card').forEach((card) => {
+      const viewCheckbox = card.querySelector('[data-role="view"]');
+      const editCheckbox = card.querySelector('[data-role="edit"]');
+      const softDeleteCheckbox = card.querySelector('[data-role="softdelete"]');
+
+      if (!viewCheckbox?.checked) return;
+
+      const viewPermission = getPermissionByKeys(
+        String(viewCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+      );
+      if (viewPermission) selectedPermissions.add(Number(viewPermission.id_permiso));
+
+      if (editCheckbox?.checked) {
+        const editPermission = getPermissionByKeys(
+          String(editCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+        );
+        if (editPermission) selectedPermissions.add(Number(editPermission.id_permiso));
+      }
+
+      if (softDeleteCheckbox?.checked) {
+        const softDeletePermission = getPermissionByKeys(
+          String(softDeleteCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+        );
+        if (softDeletePermission) selectedPermissions.add(Number(softDeletePermission.id_permiso));
+      }
     });
 
-    const softDeleteToggle = container.querySelector('.admin-softdelete-toggle');
-    if (softDeleteToggle?.checked) {
-      const softDeletePermission = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
-      if (softDeletePermission) {
-        selectedPermissions.push(Number(softDeletePermission.id_permiso));
-      }
-    }
-
-    return [...new Set(selectedPermissions)];
+    return Array.from(selectedPermissions);
   }
 
   function getAdminModuleAccessSummary(permisos = []) {
-    const keys = new Set((permisos || []).map((permiso) => canonicalizeAdminPermissionKey(String(permiso.clave || permiso.clave_permiso || ''))));
-    const softDeleteActivo = keys.has(ADMIN_SOFTDELETE_KEY);
+    const keys = new Set((permisos || []).map((permiso) => String(permiso.clave || permiso.clave_permiso || '')));
 
-    return ADMIN_VIEW_MODULES
-      .filter((module) => keys.has(module.key))
-      .map((module) => ({
-        modulo: module.label,
-        nivel: softDeleteActivo ? 'Edición/SoftDelete' : 'Lectura'
-      }));
+    return ADMIN_PERMISSION_MATRIX
+      .filter((module) => hasPermissionKey(keys, module.viewKeys))
+      .map((module) => {
+        const tieneEditar = hasPermissionKey(keys, module.editKeys);
+        const tieneSoftDelete = hasPermissionKey(keys, module.softDeleteKeys);
+        let nivel = 'Lectura';
+        if (tieneSoftDelete) nivel = 'Edición/SoftDelete';
+        else if (tieneEditar) nivel = 'Edición';
+
+        return {
+          modulo: module.label,
+          nivel
+        };
+      });
   }
 
   // ============================================
@@ -429,6 +498,9 @@
         </td>
         <td style="text-align: center;">
           <div class="action-buttons">
+            <button class="btn-icon btn-edit-admin" data-rut="${admin.rut}" title="Editar datos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
+              <i class="fas fa-pen"></i>
+            </button>
             <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
               <i class="fas fa-key"></i>
             </button>
@@ -448,6 +520,14 @@
           return;
         }
         openPermisosModal(admin.rut, admin.nombre_completo, admin.permisos);
+      });
+
+      row.querySelector('.btn-edit-admin')?.addEventListener('click', () => {
+        if (admin.es_super_admin) {
+          showNotification('Los datos de una cuenta Superadministrador no se editan desde esta vista', 'error');
+          return;
+        }
+        openEditAdminModal(admin);
       });
 
       // Agregar event listener al botón de delete físico
@@ -538,6 +618,7 @@
       renderPermisosCheckboxes();
       if (window.basaltoModal?.open) window.basaltoModal.open(permisosModal);
       else {
+        permisosModal.inert = false;
         permisosModal.classList.add('show');
         permisosModal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden', 'modal-open');
@@ -564,13 +645,10 @@
 
       const result = await parseApiResponse(response, 'Error al cargar permisos', 'Error cargando permisos');
 
-      const clavesPermitidas = new Set([
-        ...ADMIN_VIEW_MODULES.flatMap((item) => getPermissionAliases(item.key)),
-        ADMIN_SOFTDELETE_KEY
-      ]);
+      const clavesPermitidas = ADMIN_PERMISSION_ALLOWED_KEYS;
       permisosDisponibles = (result.data || [])
         .filter((permiso) => clavesPermitidas.has(permiso.clave_permiso))
-        .sort((a, b) => obtenerOrdenClave(a.clave_permiso) - obtenerOrdenClave(b.clave_permiso));
+        .sort((a, b) => String(a.clave_permiso || '').localeCompare(String(b.clave_permiso || '')));
       permisosLoadingState.style.display = 'none';
       permissionsContainer.style.display = 'block';
 
@@ -587,152 +665,92 @@
   function renderAdminPermissionMatrix(targetContainer, selectedKeys = new Set(), idPrefix = 'perm-admin') {
     if (!targetContainer) return;
     targetContainer.innerHTML = '';
-
-    const hasViewAccess = ADMIN_VIEW_MODULES.some((module) => selectedKeys.has(module.key));
-    const hasSoftDelete = selectedKeys.has(ADMIN_SOFTDELETE_KEY);
-
-    const generalWrap = document.createElement('div');
-    generalWrap.className = 'permission-matrix';
+    const wrap = document.createElement('div');
+    wrap.className = 'permission-matrix';
 
     const title = document.createElement('div');
     title.className = 'permission-group-title';
-    title.textContent = 'Permisos Generales de Admin';
-    generalWrap.appendChild(title);
+    title.textContent = 'Permisos por módulo';
+    wrap.appendChild(title);
 
-    const togglesWrap = document.createElement('div');
-    togglesWrap.className = 'permission-toggle-stack';
-    generalWrap.appendChild(togglesWrap);
-
-    function createSwitchRow(id, name, description, checked) {
-      const row = document.createElement('div');
-      row.className = 'toggle-field permission-toggle-row';
-
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.id = id;
-      input.checked = checked;
-      input.style.display = 'none';
-
-      const switchLabel = document.createElement('label');
-      switchLabel.className = 'switch toggle-field-control';
-      switchLabel.htmlFor = id;
-
-      const slider = document.createElement('span');
-      slider.className = 'slider';
-      switchLabel.appendChild(input);
-      switchLabel.appendChild(slider);
-
-      const textLabel = document.createElement('label');
-      textLabel.className = 'toggle-field-text';
-      textLabel.htmlFor = id;
-
-      const nameDiv = document.createElement('div');
-      nameDiv.className = 'toggle-field-title';
-      nameDiv.textContent = name;
-
-      const descDiv = document.createElement('div');
-      descDiv.className = 'toggle-field-description';
-      descDiv.textContent = description;
-
-      textLabel.appendChild(nameDiv);
-      textLabel.appendChild(descDiv);
-      row.appendChild(switchLabel);
-      row.appendChild(textLabel);
-
-      row.addEventListener('click', (event) => {
-        if (input.disabled) return;
-        if (event.target === input) return;
-        input.checked = !input.checked;
-        input.dispatchEvent(new Event('change'));
-      });
-
-      return { row, input };
-    }
-
-    const verToggle = createSwitchRow(
-      `${idPrefix}-ver`,
-      'Ver módulos',
-      'Activa las vistas que este administrador podrá consultar en el sistema.',
-      hasViewAccess
-    );
-    const borrarToggle = createSwitchRow(
-      `${idPrefix}-borrar`,
-      'Permitir eliminar registros (soft delete)',
-      'Solo se habilita cuando hay al menos una vista seleccionada.',
-      hasSoftDelete
-    );
-    borrarToggle.input.classList.add('admin-softdelete-toggle');
-
-    togglesWrap.appendChild(verToggle.row);
-    togglesWrap.appendChild(borrarToggle.row);
-
-    const modulesWrap = document.createElement('div');
-    modulesWrap.id = `${idPrefix}-modules-wrap`;
-    modulesWrap.className = 'permission-modules-wrap';
-    modulesWrap.style.display = hasViewAccess ? 'block' : 'none';
-
-    const modulesTitle = document.createElement('div');
-    modulesTitle.className = 'permission-modules-title';
-    modulesTitle.textContent = 'Vistas disponibles';
-    modulesWrap.appendChild(modulesTitle);
-
-    const modulesHelp = document.createElement('p');
-    modulesHelp.className = 'permission-modules-help';
-    modulesHelp.textContent = 'Selecciona las pantallas que estarán visibles para este administrador.';
-    modulesWrap.appendChild(modulesHelp);
+    const help = document.createElement('p');
+    help.className = 'permission-modules-help';
+    help.textContent = 'Cada módulo habilita Ver, Editar y SoftDelete. SoftDelete requiere Editar.';
+    wrap.appendChild(help);
 
     const modulesGrid = document.createElement('div');
     modulesGrid.className = 'permission-modules-grid';
-    modulesWrap.appendChild(modulesGrid);
 
-    ADMIN_VIEW_MODULES.forEach((module) => {
-      const permiso = getAdminPermissionByKey(module.key);
-      if (!permiso) return;
+    ADMIN_PERMISSION_MATRIX.forEach((module) => {
+      const hasViewPermission = module.viewKeys.some((key) => ADMIN_PERMISSION_ALLOWED_KEYS.has(key));
+      if (!hasViewPermission) return;
 
-      const item = document.createElement('label');
-      item.className = 'permission-module-option';
-      item.innerHTML = `
-        <input type="checkbox" class="admin-view-checkbox" value="${permiso.id_permiso}" data-clave="${module.key}" ${selectedKeys.has(module.key) ? 'checked' : ''}>
-        <span>${module.label}</span>
+      const moduleCard = document.createElement('div');
+      moduleCard.className = 'permission-module-option admin-module-card';
+      moduleCard.dataset.moduleId = module.id;
+
+      const viewChecked = hasPermissionKey(selectedKeys, module.viewKeys);
+      const editChecked = hasPermissionKey(selectedKeys, module.editKeys);
+      const softDeleteChecked = hasPermissionKey(selectedKeys, module.softDeleteKeys);
+
+      moduleCard.innerHTML = `
+        <div class="permission-module-title">${module.label}</div>
+        <div class="permission-module-flags">
+          <label>
+            <input type="checkbox" data-role="view" data-permission-keys="${module.viewKeys.join('|')}" ${viewChecked ? 'checked' : ''}>
+            Ver
+          </label>
+          ${module.editKeys.length ? `
+          <label>
+            <input type="checkbox" data-role="edit" data-permission-keys="${module.editKeys.join('|')}" ${editChecked ? 'checked' : ''}>
+            Editar
+          </label>` : ''}
+          ${module.softDeleteKeys.length ? `
+          <label>
+            <input type="checkbox" data-role="softdelete" data-permission-keys="${module.softDeleteKeys.join('|')}" ${softDeleteChecked ? 'checked' : ''}>
+            SoftDelete
+          </label>` : ''}
+        </div>
       `;
-      modulesGrid.appendChild(item);
-    });
 
-    const softDeletePermiso = getAdminPermissionByKey(ADMIN_SOFTDELETE_KEY);
-    if (softDeletePermiso) {
-      borrarToggle.input.dataset.permissionId = softDeletePermiso.id_permiso;
-    }
+      const viewCheckbox = moduleCard.querySelector('[data-role="view"]');
+      const editCheckbox = moduleCard.querySelector('[data-role="edit"]');
+      const softDeleteCheckbox = moduleCard.querySelector('[data-role="softdelete"]');
 
-    function syncConditionalState() {
-      const hasVer = verToggle.input.checked;
-      const moduleCheckboxes = modulesWrap.querySelectorAll('.admin-view-checkbox');
-      modulesWrap.style.display = hasVer ? 'block' : 'none';
+      function syncModuleDependencies() {
+        if (!viewCheckbox) return;
 
-      if (!hasVer) {
-        moduleCheckboxes.forEach((checkbox) => { checkbox.checked = false; });
-        borrarToggle.input.checked = false;
+        if (!viewCheckbox.checked) {
+          if (editCheckbox) editCheckbox.checked = false;
+          if (softDeleteCheckbox) softDeleteCheckbox.checked = false;
+        }
+
+        if (editCheckbox) {
+          editCheckbox.disabled = !viewCheckbox.checked;
+          if (!editCheckbox.checked && softDeleteCheckbox) {
+            softDeleteCheckbox.checked = false;
+          }
+        }
+
+        if (softDeleteCheckbox) {
+          const editReady = editCheckbox ? editCheckbox.checked : viewCheckbox.checked;
+          softDeleteCheckbox.disabled = !viewCheckbox.checked || !editReady;
+          if (softDeleteCheckbox.disabled) {
+            softDeleteCheckbox.checked = false;
+          }
+        }
       }
 
-      const hasAnyModuleSelected = Array.from(moduleCheckboxes).some((checkbox) => checkbox.checked);
-      borrarToggle.input.disabled = !hasVer || !hasAnyModuleSelected;
-      borrarToggle.row.classList.toggle('is-disabled', borrarToggle.input.disabled);
-      if (borrarToggle.input.disabled) {
-        borrarToggle.input.checked = false;
-      }
-    }
+      viewCheckbox?.addEventListener('change', syncModuleDependencies);
+      editCheckbox?.addEventListener('change', syncModuleDependencies);
+      softDeleteCheckbox?.addEventListener('change', syncModuleDependencies);
 
-    verToggle.input.addEventListener('change', syncConditionalState);
-    modulesWrap.querySelectorAll('.admin-view-checkbox').forEach((checkbox) => {
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) verToggle.input.checked = true;
-        syncConditionalState();
-      });
+      syncModuleDependencies();
+      modulesGrid.appendChild(moduleCard);
     });
-    borrarToggle.input.addEventListener('change', syncConditionalState);
 
-    generalWrap.appendChild(modulesWrap);
-    targetContainer.appendChild(generalWrap);
-    syncConditionalState();
+    wrap.appendChild(modulesGrid);
+    targetContainer.appendChild(wrap);
   }
 
   function renderPermisosCheckboxes() {
@@ -784,11 +802,7 @@
   // ============================================
   function closePermisosModal() {
     if (window.basaltoModal?.close) window.basaltoModal.close(permisosModal);
-    else {
-      permisosModal.classList.remove('show');
-      permisosModal.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('overflow-hidden', 'modal-open');
-    }
+    else forceSafeCloseFallback(permisosModal);
     currentAdminRut = null;
     currentAdminPermisos = [];
     permissionsList.innerHTML = '';
@@ -813,6 +827,7 @@
     resetCreateAdminForm();
     if (window.basaltoModal?.open) window.basaltoModal.open(crearAdminModal);
     else {
+      crearAdminModal.inert = false;
       crearAdminModal.classList.add('show');
       crearAdminModal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('overflow-hidden', 'modal-open');
@@ -821,12 +836,149 @@
 
   function closeCreateModal() {
     if (window.basaltoModal?.close) window.basaltoModal.close(crearAdminModal);
-    else {
-      crearAdminModal.classList.remove('show');
-      crearAdminModal.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('overflow-hidden', 'modal-open');
-    }
+    else forceSafeCloseFallback(crearAdminModal);
     resetCreateAdminForm();
+  }
+
+  function showCreateAdminErrorModal(message, title = 'No se pudo crear el administrador') {
+    if (!crearAdminErrorModal || !createAdminErrorMessage) {
+      showNotification(message || 'No se pudo crear el administrador', 'error');
+      return;
+    }
+
+    if (createAdminErrorTitle) {
+      createAdminErrorTitle.innerHTML = `<i class="fas fa-triangle-exclamation" style="color:#dc2626;"></i> ${title}`;
+    }
+    createAdminErrorMessage.textContent = message || 'No se pudo crear el administrador';
+    if (window.basaltoModal?.open) window.basaltoModal.open(crearAdminErrorModal);
+    else {
+      crearAdminErrorModal.inert = false;
+      crearAdminErrorModal.classList.add('show');
+      crearAdminErrorModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden', 'modal-open');
+    }
+  }
+
+  function closeCreateAdminErrorModal() {
+    if (!crearAdminErrorModal) return;
+    if (window.basaltoModal?.close) window.basaltoModal.close(crearAdminErrorModal);
+    else forceSafeCloseFallback(crearAdminErrorModal);
+  }
+
+  function resetEditAdminForm() {
+    if (!editAdminForm) return;
+    editAdminForm.reset();
+    currentEditAdminRut = null;
+    if (editAdminRutOriginalInput) editAdminRutOriginalInput.value = '';
+    if (btnSaveEditAdmin) {
+      btnSaveEditAdmin.disabled = false;
+      btnSaveEditAdmin.innerHTML = '<i class="fas fa-save"></i> Guardar cambios';
+    }
+  }
+
+  function openEditAdminModal(admin) {
+    if (!editarAdminModal || !editAdminForm) return;
+
+    currentEditAdminRut = sanitizarRUT(admin?.rut || '');
+    const apellidoPaterno = String(admin?.apellido_paterno || '').trim();
+    const apellidoMaterno = String(admin?.apellido_materno || '').trim();
+    const apellidos = [apellidoPaterno, apellidoMaterno].filter(Boolean).join(' ').trim();
+
+    if (editAdminRutOriginalInput) editAdminRutOriginalInput.value = admin?.rut || '';
+    if (editAdminRutInput) editAdminRutInput.value = formatearRUT(admin?.rut || '');
+    if (editAdminNombresInput) editAdminNombresInput.value = String(admin?.nombres || '').trim();
+    if (editAdminApellidosInput) editAdminApellidosInput.value = apellidos;
+    if (editAdminEmailInput) editAdminEmailInput.value = String(admin?.email || '').trim();
+
+    if (window.basaltoModal?.open) window.basaltoModal.open(editarAdminModal);
+    else {
+      editarAdminModal.inert = false;
+      editarAdminModal.classList.add('show');
+      editarAdminModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden', 'modal-open');
+    }
+  }
+
+  function closeEditAdminModal() {
+    if (!editarAdminModal) return;
+    if (window.basaltoModal?.close) window.basaltoModal.close(editarAdminModal);
+    else forceSafeCloseFallback(editarAdminModal);
+    resetEditAdminForm();
+  }
+
+  function getEditAdminErrorTitle(error) {
+    const status = Number(error?.status || 0);
+    if (status === 409) return 'RUT o correo ya registrado';
+    if (status === 400) return 'Datos inválidos';
+    if (status === 401 || status === 403) return 'Acceso denegado';
+    if (status === 404) return 'Administrador no encontrado';
+    if (status >= 500) return 'Error interno del servidor';
+    return 'No se pudo actualizar el administrador';
+  }
+
+  async function saveAdminBasicData(event) {
+    event.preventDefault();
+    if (!currentEditAdminRut) {
+      showNotification('No se encontró el administrador a editar', 'error');
+      return;
+    }
+
+    const rutOriginal = String(editAdminRutInput?.value || '').trim();
+    const nombres = String(editAdminNombresInput?.value || '').trim();
+    const apellidosRaw = String(editAdminApellidosInput?.value || '').trim().replace(/\s+/g, ' ');
+    const apellidosParts = apellidosRaw.split(' ').filter(Boolean);
+    const apellidoPaterno = apellidosParts[0] || '';
+    const apellidoMaterno = apellidosParts.slice(1).join(' ') || null;
+    const email = String(editAdminEmailInput?.value || '').trim().toLowerCase();
+
+    if (!rutOriginal || !nombres || !apellidosRaw || !email) {
+      showNotification('Complete todos los campos obligatorios para editar', 'error');
+      return;
+    }
+
+    if (!validarEmail(email)) {
+      showNotification('El formato de Email no es válido', 'error');
+      return;
+    }
+
+    btnSaveEditAdmin.disabled = true;
+    btnSaveEditAdmin.innerHTML = '<span class="loading-spinner"></span> Guardando...';
+
+    try {
+      const response = await fetch(`/api/admins/${encodeURIComponent(currentEditAdminRut)}`, {
+        method: 'PUT',
+        headers: buildRequestHeaders(),
+        body: JSON.stringify({
+          rut: sanitizarRUT(rutOriginal),
+          nombres,
+          apellido_paterno: apellidoPaterno,
+          apellido_materno: apellidoMaterno,
+          email,
+          rut_solicitante: getRutSolicitante()
+        })
+      });
+
+      await parseApiResponse(response, 'Error al actualizar administrador', 'Error actualizando admin');
+
+      closeEditAdminModal();
+      await loadAdmins();
+      showNotification('Datos del administrador actualizados exitosamente', 'success');
+    } catch (error) {
+      console.error('[GESTIONADMINS] Error actualizando admin:', error);
+      showCreateAdminErrorModal(error.message || 'No se pudo actualizar el administrador', getEditAdminErrorTitle(error));
+    } finally {
+      btnSaveEditAdmin.disabled = false;
+      btnSaveEditAdmin.innerHTML = '<i class="fas fa-save"></i> Guardar cambios';
+    }
+  }
+
+  function getCreateAdminErrorTitle(error) {
+    const status = Number(error?.status || 0);
+    if (status === 409) return 'RUT o correo ya registrado';
+    if (status === 400) return 'Datos inválidos';
+    if (status === 401 || status === 403) return 'Acceso denegado';
+    if (status >= 500) return 'Error interno del servidor';
+    return 'No se pudo crear el administrador';
   }
 
   async function createAdmin(event) {
@@ -834,22 +986,21 @@
 
     const rutOriginal = adminRutInput.value.trim();
     const nombres = adminNombresInput.value.trim();
-    const apellidoPaterno = adminApellidoPaternoInput.value.trim();
-    const apellidoMaterno = adminApellidoMaternoInput.value.trim();
+    const apellidosRaw = adminApellidosInput.value.trim().replace(/\s+/g, ' ');
+    const apellidosParts = apellidosRaw.split(' ').filter(Boolean);
+    const apellidoPaterno = apellidosParts[0] || '';
+    const apellidoMaterno = apellidosParts.slice(1).join(' ') || null;
     const email = adminEmailInput.value.trim().toLowerCase();
     const idPermisos = selectedPermissionIdsFromContainer(createPermissionsList);
-    if (!rutOriginal || !nombres || !email) {
-      showNotification('Complete todos los campos obligatorios', 'error');
+    if (!rutOriginal || !nombres || !apellidosRaw || !email) {
+      showCreateAdminErrorModal('Complete todos los campos obligatorios', 'Datos incompletos');
       return;
     }
 
-    if (!validarRUTChileno(rutOriginal)) {
-      showNotification('El RUT ingresado no es válido', 'error');
-      return;
-    }
+    // No bloquear por DV en frontend: el backend define el nivel de validación según entorno.
 
     if (!validarEmail(email)) {
-      showNotification('El formato de Email no es válido', 'error');
+      showCreateAdminErrorModal('El formato de Email no es válido', 'Correo inválido');
       return;
     }
 
@@ -878,7 +1029,7 @@
       showInitialPasswordNotification(result.password_inicial || sanitizarRUT(rutOriginal), rutOriginal);
     } catch (error) {
       console.error('[GESTIONADMINS] Error creando admin:', error);
-      showNotification(error.message || 'Error al crear administrador', 'error');
+      showCreateAdminErrorModal(error.message || 'Error al crear administrador', getCreateAdminErrorTitle(error));
     } finally {
       btnSaveCreateAdmin.disabled = false;
       btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
@@ -919,9 +1070,31 @@
     btnCancelCreateModal.addEventListener('click', closeCreateModal);
     createAdminForm.addEventListener('submit', createAdmin);
 
+    btnCloseEditModal?.addEventListener('click', closeEditAdminModal);
+    btnCancelEditModal?.addEventListener('click', closeEditAdminModal);
+    editAdminForm?.addEventListener('submit', saveAdminBasicData);
+    editAdminRutInput?.addEventListener('blur', () => {
+      editAdminRutInput.value = formatearRUT(editAdminRutInput.value);
+    });
+
+    btnCloseCreateErrorModal?.addEventListener('click', closeCreateAdminErrorModal);
+    btnAcceptCreateErrorModal?.addEventListener('click', closeCreateAdminErrorModal);
+
     crearAdminModal.addEventListener('click', (e) => {
       if (e.target === crearAdminModal) {
         closeCreateModal();
+      }
+    });
+
+    crearAdminErrorModal?.addEventListener('click', (e) => {
+      if (e.target === crearAdminErrorModal) {
+        closeCreateAdminErrorModal();
+      }
+    });
+
+    editarAdminModal?.addEventListener('click', (e) => {
+      if (e.target === editarAdminModal) {
+        closeEditAdminModal();
       }
     });
   }
@@ -940,7 +1113,8 @@
   window.gestionadmins = {
     loadAdmins,
     closePermisosModal,
-    closeCreateModal
+    closeCreateModal,
+    closeEditAdminModal
   };
 
 })();

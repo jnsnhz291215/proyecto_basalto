@@ -86,6 +86,7 @@
       return;
     }
 
+    if (modalElement) modalElement.inert = false;
     modalElement?.classList.add('show');
     modalElement?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('overflow-hidden', 'modal-open');
@@ -97,8 +98,19 @@
       return;
     }
 
+    const activeElement = document.activeElement;
+    if (modalElement && activeElement && modalElement.contains(activeElement)) {
+      if (typeof activeElement.blur === 'function') activeElement.blur();
+      if (document.body && typeof document.body.focus === 'function') {
+        document.body.setAttribute('tabindex', '-1');
+        document.body.focus({ preventScroll: true });
+        document.body.removeAttribute('tabindex');
+      }
+    }
+
     modalElement?.classList.remove('show');
     modalElement?.setAttribute('aria-hidden', 'true');
+    if (modalElement) modalElement.inert = true;
     document.body.classList.remove('overflow-hidden', 'modal-open');
   }
 
@@ -301,8 +313,12 @@
 
   function verificarAcceso() {
     const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
-    if (!isSuperAdmin) {
-      notify('Solo Super Administradores pueden gestionar cargos', 'error');
+    const hasCargosViewPermission = typeof window.hasAdminPermission === 'function'
+      ? window.hasAdminPermission('gestionar_cargos')
+      : false;
+
+    if (!isSuperAdmin && !hasCargosViewPermission) {
+      notify('No tienes permisos para gestionar cargos', 'error');
       setTimeout(() => {
         window.location.href = '/gestionar.html';
       }, 1200);

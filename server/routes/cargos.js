@@ -175,6 +175,7 @@ router.post('/cargos', async (req, res) => {
     await connection.commit();
 
     const permisosActualizados = await obtenerPermisosPorCargo(connection, targetCargoId);
+    console.log('[DB_SYNC] Nombre de cargo actualizado globalmente mediante JOIN.');
     console.log(`[ADMIN_PERMISOS] Cargo ${targetCargoId} actualizado. ¿Responsable?: ${Boolean(responsable_turno)}`);
 
     res.json({

@@ -7,6 +7,37 @@
 
   const BODY_MODAL_LOCK_CLASS = 'overflow-hidden';
   let openManagedModalCount = 0;
+  const modalFocusOriginMap = new WeakMap();
+
+  function moveFocusOutsideModal(modalElement) {
+    if (!modalElement) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement && modalElement.contains(activeElement)) {
+      if (typeof activeElement.blur === 'function') activeElement.blur();
+
+      // Fallback seguro para navegadores que mantienen foco virtual tras blur.
+      if (document.body && typeof document.body.focus === 'function') {
+        document.body.setAttribute('tabindex', '-1');
+        document.body.focus({ preventScroll: true });
+      }
+    }
+  }
+
+  function restoreFocusAfterClose(modalElement) {
+    if (!modalElement) return;
+
+    const originElement = modalFocusOriginMap.get(modalElement);
+    if (originElement && document.contains(originElement) && typeof originElement.focus === 'function') {
+      originElement.focus({ preventScroll: true });
+    }
+
+    if (document.body?.getAttribute('tabindex') === '-1') {
+      document.body.removeAttribute('tabindex');
+    }
+
+    modalFocusOriginMap.delete(modalElement);
+  }
 
   function syncBodyModalLock() {
     const shouldLock = openManagedModalCount > 0;
@@ -28,11 +59,14 @@
     if (!modalElement) return false;
 
     const { showClass = 'show' } = options;
+    modalFocusOriginMap.set(modalElement, document.activeElement);
+
     if (modalElement.dataset.bodyScrollLocked !== 'true') {
       modalElement.dataset.bodyScrollLocked = 'true';
       lockBodyScroll();
     }
 
+    modalElement.inert = false;
     modalElement.classList.add(showClass);
     modalElement.setAttribute('aria-hidden', 'false');
     return true;
@@ -42,13 +76,18 @@
     if (!modalElement) return false;
 
     const { showClass = 'show' } = options;
+
+    moveFocusOutsideModal(modalElement);
     modalElement.classList.remove(showClass);
     modalElement.setAttribute('aria-hidden', 'true');
+    modalElement.inert = true;
 
     if (modalElement.dataset.bodyScrollLocked === 'true') {
       delete modalElement.dataset.bodyScrollLocked;
       unlockBodyScroll();
     }
+
+    restoreFocusAfterClose(modalElement);
 
     return true;
   }
@@ -61,6 +100,160 @@
     open: openManagedModal,
     close: closeManagedModal,
     syncBodyModalLock
+  };
+
+  function ensureGlobalFeedbackModal() {
+    let modal = document.getElementById('global-feedback-modal');
+    if (modal) return modal;
+
+    if (!document.getElementById('global-feedback-style')) {
+      const style = document.createElement('style');
+      style.id = 'global-feedback-style';
+      style.textContent = `
+        #global-feedback-modal .feedback-content { border-top: 4px solid #64748b; }
+        #global-feedback-modal .feedback-title { display: flex; align-items: center; gap: 8px; }
+        #global-feedback-modal .feedback-icon { font-size: 18px; line-height: 1; }
+        #global-feedback-modal .feedback-btn { min-width: 120px; }
+        #global-feedback-modal.feedback-success .feedback-content { border-top-color: #16a34a; }
+        #global-feedback-modal.feedback-success .feedback-title { color: #166534; }
+        #global-feedback-modal.feedback-success .feedback-btn { background: #16a34a; color: #fff; border: none; }
+        #global-feedback-modal.feedback-error .feedback-content { border-top-color: #dc2626; }
+        #global-feedback-modal.feedback-error .feedback-title { color: #991b1b; }
+        #global-feedback-modal.feedback-error .feedback-btn { background: #dc2626; color: #fff; border: none; }
+        #global-feedback-modal.feedback-warning .feedback-content { border-top-color: #d97706; }
+        #global-feedback-modal.feedback-warning .feedback-title { color: #92400e; }
+        #global-feedback-modal.feedback-warning .feedback-btn { background: #d97706; color: #fff; border: none; }
+        #global-feedback-modal.feedback-info .feedback-content { border-top-color: #2563eb; }
+        #global-feedback-modal.feedback-info .feedback-title { color: #1e3a8a; }
+        #global-feedback-modal.feedback-info .feedback-btn { background: #2563eb; color: #fff; border: none; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    modal = document.createElement('div');
+    modal.id = 'global-feedback-modal';
+    modal.className = 'modal-overlay feedback-info';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+      <div class="modal-content feedback-content" style="max-width:520px;">
+        <div class="modal-header">
+          <h2 id="global-feedback-title" class="feedback-title"><span class="feedback-icon">ℹ</span><span class="feedback-title-text">Mensaje</span></h2>
+          <button class="modal-close" id="global-feedback-close" type="button" aria-label="Cerrar ventana">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 18px 20px;">
+          <p id="global-feedback-message" style="margin:0; color:#374151; line-height:1.5;"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal feedback-btn" id="global-feedback-accept">Entendido</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector('#global-feedback-close');
+    const acceptBtn = modal.querySelector('#global-feedback-accept');
+
+    const closeModal = () => {
+      if (window.basaltoModal?.close) window.basaltoModal.close(modal);
+      else {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    acceptBtn?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+
+    return modal;
+  }
+
+  function getFeedbackContextLabel() {
+    const page = String(window.location.pathname || '').toLowerCase();
+    if (page.endsWith('/gestionadmins.html')) return 'Administradores';
+    if (page.endsWith('/gestionar.html')) return 'Trabajadores';
+    if (page.endsWith('/gestioninformes.html') || page.endsWith('/informe.html')) return 'Informes';
+    if (page.endsWith('/gestionviajes.html') || page.endsWith('/viajes.html')) return 'Viajes';
+    if (page.endsWith('/gestioncargos.html')) return 'Cargos';
+    if (page.endsWith('/datos.html')) return 'Perfil';
+    if (page.endsWith('/dashboard.html')) return 'Dashboard';
+    if (page.endsWith('/index.html')) return 'Inicio';
+    return 'Sistema';
+  }
+
+  function inferFeedbackTitle(type, message) {
+    const normalizedType = String(type || 'info').toLowerCase();
+    const text = String(message || '').toLowerCase();
+    const context = getFeedbackContextLabel();
+
+    if (normalizedType === 'success') return `${context}: operacion exitosa`;
+    if (normalizedType === 'warning') return `${context}: atencion`;
+    if (normalizedType === 'error') {
+      if (text.includes('acceso denegado') || text.includes('no tiene permisos')) return `${context}: acceso denegado`;
+      if (text.includes('rut')) return `${context}: RUT invalido o duplicado`;
+      if (text.includes('email') || text.includes('correo')) return `${context}: correo invalido o duplicado`;
+      if (text.includes('cargar')) return `${context}: error al cargar datos`;
+      if (text.includes('guardar') || text.includes('crear') || text.includes('actualizar') || text.includes('eliminar')) return `${context}: error de operacion`;
+      return `${context}: error`;
+    }
+
+    return context;
+  }
+
+  function showGlobalFeedback(message, type = 'info', customTitle = '') {
+    const modal = ensureGlobalFeedbackModal();
+    const titleEl = modal.querySelector('#global-feedback-title');
+    const messageEl = modal.querySelector('#global-feedback-message');
+
+    const normalizedType = String(type || 'info').toLowerCase();
+    const iconMap = {
+      success: '✓',
+      error: '⚠',
+      warning: '!',
+      info: 'ℹ'
+    };
+    const safeType = ['success', 'error', 'warning', 'info'].includes(normalizedType) ? normalizedType : 'info';
+    const titleText = String(customTitle || '').trim() || inferFeedbackTitle(normalizedType, message);
+
+    modal.classList.remove('feedback-success', 'feedback-error', 'feedback-warning', 'feedback-info');
+    modal.classList.add(`feedback-${safeType}`);
+    titleEl.innerHTML = `<span class="feedback-icon">${iconMap[safeType]}</span><span class="feedback-title-text"></span>`;
+    const titleTextEl = titleEl.querySelector('.feedback-title-text');
+    if (titleTextEl) titleTextEl.textContent = titleText;
+    messageEl.textContent = String(message || '').trim() || 'Sin detalles disponibles.';
+
+    if (window.basaltoModal?.open) window.basaltoModal.open(modal);
+    else {
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  window.basaltoFeedback = {
+    show: showGlobalFeedback,
+    success: (message, title = '') => showGlobalFeedback(message, 'success', title),
+    error: (message, title = '') => showGlobalFeedback(message, 'error', title),
+    warning: (message, title = '') => showGlobalFeedback(message, 'warning', title),
+    info: (message, title = '') => showGlobalFeedback(message, 'info', title)
+  };
+
+  const nativeAlert = window.alert ? window.alert.bind(window) : null;
+  window.alert = function patchedAlert(message) {
+    try {
+      const text = String(message || '').trim();
+      const lower = text.toLowerCase();
+      const isError = lower.startsWith('error') || text.includes('❌');
+      const isSuccess = lower.startsWith('exito') || text.includes('✅');
+
+      if (isError) window.basaltoFeedback.error(text);
+      else if (isSuccess) window.basaltoFeedback.success(text);
+      else window.basaltoFeedback.info(text);
+    } catch (_err) {
+      if (nativeAlert) nativeAlert(message);
+    }
   };
 
   // ============================================

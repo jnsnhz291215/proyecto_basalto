@@ -30,6 +30,7 @@ function openManagedModal(modalElement) {
     window.basaltoModal.open(modalElement);
     return;
   }
+  modalElement.inert = false;
   modalElement.classList.add('show');
   modalElement.setAttribute('aria-hidden', 'false');
   document.body.classList.add('overflow-hidden', 'modal-open');
@@ -41,8 +42,20 @@ function closeManagedModal(modalElement) {
     window.basaltoModal.close(modalElement);
     return;
   }
+
+  const activeElement = document.activeElement;
+  if (activeElement && modalElement.contains(activeElement)) {
+    if (typeof activeElement.blur === 'function') activeElement.blur();
+    if (document.body && typeof document.body.focus === 'function') {
+      document.body.setAttribute('tabindex', '-1');
+      document.body.focus({ preventScroll: true });
+      document.body.removeAttribute('tabindex');
+    }
+  }
+
   modalElement.classList.remove('show');
   modalElement.setAttribute('aria-hidden', 'true');
+  modalElement.inert = true;
   document.body.classList.remove('overflow-hidden', 'modal-open');
 }
 

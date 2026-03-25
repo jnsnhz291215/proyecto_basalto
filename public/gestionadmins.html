@@ -197,6 +197,15 @@
       color: #1e40af;
     }
 
+    .btn-edit-admin {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .btn-edit-admin:hover {
+      background: #bbf7d0;
+    }
+
     .btn-permissions:hover {
       background: #bfdbfe;
     }
@@ -629,13 +638,13 @@
 
     .notification {
       position: fixed;
-      top: 20px;
+      top: 84px;
       right: 20px;
       padding: 14px 20px;
       max-width: 420px;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 1000;
+      z-index: 12050;
       display: none;
       animation: slideInRight 0.3s ease;
     }
@@ -964,13 +973,8 @@
           </div>
 
           <div class="form-group">
-            <label for="adminApellidoPaterno">Apellido paterno</label>
-            <input type="text" class="form-input" id="adminApellidoPaterno" placeholder="Apellido paterno">
-          </div>
-
-          <div class="form-group">
-            <label for="adminApellidoMaterno">Apellido materno</label>
-            <input type="text" class="form-input" id="adminApellidoMaterno" placeholder="Apellido materno">
+            <label for="adminApellidos">Apellidos</label>
+            <input type="text" class="form-input" id="adminApellidos" placeholder="Apellidos" required>
           </div>
 
           <div class="form-group">
@@ -1000,6 +1004,67 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal de Edición de Datos de Admin -->
+  <div class="modal-overlay" id="editarAdminModal" aria-hidden="true">
+    <div class="modal-content modal-content-create">
+      <div class="modal-header">
+        <h2>Editar administrador</h2>
+        <button class="modal-close" id="btnCloseEditModal" type="button" aria-label="Cerrar ventana">&times;</button>
+      </div>
+
+      <form id="editAdminForm">
+        <input type="hidden" id="editAdminRutOriginal">
+
+        <div class="modal-body modal-body-form">
+          <div class="form-group">
+            <label for="editAdminRut">RUT</label>
+            <input type="text" class="form-input" id="editAdminRut" placeholder="Ej: 12.345.678-5" maxlength="12" required>
+          </div>
+
+          <div class="form-group">
+            <label for="editAdminNombres">Nombres</label>
+            <input type="text" class="form-input" id="editAdminNombres" placeholder="Nombres" required>
+          </div>
+
+          <div class="form-group">
+            <label for="editAdminApellidos">Apellidos</label>
+            <input type="text" class="form-input" id="editAdminApellidos" placeholder="Apellidos" required>
+          </div>
+
+          <div class="form-group">
+            <label for="editAdminEmail">Correo electrónico</label>
+            <input type="email" class="form-input" id="editAdminEmail" placeholder="correo@dominio.com" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-modal btn-cancel" id="btnCancelEditModal">Cancelar</button>
+          <button type="submit" class="btn-modal btn-save" id="btnSaveEditAdmin">
+            <i class="fas fa-save"></i> Guardar cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Error al Crear Admin -->
+  <div class="modal-overlay" id="crearAdminErrorModal" aria-hidden="true">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h2 id="createAdminErrorTitle"><i class="fas fa-triangle-exclamation" style="color:#dc2626;"></i> No se pudo crear el administrador</h2>
+        <button class="modal-close" id="btnCloseCreateErrorModal" type="button" aria-label="Cerrar ventana">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px 20px;">
+        <p id="createAdminErrorMessage" style="margin:0; color:#374151; line-height:1.5;"></p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-modal btn-cancel" id="btnAcceptCreateErrorModal">Entendido</button>
+      </div>
     </div>
   </div>
 

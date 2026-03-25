@@ -52,31 +52,50 @@
   const hasAnyCargoPermissionData = permisosCargoNormalizados.size > 0;
 
   const permissionAliases = {
-    gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores', 'admin_trabajadores_v'],
-    editar_trabajadores: ['trabajadores_editar', 'editar_trabajadores', 'modificar_trabajadores'],
-    borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores', 'admin_softdelete'],
+    gestionar_trabajadores: ['trabajadores_ver', 'trabajadores_editar', 'trabajadores_soft_delete', 'gestionar_trabajadores', 'admin_v_trabajadores', 'admin_trabajadores_v'],
+    editar_trabajadores: ['trabajadores_editar', 'editar_trabajadores', 'modificar_trabajadores', 'admin_trabajadores_e'],
+    borrar_trabajadores: ['trabajadores_soft_delete', 'borrar_trabajadores', 'eliminar_trabajadores', 'admin_trabajadores_d'],
     gestionar_viajes: ['viajes_ver', 'viajes_editar', 'viajes_soft_delete', 'gestionar_viajes', 'admin_viajes_v', 'admin_v_viajes'],
-    gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes', 'admin_informes_v'],
-    crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno'],
-    editar_informe_propio: ['editar_informe_propio', 'editar_informes'],
+    gestionar_informes: ['informes_ver', 'informes_editar', 'informes_soft_delete', 'gestionar_informes', 'admin_v_informes', 'admin_informes_v'],
+    crear_informe_turno: ['crear_informe_turno', 'crear_informe', 'informe_turno', 'informes_ver', 'admin_v_informes', 'admin_informes_v'],
+    editar_informe_propio: ['editar_informe_propio', 'editar_informes', 'informes_editar', 'admin_informes_e'],
     cerrar_turno: ['cerrar_turno', 'finalizar_turno'],
     ver_historial: ['ver_historial', 'historial'],
-    gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos']
+    gestionar_cargos: ['gestionar_cargos', 'cargos', 'administrar_cargos', 'admin_v_cargos']
   };
 
   const adminModuleAliases = {
-    admin_trabajadores_v: ['admin_trabajadores_v'],
-    admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes'],
-    admin_informes_v: ['admin_informes_v']
+    trabajadores: {
+      view: ['admin_v_trabajadores', 'admin_trabajadores_v'],
+      edit: ['admin_trabajadores_e'],
+      softDelete: ['admin_trabajadores_d']
+    },
+    viajes: {
+      view: ['admin_viajes_v', 'admin_v_viajes'],
+      edit: ['admin_viajes_e', 'admin_viajes_g'],
+      softDelete: ['admin_viajes_d']
+    },
+    informes: {
+      view: ['admin_v_informes', 'admin_informes_v', 'informes_ver'],
+      edit: ['admin_informes_e', 'informes_editar'],
+      softDelete: ['admin_informes_d', 'informes_soft_delete']
+    },
+    cargos: {
+      view: ['gestionar_cargos', 'admin_v_cargos'],
+      edit: ['admin_cargos_e'],
+      softDelete: ['admin_cargos_d']
+    },
+    dashboard: {
+      view: ['admin_v_kpis'],
+      edit: [],
+      softDelete: []
+    }
   };
 
-  function hasAdminModuleView(moduleKey) {
-    const aliases = adminModuleAliases[moduleKey] || [moduleKey];
+  function hasAdminModuleCapability(moduleKey, capability = 'view') {
+    const aliases = adminModuleAliases[moduleKey]?.[capability] || [];
+    if (aliases.length === 0) return false;
     return aliases.some((alias) => permisosAdminNormalizados.has(normalizePermissionName(alias)));
-  }
-
-  function hasAdminSoftDeleteFlag() {
-    return permisosAdminNormalizados.has('admin_softdelete');
   }
 
   function matchesPermission(permisosSet, permissionKey) {
@@ -99,23 +118,47 @@
     if (!hasAnyAdminPermissionData) return userRole === 'admin';
 
     const normalized = normalizePermissionName(permissionKey);
-    if (['trabajadores_editar', 'trabajadores_soft_delete', 'borrar_trabajadores'].includes(normalized)) {
-      return hasAdminModuleView('admin_trabajadores_v') && hasAdminSoftDeleteFlag();
-    }
-    if (['viajes_editar', 'viajes_soft_delete'].includes(normalized)) {
-      return hasAdminModuleView('admin_viajes_v') && hasAdminSoftDeleteFlag();
-    }
-    if (['informes_editar', 'informes_soft_delete'].includes(normalized)) {
-      return hasAdminModuleView('admin_informes_v') && hasAdminSoftDeleteFlag();
-    }
     if (['trabajadores_ver', 'gestionar_trabajadores'].includes(normalized)) {
-      return hasAdminModuleView('admin_trabajadores_v');
+      return hasAdminModuleCapability('trabajadores', 'view');
     }
+    if (['trabajadores_editar', 'editar_trabajadores'].includes(normalized)) {
+      return hasAdminModuleCapability('trabajadores', 'view') && hasAdminModuleCapability('trabajadores', 'edit');
+    }
+    if (['trabajadores_soft_delete', 'borrar_trabajadores'].includes(normalized)) {
+      return hasAdminModuleCapability('trabajadores', 'view')
+        && hasAdminModuleCapability('trabajadores', 'edit')
+        && hasAdminModuleCapability('trabajadores', 'softDelete');
+    }
+
     if (['viajes_ver', 'gestionar_viajes'].includes(normalized)) {
-      return hasAdminModuleView('admin_viajes_v');
+      return hasAdminModuleCapability('viajes', 'view');
     }
-    if (['informes_ver', 'gestionar_informes'].includes(normalized)) {
-      return hasAdminModuleView('admin_informes_v');
+    if (['viajes_editar'].includes(normalized)) {
+      return hasAdminModuleCapability('viajes', 'view') && hasAdminModuleCapability('viajes', 'edit');
+    }
+    if (['viajes_soft_delete'].includes(normalized)) {
+      return hasAdminModuleCapability('viajes', 'view')
+        && hasAdminModuleCapability('viajes', 'edit')
+        && hasAdminModuleCapability('viajes', 'softDelete');
+    }
+
+    if (['informes_ver', 'gestionar_informes', 'crear_informe_turno'].includes(normalized)) {
+      return hasAdminModuleCapability('informes', 'view');
+    }
+    if (['informes_editar', 'editar_informe_propio'].includes(normalized)) {
+      return hasAdminModuleCapability('informes', 'view') && hasAdminModuleCapability('informes', 'edit');
+    }
+    if (['informes_soft_delete'].includes(normalized)) {
+      return hasAdminModuleCapability('informes', 'view')
+        && hasAdminModuleCapability('informes', 'edit')
+        && hasAdminModuleCapability('informes', 'softDelete');
+    }
+
+    if (['gestionar_cargos'].includes(normalized)) {
+      return hasAdminModuleCapability('cargos', 'view');
+    }
+    if (['admin_v_kpis', 'dashboard_ver'].includes(normalized)) {
+      return hasAdminModuleCapability('dashboard', 'view');
     }
 
     return matchesPermission(permisosAdminNormalizados, permissionKey);
@@ -159,8 +202,7 @@
 
   // Páginas solo para Super Admin
   const superAdminOnlyPages = [
-    'gestionadmins.html',
-    'gestioncargos.html'
+    'gestionadmins.html'
   ];
 
   // Verificar si la página actual requiere autenticación

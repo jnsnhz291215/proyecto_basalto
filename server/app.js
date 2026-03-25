@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador, resolveCargoId } = require("./database.js");
+const { validarRUT } = require('./utils/validators.js');
 
 const app = express();
 
@@ -493,10 +494,9 @@ function validarEmailServidor(email) {
   return emailRegex.test(email);
 }
 
-function validarRUTServidor(rut) {
-  // Validar formato con guion: 12345678-9
-  const rutRegex = /^\d{7,8}-[\dkK]$/;
-  return rutRegex.test(rut);
+function strictRutValidationEnabled() {
+  const raw = String(process.env.STRICT_RUT_VALIDATION || '').trim().toLowerCase();
+  return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'si' || raw === 'on';
 }
 
 function validarTelefonoServidor(telefono) {
@@ -590,9 +590,9 @@ const handleAgregarTrabajador = async (req, res) => {
       return res.status(400).json({ error: "El formato del email es inválido. Debe ser: texto@texto.texto" });
     }
     
-    // Validar formato de RUT
-    if (!validarRUTServidor(nuevoTrabajador.RUT)) {
-      return res.status(400).json({ error: "El formato del RUT es inválido. Debe tener entre 7-8 dígitos seguidos de un guion y dígito verificador" });
+    // TODO: [DEPLOY] Cambiar STRICT_RUT_VALIDATION a true antes de subir a producción.
+    if (strictRutValidationEnabled() && !validarRUT(nuevoTrabajador.RUT)) {
+      return res.status(400).json({ error: "El RUT ingresado no es matemáticamente válido (Módulo 11)." });
     }
     
     // Validar formato de teléfono
@@ -615,6 +615,16 @@ const handleAgregarTrabajador = async (req, res) => {
     const trabajadoresExistentes = await obtenerTrabajadores();
     if (trabajadoresExistentes.some(t => t.RUT === nuevoTrabajador.RUT)) {
       return res.status(400).json({ error: "Ya existe un trabajador con este RUT" });
+    }
+
+    // Verificar que el RUT no exista como administrador (bloqueo cruzado)
+    const rutLimpioCross = limpiarRUTServidor(nuevoTrabajador.RUT);
+    const [adminDuplicado] = await pool.execute(
+      'SELECT rut FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1',
+      [rutLimpioCross]
+    );
+    if (adminDuplicado && adminDuplicado.length > 0) {
+      return res.status(409).json({ error: "Este RUT ya está registrado como administrador. No puede crearse como trabajador." });
     }
 
     // Preparar apellidos (paterno / materno)
@@ -640,7 +650,7 @@ const handleAgregarTrabajador = async (req, res) => {
     const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
 
     // Limpieza de RUT para password inicial en users
-    const rutLimpio = limpiarRUTServidor(nuevoTrabajador.RUT);
+    const rutLimpio = rutLimpioCross;
 
     connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -736,6 +746,11 @@ const handleEditarTrabajador = async (req, res) => {
     // Validar formato de email
     if (!validarEmailServidor(trabajador.email)) {
       return res.status(400).json({ error: "El formato del email es inválido. Debe ser: texto@texto.texto" });
+    }
+
+    // TODO: [DEPLOY] Cambiar STRICT_RUT_VALIDATION a true antes de subir a producción.
+    if (strictRutValidationEnabled() && !validarRUT(trabajador.rut)) {
+      return res.status(400).json({ error: "El RUT ingresado no es matemáticamente válido (Módulo 11)." });
     }
     
     // Validar formato de teléfono

@@ -3,9 +3,26 @@ const router = express.Router();
 const { pool } = require('../database');
 
 const ADMIN_PERMISSION_GROUPS = {
-  admin_trabajadores_v: ['admin_trabajadores_v'],
-  admin_viajes_v: ['admin_viajes_v', 'admin_v_viajes'],
-  admin_informes_v: ['admin_informes_v'],
+  // Vistas por modulo (Gestionar)
+  admin_trabajadores_v: ['admin_v_trabajadores', 'admin_trabajadores_v'],
+  admin_viajes_v: ['admin_v_viajes', 'admin_viajes_v'],
+  admin_informes_v: ['admin_v_informes', 'admin_informes_v', 'informes_ver'],
+  admin_cargos_v: ['gestionar_cargos', 'admin_v_cargos'],
+  admin_dashboard_v: ['admin_v_kpis'],
+
+  // Edicion por modulo
+  admin_trabajadores_e: ['admin_trabajadores_e'],
+  admin_viajes_e: ['admin_viajes_g', 'admin_viajes_e'],
+  admin_informes_e: ['informes_editar', 'admin_informes_e'],
+  admin_cargos_e: ['admin_cargos_e'],
+
+  // Soft delete por modulo
+  admin_trabajadores_d: ['admin_trabajadores_d'],
+  admin_viajes_d: ['admin_viajes_d'],
+  admin_informes_d: ['informes_soft_delete', 'admin_informes_d'],
+  admin_cargos_d: ['admin_cargos_d'],
+
+  // Compatibilidad legacy
   admin_softdelete: ['admin_softdelete']
 };
 
@@ -87,8 +104,7 @@ router.get('/admins', verificarSuperAdmin, async (req, res) => {
         apellido_materno,
         email,
         activo,
-        es_super_admin,
-        created_at
+        es_super_admin
       FROM admin_users
       ORDER BY es_super_admin DESC, apellido_paterno ASC, nombres ASC
     `;
@@ -126,12 +142,15 @@ router.get('/admins', verificarSuperAdmin, async (req, res) => {
 
       return {
         rut: admin.rut,
+        nombres: admin.nombres || '',
+        apellido_paterno: admin.apellido_paterno || '',
+        apellido_materno: admin.apellido_materno || '',
         nombre_completo: `${admin.nombres || ''} ${admin.apellido_paterno || ''} ${admin.apellido_materno || ''}`.trim(),
         email: admin.email,
         activo: Number(admin.activo) === 0 ? 0 : 1,
         es_super_admin: admin.es_super_admin,
         permisos: permisosPorRut.get(rutLimpio) || [],
-        created_at: admin.created_at
+        created_at: admin.created_at || null
       };
     });
 
@@ -286,19 +305,25 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
-    const { rut, nombres, apellido_paterno, apellido_materno, email, id_permisos } = req.body;
+    const { rut, nombres, apellido_paterno, apellido_materno, apellidos, email, id_permisos } = req.body;
     const rutLimpio = limpiarRUT(rut);
     const emailNormalizado = String(email || '').trim().toLowerCase();
     const passwordInicial = rutLimpio;
+    const apellidosRaw = String(apellidos || '').trim().replace(/\s+/g, ' ');
+    const apellidoPaternoRaw = String(apellido_paterno || '').trim();
+    const apellidoMaternoRaw = String(apellido_materno || '').trim();
+    const apellidosParts = apellidosRaw ? apellidosRaw.split(' ').filter(Boolean) : [];
+    const apellidoPaternoFinal = apellidoPaternoRaw || apellidosParts[0] || '';
+    const apellidoMaternoFinal = apellidoMaternoRaw || apellidosParts.slice(1).join(' ') || null;
     const idsSolicitados = Array.isArray(id_permisos)
       ? [...new Set(id_permisos.map((id) => Number(id)).filter(Number.isInteger))]
       : [];
 
     // Validaciones
-    if (!rut || !nombres) {
+    if (!rut || !nombres || !apellidoPaternoFinal) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Se requieren: rut y nombres' 
+        message: 'Se requieren: rut, nombres y apellidos' 
       });
     }
 
@@ -310,6 +335,17 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       return res.status(409).json({ 
         success: false, 
         message: 'Ya existe un administrador con este RUT' 
+      });
+    }
+
+    // Validación cruzada: un administrador no puede compartir RUT con un trabajador
+    const sqlCheckTrabajadorRut = 'SELECT RUT FROM trabajadores WHERE REPLACE(REPLACE(REPLACE(RUT, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+    const [existingTrabajadorRut] = await connection.execute(sqlCheckTrabajadorRut, [rutLimpio]);
+
+    if (existingTrabajadorRut && existingTrabajadorRut.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Este RUT ya está registrado como trabajador. No puede crearse como administrador.'
       });
     }
 
@@ -348,15 +384,15 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
     // Insertar nuevo admin
     const sqlInsert = `
       INSERT INTO admin_users 
-      (rut, nombres, apellido_paterno, apellido_materno, email, password, es_super_admin, activo, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
+      (rut, nombres, apellido_paterno, apellido_materno, email, password, es_super_admin, activo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
     `;
 
     await connection.execute(sqlInsert, [
       rutLimpio,
       nombres,
-      apellido_paterno || null,
-      apellido_materno || null,
+      apellidoPaternoFinal,
+      apellidoMaternoFinal,
       emailNormalizado || null,
       passwordInicial,
       0
@@ -390,6 +426,150 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error al crear administrador' 
+    });
+  } finally {
+    await connection.release();
+  }
+});
+
+// ============================================
+// PUT /api/admins/:rut - Editar datos basicos de un administrador
+// ============================================
+router.put('/admins/:rut', verificarSuperAdmin, async (req, res) => {
+  const connection = await pool.getConnection();
+
+  try {
+    const rutObjetivo = limpiarRUT(req.params.rut);
+    const { rut, nombres, apellido_paterno, apellido_materno, apellidos, email } = req.body || {};
+
+    const rutNuevo = limpiarRUT(rut);
+    const nombresFinal = String(nombres || '').trim();
+    const emailFinal = String(email || '').trim().toLowerCase();
+    const apellidosRaw = String(apellidos || '').trim().replace(/\s+/g, ' ');
+    const apellidoPaternoRaw = String(apellido_paterno || '').trim();
+    const apellidoMaternoRaw = String(apellido_materno || '').trim();
+    const apellidosParts = apellidosRaw ? apellidosRaw.split(' ').filter(Boolean) : [];
+    const apellidoPaternoFinal = apellidoPaternoRaw || apellidosParts[0] || '';
+    const apellidoMaternoFinal = apellidoMaternoRaw || apellidosParts.slice(1).join(' ') || null;
+
+    if (!rutObjetivo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requiere el RUT objetivo del administrador'
+      });
+    }
+
+    if (!rutNuevo || !nombresFinal || !apellidoPaternoFinal) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requieren rut, nombres y apellidos'
+      });
+    }
+
+    // Verificar admin objetivo
+    const sqlCheckTarget = 'SELECT rut, es_super_admin FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+    const [targetRows] = await connection.execute(sqlCheckTarget, [rutObjetivo]);
+
+    if (!targetRows || targetRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Administrador no encontrado'
+      });
+    }
+
+    if (Number(targetRows[0].es_super_admin) === 1) {
+      return res.status(403).json({
+        success: false,
+        message: 'No se pueden editar los datos de una cuenta Superadministrador desde esta vista'
+      });
+    }
+
+    // Validacion cruzada con trabajadores para nuevo RUT
+    const sqlCheckTrabajadorRut = 'SELECT RUT FROM trabajadores WHERE REPLACE(REPLACE(REPLACE(RUT, ".", ""), "-", ""), " ", "") = ? LIMIT 1';
+    const [existingTrabajadorRut] = await connection.execute(sqlCheckTrabajadorRut, [rutNuevo]);
+
+    if (existingTrabajadorRut && existingTrabajadorRut.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Este RUT ya está registrado como trabajador. No puede asignarse al administrador.'
+      });
+    }
+
+    // Verificar RUT duplicado en otros admins
+    const sqlCheckRut = `
+      SELECT rut
+      FROM admin_users
+      WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ?
+        AND REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") <> ?
+      LIMIT 1
+    `;
+    const [existingRut] = await connection.execute(sqlCheckRut, [rutNuevo, rutObjetivo]);
+
+    if (existingRut && existingRut.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe otro administrador con este RUT'
+      });
+    }
+
+    if (emailFinal) {
+      const sqlCheckEmail = `
+        SELECT rut
+        FROM admin_users
+        WHERE LOWER(TRIM(email)) = ?
+          AND REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") <> ?
+        LIMIT 1
+      `;
+      const [existingEmail] = await connection.execute(sqlCheckEmail, [emailFinal, rutObjetivo]);
+
+      if (existingEmail && existingEmail.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Ya existe otro administrador con este correo electrónico'
+        });
+      }
+    }
+
+    await connection.beginTransaction();
+
+    const sqlUpdateAdmin = `
+      UPDATE admin_users
+      SET rut = ?, nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?
+      WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ?
+    `;
+    await connection.execute(sqlUpdateAdmin, [
+      rutNuevo,
+      nombresFinal,
+      apellidoPaternoFinal,
+      apellidoMaternoFinal,
+      emailFinal || null,
+      rutObjetivo
+    ]);
+
+    // Si cambia el RUT, sincronizar FK logica en tabla admin_permisos
+    if (rutNuevo !== rutObjetivo) {
+      const sqlSyncPermisosRut = `
+        UPDATE admin_permisos
+        SET admin_rut = ?
+        WHERE REPLACE(REPLACE(REPLACE(admin_rut, ".", ""), "-", ""), " ", "") = ?
+      `;
+      await connection.execute(sqlSyncPermisosRut, [rutNuevo, rutObjetivo]);
+    }
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: 'Datos del administrador actualizados correctamente',
+      rut_anterior: rutObjetivo,
+      rut_nuevo: rutNuevo
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('[ADMIN_MGMT] Error en PUT /admins/:rut:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar datos del administrador'
     });
   } finally {
     await connection.release();
