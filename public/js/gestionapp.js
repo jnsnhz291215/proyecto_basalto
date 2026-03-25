@@ -1465,43 +1465,6 @@ function obtenerNombreCargoSeleccionado(selectId, valorFallback = '') {
   return option.textContent.trim();
 }
 
-async function guardarNuevaCiudad(nombreCiudad) {
-  try {
-    const res = await fetch('/api/ciudades', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre_ciudad: nombreCiudad })
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      if (res.status === 409) {
-        showResult('Error', 'Esta ciudad ya existe', true);
-      } else {
-        showResult('Error', data.error || 'Error al crear la ciudad', true);
-      }
-      return null;
-    }
-
-    await cargarCiudades(data.nombre_ciudad);
-    showResult('Éxito', 'Ciudad creada exitosamente');
-    return formatCiudad(data.nombre_ciudad);
-  } catch (error) {
-    console.error('Error al guardar ciudad:', error);
-    showResult('Error', 'Error al crear la ciudad: ' + (error.message || 'Error desconocido'), true);
-    return null;
-  }
-}
-
-function pedirNuevaCiudad() {
-  const modal = document.getElementById('modal-nueva-ciudad');
-  const input = document.getElementById('input-nombre-ciudad');
-  if (input) input.value = '';
-  openManagedModal(modal);
-  setTimeout(() => { if (input) input.focus(); }, 100);
-}
-
 function mostrarResultadoCargo(titulo, mensaje) {
   const modalResult = document.getElementById('modal-result');
   const resultTitle = document.getElementById('result-title');
@@ -1619,45 +1582,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar grupos al iniciar
   cargarGrupos();
 
-  const btnNuevaCiudad = document.getElementById('btn-nueva-ciudad');
-  if (btnNuevaCiudad) btnNuevaCiudad.addEventListener('click', pedirNuevaCiudad);
-  const btnNuevaCiudadEdit = document.getElementById('btn-nueva-ciudad-edit');
-  if (btnNuevaCiudadEdit) btnNuevaCiudadEdit.addEventListener('click', pedirNuevaCiudad);
-
-  // Modal Nueva Ciudad
-  const modalNuevaCiudad = document.getElementById('modal-nueva-ciudad');
-  const cancelNuevaCiudad = document.getElementById('cancel-nueva-ciudad');
-  const guardarNuevaCiudadBtn = document.getElementById('guardar-nueva-ciudad');
-  const inputNombreCiudad = document.getElementById('input-nombre-ciudad');
-
-  if (cancelNuevaCiudad) {
-    cancelNuevaCiudad.addEventListener('click', () => closeManagedModal(modalNuevaCiudad));
-  }
-  if (guardarNuevaCiudadBtn) {
-    guardarNuevaCiudadBtn.addEventListener('click', async () => {
-      const nombre = String(inputNombreCiudad?.value || '').trim();
-      if (!nombre) return;
-      closeManagedModal(modalNuevaCiudad);
-      await guardarNuevaCiudad(nombre);
-    });
-  }
-  if (inputNombreCiudad) {
-    inputNombreCiudad.addEventListener('keypress', async (ev) => {
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        const nombre = String(inputNombreCiudad.value || '').trim();
-        if (!nombre) return;
-        closeManagedModal(modalNuevaCiudad);
-        await guardarNuevaCiudad(nombre);
-      }
-    });
-  }
-  if (modalNuevaCiudad) {
-    modalNuevaCiudad.addEventListener('click', (ev) => {
-      if (ev.target === modalNuevaCiudad) closeManagedModal(modalNuevaCiudad);
-    });
-  }
-  console.log('[UI_FIX] Modal de nueva ciudad vinculado y operativo.');
   console.log('[CLEANUP] \'N/a\' eliminado de la visualización de nombres.');
 
   if (el.selectCiudad) {

@@ -11,9 +11,14 @@
   const el = {
     btnViewCargos: document.getElementById('btnViewCargos'),
     btnViewCiudades: document.getElementById('btnViewCiudades'),
+    btnAgregarCiudad: document.getElementById('btnAgregarCiudad'),
     cityCountBadge: document.getElementById('cityCountBadge'),
     citySummary: document.getElementById('citySummary'),
     citiesTableBody: document.getElementById('citiesTableBody'),
+    addCityModal: document.getElementById('addCityModal'),
+    addCityInput: document.getElementById('addCityInput'),
+    cancelAddCity: document.getElementById('cancelAddCity'),
+    confirmAddCity: document.getElementById('confirmAddCity'),
     editCityModal: document.getElementById('editCityModal'),
     editCityInput: document.getElementById('editCityInput'),
     cancelEditCity: document.getElementById('cancelEditCity'),
@@ -166,8 +171,44 @@
     }
   }
 
+  function openAddModal() {
+    if (el.addCityInput) {
+      el.addCityInput.value = '';
+      setTimeout(() => el.addCityInput.focus(), 40);
+    }
+    openModal(el.addCityModal);
+  }
+
+  async function saveNewCity() {
+    const nombre = String(el.addCityInput?.value || '').trim();
+    if (!nombre) {
+      alert('Debes ingresar un nombre de ciudad.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/ciudades', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ nombre_ciudad: nombre })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 409) {
+          alert('Esta ciudad ya existe.');
+        } else {
+          alert(data.error || 'Error al crear la ciudad.');
+        }
+        return;
+      }
+      closeModal(el.addCityModal);
+      await loadCities();
+    } catch (error) {
+      console.error('[CIUDADES_VIEW] Error creando ciudad:', error);
+      alert(error.message || 'No fue posible crear la ciudad.');
+    }
+  }
+
   function openEditModal(cityId) {
-    state.editingCity = state.cities.find((city) => Number(city.id_ciudad) === Number(cityId)) || null;
     if (!state.editingCity) return;
 
     if (el.editCityInput) {
@@ -282,6 +323,17 @@
   function bindEvents() {
     el.btnViewCargos?.addEventListener('click', () => {
       window.location.href = '/gestioncargos.html';
+    });
+
+    el.btnAgregarCiudad?.addEventListener('click', openAddModal);
+
+    el.cancelAddCity?.addEventListener('click', () => closeModal(el.addCityModal));
+    el.confirmAddCity?.addEventListener('click', saveNewCity);
+    el.addCityModal?.addEventListener('click', (event) => {
+      if (event.target === el.addCityModal) closeModal(el.addCityModal);
+    });
+    el.addCityInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); saveNewCity(); }
     });
 
     el.cancelEditCity?.addEventListener('click', () => {

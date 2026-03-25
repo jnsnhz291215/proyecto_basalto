@@ -428,29 +428,6 @@
       cursor: pointer;
     }
 
-    /* Botón Nueva Ciudad */
-    .btn-nueva-ciudad-add {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-top: 6px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #7c3aed;
-      background: transparent;
-      border: 1px solid #7c3aed;
-      border-radius: 6px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.15s ease, color 0.15s ease;
-      line-height: 1.4;
-    }
-    .btn-nueva-ciudad-add:hover {
-      background: #f5f3ff;
-      color: #6d28d9;
-      border-color: #6d28d9;
-    }
   </style>
 </head>
 <body>
@@ -577,9 +554,6 @@
                 </select>
                 <i class="fa-solid fa-chevron-down select-arrow"></i>
               </div>
-              <button type="button" id="btn-nueva-ciudad-edit" class="btn-nueva-ciudad-add">
-                <i class="fa-solid fa-plus-circle"></i> Nueva Ciudad
-              </button>
             </div>
             <div class="form-group">
               <label for="edit-fecha-nacimiento">Fecha de Nacimiento</label>
@@ -690,9 +664,6 @@
                 </select>
                 <i class="fa-solid fa-chevron-down select-arrow"></i>
               </div>
-              <button type="button" id="btn-nueva-ciudad" class="btn-nueva-ciudad-add">
-                <i class="fa-solid fa-plus-circle"></i> Nueva Ciudad
-              </button>
             </div>
 
             <div class="form-group">
@@ -1080,29 +1051,6 @@
     </div>
   </div>
 
-  <!-- Modal Nueva Ciudad -->
-  <div id="modal-nueva-ciudad" class="modal">
-    <div class="modal-content" style="max-width: 450px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Nueva Ciudad</h3>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="input-nombre-ciudad">Nombre de la ciudad</label>
-          <div class="input-wrapper">
-            <i class="fa-solid fa-city input-icon"></i>
-            <input type="text" id="input-nombre-ciudad" placeholder="Ej: Antofagasta" class="modern-input" autocomplete="off">
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 12px;">
-        <button type="button" id="cancel-nueva-ciudad" class="btn-cancel">Cancelar</button>
-        <button type="button" id="guardar-nueva-ciudad" class="btn-save">
-          <i class="fa-solid fa-check"></i> Guardar Ciudad
-        </button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
 

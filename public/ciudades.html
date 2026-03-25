@@ -276,9 +276,28 @@
       cursor: pointer;
     }
 
-    .btn-secondary { background: #e5e7eb; color: #111827; }
     .btn-primary { background: #2563eb; color: #fff; }
     .btn-danger { background: #dc2626; color: #fff; }
+
+    .btn-add-city {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      background: #4f46e5;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background .2s ease, box-shadow .2s ease;
+    }
+
+    .btn-add-city:hover {
+      background: #4338ca;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, .3);
+    }
 
     .helper-text {
       font-size: 12px;
@@ -319,6 +338,9 @@
         <span>0 ciudades</span>
       </div>
       <div class="subtitle" id="citySummary">Cargando ciudades registradas...</div>
+      <button id="btnAgregarCiudad" type="button" class="btn-add-city">
+        <i class="fa-solid fa-plus"></i> Agregar Ciudad
+      </button>
     </section>
 
     <section class="table-card">
@@ -339,6 +361,21 @@
         </table>
       </div>
     </section>
+  </div>
+
+  <div id="addCityModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addCityTitle">
+      <h2 id="addCityTitle" class="modal-title">Agregar ciudad</h2>
+      <p class="modal-text">Ingresa el nombre de la nueva ciudad.</p>
+      <div class="modal-field">
+        <label for="addCityInput">Nombre de la ciudad</label>
+        <input id="addCityInput" class="modal-input" type="text" maxlength="100" autocomplete="off" placeholder="Ej: Antofagasta">
+      </div>
+      <div class="modal-actions">
+        <button id="cancelAddCity" type="button" class="btn-secondary">Cancelar</button>
+        <button id="confirmAddCity" type="button" class="btn-primary"><i class="fa-solid fa-check"></i> Guardar</button>
+      </div>
+    </div>
   </div>
 
   <div id="editCityModal" class="modal-backdrop" aria-hidden="true">

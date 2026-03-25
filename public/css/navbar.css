@@ -259,6 +259,10 @@
 
 .top-menu #user_dropdown_menu {
   z-index: 9999;
+  right: 0;
+  left: auto;
+  top: 100%;
+  margin-top: 0;
 }
 
 .top-menu #nav-login-btn,
@@ -328,7 +332,7 @@
 .top-menu #user-dropdown .dropdown-menu {
   left: auto;
   right: 0;
-  top: calc(100% + 10px);
+  top: 100%;
   min-width: 208px;
   padding: 6px 0;
   border: 1px solid #e5e7eb;
