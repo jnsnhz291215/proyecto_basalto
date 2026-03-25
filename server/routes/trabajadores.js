@@ -42,18 +42,18 @@ router.get('/trabajadores', async (req, res) => {
 
     const permisosPorCargo = new Map();
     relacionesCargoPermisos.forEach((row) => {
-      const nombreCargo = String(row.nombre_cargo || '').trim().toLowerCase();
-      if (!nombreCargo) return;
+      const cargoId = Number(row.id_cargo || 0);
+      if (!cargoId) return;
 
-      if (!permisosPorCargo.has(nombreCargo)) {
-        permisosPorCargo.set(nombreCargo, {
-          id_cargo: row.id_cargo || null,
+      if (!permisosPorCargo.has(cargoId)) {
+        permisosPorCargo.set(cargoId, {
+          id_cargo: cargoId,
           permisos: []
         });
       }
 
       if (row.id_permiso) {
-        permisosPorCargo.get(nombreCargo).permisos.push({
+        permisosPorCargo.get(cargoId).permisos.push({
           id_permiso: row.id_permiso,
           nombre_permiso: row.nombre_permiso
         });
@@ -61,8 +61,8 @@ router.get('/trabajadores', async (req, res) => {
     });
 
     const trabajadoresConPermisosCargo = trabajadores.map((trabajador) => {
-      const cargoNombre = String(trabajador.cargo || '').trim().toLowerCase();
-      const cargoData = cargoNombre ? permisosPorCargo.get(cargoNombre) : null;
+      const cargoId = Number(trabajador.id_cargo || 0);
+      const cargoData = cargoId ? permisosPorCargo.get(cargoId) : null;
 
       return {
         ...trabajador,
@@ -97,12 +97,13 @@ router.get('/trabajadores/responsables', async (req, res) => {
         t.telefono,
         t.id_grupo,
         g.nombre_grupo,
-        t.cargo,
+        t.id_cargo,
+        c.nombre_cargo AS cargo,
         c.id_cargo,
         t.activo
       FROM trabajadores t
       INNER JOIN grupos g ON t.id_grupo = g.id_grupo
-      INNER JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
+      INNER JOIN cargos c ON t.id_cargo = c.id_cargo
       INNER JOIN cargo_permisos cp ON cp.id_cargo = c.id_cargo
       INNER JOIN permisos p ON p.id_permiso = cp.id_permiso
       WHERE p.clave_permiso = ?

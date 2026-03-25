@@ -31,6 +31,7 @@ const InformeTurno = (() => {
     'inf_admin_historial'
   ];
   const MAX_AYUDANTES = 5;
+  const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
   const AUTOSAVE_INTERVAL_MS = 2 * 60 * 1000;
   const HEARTBEAT_INTERVAL_MS = 30 * 1000;
   const SPINNER_FIELD_IDS = [
@@ -74,6 +75,7 @@ const InformeTurno = (() => {
     userName: '',
     userEmail: '',
     cargoName: '',
+    cargoCatalogVersion: '',
     permisosCargo: [],
     permisosIds: [],
     isSuperAdmin: false,
@@ -471,12 +473,39 @@ const InformeTurno = (() => {
     }
   }
 
+  function readCargoCatalogVersion() {
+    return String(localStorage.getItem(CARGO_CACHE_BUST_KEY) || '').trim();
+  }
+
+  function consumeCargoCatalogInvalidation() {
+    const latestVersion = readCargoCatalogVersion();
+    if (!latestVersion || latestVersion === state.cargoCatalogVersion) {
+      return false;
+    }
+
+    state.cargoCatalogVersion = latestVersion;
+    localStorage.removeItem('user_permissions_cargo');
+    localStorage.removeItem('user_permissions_cargo_ids');
+    state.permisosCargo = [];
+    state.permisosIds = [];
+    state.activeHelperWorkers = [];
+    console.log('[CARGO_CACHE] Catálogo de cargos invalidado. Se solicitarán datos frescos al servidor.');
+    return true;
+  }
+
+  function buildNoCacheUrl(url) {
+    const stamp = state.cargoCatalogVersion || String(Date.now());
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}ts=${encodeURIComponent(stamp)}`;
+  }
+
   function refreshSessionContext() {
     state.role = localStorage.getItem('user_role') || '';
     state.userRut = localStorage.getItem('user_rut') || '';
     state.userName = localStorage.getItem('user_name') || '';
     state.userEmail = localStorage.getItem('user_email') || '';
     state.cargoName = localStorage.getItem('user_cargo_name') || '';
+    state.cargoCatalogVersion = readCargoCatalogVersion();
     state.permisosCargo = parseJSONArray('user_permissions_cargo');
     state.isSuperAdmin = isTruthyFlag(localStorage.getItem('user_super_admin'));
     // Leer grupo desde localStorage para que el check de turno en init() tenga el valor correcto
@@ -529,6 +558,8 @@ const InformeTurno = (() => {
       localStorage.setItem('user_super_admin', syncSuper ? '1' : '0');
       localStorage.setItem('user_grupo', syncGrupo);
       localStorage.setItem('user_cargo_name', syncCargo);
+      localStorage.setItem('user_permissions_cargo', JSON.stringify(data.permisos_cargo || user.permisos_cargo || []));
+      localStorage.setItem('user_permissions_cargo_ids', JSON.stringify(data.permisos_cargo_ids || user.permisos_cargo_ids || []));
 
       const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
       const usuarioSincronizado = {
@@ -553,6 +584,9 @@ const InformeTurno = (() => {
       state.isSuperAdmin = syncSuper;
       state.userGrupo = syncGrupo || state.userGrupo;
       state.cargoName = syncCargo || state.cargoName;
+      state.permisosCargo = Array.isArray(data.permisos_cargo || user.permisos_cargo)
+        ? (data.permisos_cargo || user.permisos_cargo)
+        : state.permisosCargo;
 
       // Refresco visual inmediato de sesión en UI (navbar/modal)
       const userNameSpan = document.getElementById('user_name_span');
@@ -1143,6 +1177,16 @@ const InformeTurno = (() => {
     return activeGroups.includes(grupo);
   }
 
+  function formatNombreCompleto(pNombre, pApellido, sApellido) {
+    const nombre = String(pNombre || '').trim();
+    const paterno = String(pApellido || '').trim();
+    const materno = String(sApellido || '').trim();
+    const maternoEsNulo = !materno || materno === 'N/a';
+    return maternoEsNulo
+      ? `${nombre} ${paterno}`.trim()
+      : `${nombre} ${paterno} ${materno}`.trim();
+  }
+
   function buildSelectOptions(select, trabajadores, emptyLabel) {
     const prevValue = select.value;
     select.innerHTML = `<option value="">${emptyLabel}</option>`;
@@ -1150,7 +1194,7 @@ const InformeTurno = (() => {
       const opt = document.createElement('option');
       const rut = String(t.RUT || t.rut || '');
       opt.value = rut;
-      const nombre = `${t.nombres || ''} ${t.apellido_paterno || ''}`.trim();
+      const nombre = formatNombreCompleto(t.nombres, t.apellido_paterno, t.apellido_materno);
       opt.textContent = nombre ? `${nombre} (${rut})` : rut;
       select.appendChild(opt);
     });
@@ -1308,14 +1352,20 @@ const InformeTurno = (() => {
   }
 
   async function populatePersonalSelects(activeGroups, options = {}) {
+    const cargoCatalogChanged = consumeCargoCatalogInvalidation();
     const auditMode = Boolean(options.auditMode);
     let trabajadores = [];
     let responsables = [];
     const grupoDetectado = detectGrupoActivo(activeGroups);
 
+    if (cargoCatalogChanged) {
+      await syncUserSession();
+      await loadCargoPermisosIds();
+    }
+
     try {
       console.log('[DEBUG_WORKERS] Cargando responsables para el turno:', grupoDetectado);
-      const resp = await fetch('/api/trabajadores');
+      const resp = await fetch(buildNoCacheUrl('/api/trabajadores'));
       if (resp.ok) {
         trabajadores = await resp.json();
         console.log('[DEBUG_WORKERS] Lista recibida:', trabajadores);
@@ -1326,7 +1376,7 @@ const InformeTurno = (() => {
       responsables = trabajadores.filter(isOperadorCargo);
     } else if (grupoDetectado) {
       try {
-        const respResponsables = await fetch(`/api/trabajadores/responsables?grupo=${encodeURIComponent(grupoDetectado)}`);
+        const respResponsables = await fetch(buildNoCacheUrl(`/api/trabajadores/responsables?grupo=${encodeURIComponent(grupoDetectado)}`));
         if (respResponsables.ok) {
           responsables = await respResponsables.json();
         }
@@ -2756,10 +2806,14 @@ const InformeTurno = (() => {
   }
 
   async function loadCargoPermisosIds() {
+    if (consumeCargoCatalogInvalidation()) {
+      await syncUserSession();
+    }
+
     state.permisosIds = [];
     if (!state.cargoName || state.isSuperAdmin) return;
     try {
-      const res = await fetch('/api/cargos');
+      const res = await fetch(buildNoCacheUrl('/api/cargos'));
       if (!res.ok) return;
       const cargos = await res.json();
       const miCargo = cargos.find(c => String(c.nombre_cargo).toLowerCase() === String(state.cargoName).toLowerCase());
@@ -2796,6 +2850,20 @@ const InformeTurno = (() => {
     console.log('[UI_CLEANUP] Compactando controles de entrada numéricos.');
     
     await loadCargoPermisosIds();
+
+    window.addEventListener('focus', async () => {
+      if (!consumeCargoCatalogInvalidation()) return;
+      await syncUserSession();
+      await loadCargoPermisosIds();
+      if (state.auditModeEnabled) {
+        await populatePersonalSelects([], { auditMode: true });
+        return;
+      }
+      const currentGroups = state.adminSelectedGroup
+        ? [state.adminSelectedGroup]
+        : (state.userGrupo ? [state.userGrupo] : []);
+      await populatePersonalSelects(currentGroups);
+    });
 
     const hasShiftBypassAccess = hasElevatedAccess() || hasShiftHeartbeatBypassPermission();
     if (hasShiftBypassAccess) {

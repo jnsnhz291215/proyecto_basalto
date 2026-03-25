@@ -272,9 +272,11 @@ router.get('/informes', async (req, res) => {
         i.creado_el,
         t.nombres,
         t.apellido_paterno,
-        t.apellido_materno
+        t.apellido_materno,
+        c.nombre_cargo AS cargo
       FROM informes_turno i
       LEFT JOIN trabajadores t ON i.operador_rut = t.RUT
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       WHERE 1=1
     `;
 

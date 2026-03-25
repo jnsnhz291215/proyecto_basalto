@@ -1,6 +1,8 @@
 (function() {
   'use strict';
 
+  const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
+
   const SECTION_KEYS = [
     { key: 'antecedentes', label: 'Antecedentes', r: 22, w: 12 },
     { key: 'operacion', label: 'Operación', r: 23, w: 13 },
@@ -67,6 +69,10 @@
       'Content-Type': 'application/json',
       ...(rut ? { rut_solicitante: rut } : {})
     };
+  }
+
+  function invalidateCargoCatalogCache() {
+    localStorage.setItem(CARGO_CACHE_BUST_KEY, String(Date.now()));
   }
 
   function getSectionPermissionKey(section, level) {
@@ -282,6 +288,7 @@
       }
 
       closeModal();
+      invalidateCargoCatalogCache();
       await loadCargos();
       notify('Cargo guardado exitosamente', 'success');
     } catch (error) {

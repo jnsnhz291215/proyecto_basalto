@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "migrate:cargo-relations": "node server/scripts/migrate-cargo-relations.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

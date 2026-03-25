@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require("express");
-const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador } = require("./database.js");
+const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador, resolveCargoId } = require("./database.js");
 
 const app = express();
 
@@ -555,20 +555,13 @@ async function resolverIdGrupo(grupoInput) {
   return rows && rows[0] ? rows[0].id_grupo : null;
 }
 
-async function resolverNombreCargo(cargoInput) {
-  const valor = String(cargoInput || '').trim();
-  if (!valor) return null;
-
-  const posibleId = parseInt(valor, 10);
-  if (Number.isInteger(posibleId)) {
-    const [rows] = await pool.execute(
-      'SELECT nombre_cargo FROM cargos WHERE id_cargo = ? LIMIT 1',
-      [posibleId]
-    );
-    return rows && rows[0] ? rows[0].nombre_cargo : null;
+async function resolverIdCargo(cargoInput) {
+  const connection = await pool.getConnection();
+  try {
+    return await resolveCargoId(connection, cargoInput);
+  } finally {
+    connection.release();
   }
-
-  return valor;
 }
 
 // Endpoint para agregar trabajador
@@ -612,6 +605,11 @@ const handleAgregarTrabajador = async (req, res) => {
     if (!id_grupo) {
       return res.status(400).json({ error: "El grupo seleccionado no es válido" });
     }
+
+    const id_cargo = await resolverIdCargo(nuevoTrabajador.id_cargo || nuevoTrabajador.cargo);
+    if ((nuevoTrabajador.id_cargo || nuevoTrabajador.cargo) && !id_cargo) {
+      return res.status(400).json({ error: "El cargo seleccionado no es válido" });
+    }
     
     // Verificar que el RUT no exista en la BD
     const trabajadoresExistentes = await obtenerTrabajadores();
@@ -638,8 +636,6 @@ const handleAgregarTrabajador = async (req, res) => {
     const nombresNorm = titleCase(nuevoTrabajador.nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
-    const cargoNombre = await resolverNombreCargo(nuevoTrabajador.id_cargo || nuevoTrabajador.cargo);
-    const cargoNorm = cargoNombre ? titleCase(cargoNombre) : null;
     const ciudadNorm = nuevoTrabajador.ciudad ? titleCase(nuevoTrabajador.ciudad) : null;
     const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
 
@@ -651,7 +647,7 @@ const handleAgregarTrabajador = async (req, res) => {
 
     // INSERT 1: trabajadores
     await connection.execute(
-      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, id_cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         nombresNorm,
         apellidoPaternoNorm,
@@ -660,7 +656,7 @@ const handleAgregarTrabajador = async (req, res) => {
         nuevoTrabajador.email,
         nuevoTrabajador.telefono,
         id_grupo,
-        cargoNorm,
+        id_cargo,
         ciudadNorm,
         fechaNacimiento
       ]
@@ -753,6 +749,11 @@ const handleEditarTrabajador = async (req, res) => {
       return res.status(400).json({ error: "El grupo seleccionado no es válido" });
     }
 
+    const id_cargo = await resolverIdCargo(trabajador.id_cargo || trabajador.cargo);
+    if ((trabajador.id_cargo || trabajador.cargo) && !id_cargo) {
+      return res.status(400).json({ error: "El cargo seleccionado no es válido" });
+    }
+
     // Preparar apellidos (paterno / materno)
     const apellidosRaw = (trabajador.apellidos || '').trim();
     let apellido_paterno = '';
@@ -765,8 +766,6 @@ const handleEditarTrabajador = async (req, res) => {
 
     // Editar el trabajador en la BD
     try {
-      const cargoNombre = await resolverNombreCargo(trabajador.id_cargo || trabajador.cargo);
-
       await editarTrabajador(
         trabajador.rut,
         trabajador.nombres,
@@ -775,13 +774,16 @@ const handleEditarTrabajador = async (req, res) => {
         trabajador.email,
         trabajador.telefono,
         id_grupo,
-        cargoNombre || null,
+        id_cargo || null,
         trabajador.ciudad || null,
         trabajador.fecha_nacimiento || null
       );
     } catch (e) {
       if (e && e.code === 'RUT_NOT_FOUND') {
         return res.status(404).json({ error: "No se encontró un trabajador con ese RUT" });
+      }
+      if (e && e.code === 'INVALID_CARGO') {
+        return res.status(400).json({ error: "El cargo seleccionado no es válido" });
       }
       throw e;
     }
@@ -965,9 +967,10 @@ app.get('/api/trabajadores/download', async (req, res) => {
     
     // Obtener todos los trabajadores de la BD
     const [trabajadores] = await pool.execute(
-      `SELECT RUT, nombres, apellido_paterno, apellido_materno, email, 
-              fecha_nacimiento, ciudad, telefono, id_grupo, cargo, activo
-       FROM trabajadores
+          `SELECT t.RUT, t.nombres, t.apellido_paterno, t.apellido_materno, t.email,
+            t.fecha_nacimiento, t.ciudad, t.telefono, t.id_grupo, c.nombre_cargo AS cargo, t.activo
+           FROM trabajadores t
+           LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
        ORDER BY apellido_paterno, apellido_materno, nombres ASC`
     );
     

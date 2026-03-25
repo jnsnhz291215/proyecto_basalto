@@ -44,6 +44,46 @@ console.log(`[DB] Pool de conexión creado para host=${DB_HOST || 'N/D'} db=${DB
   }
 })();
 
+function titleCase(value) {
+  if (!value && value !== '') return value;
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function normalizeCargoName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+async function resolveCargoId(connection, cargoInput) {
+  const rawValue = String(cargoInput || '').trim();
+  if (!rawValue) return null;
+
+  const numericId = Number.parseInt(rawValue, 10);
+  if (Number.isInteger(numericId)) {
+    const [rows] = await connection.execute(
+      'SELECT id_cargo FROM cargos WHERE id_cargo = ? LIMIT 1',
+      [numericId]
+    );
+    return rows && rows[0] ? Number(rows[0].id_cargo) : null;
+  }
+
+  const [rows] = await connection.execute(
+    'SELECT id_cargo, nombre_cargo FROM cargos ORDER BY nombre_cargo ASC'
+  );
+  const normalizedInput = normalizeCargoName(rawValue);
+  const cargoMatch = (rows || []).find((row) => normalizeCargoName(row.nombre_cargo) === normalizedInput);
+  return cargoMatch ? Number(cargoMatch.id_cargo) : null;
+}
+
 // Función para obtener todos los trabajadores
 async function obtenerTrabajadores(incluirInactivos = false) {
   const connection = await pool.getConnection();
@@ -51,10 +91,10 @@ async function obtenerTrabajadores(incluirInactivos = false) {
     let query = `
       SELECT 
         t.RUT, t.nombres, t.apellido_paterno, t.apellido_materno, t.email, t.telefono,
-        t.id_grupo, g.nombre_grupo, t.cargo, c.id_cargo, t.activo, t.fecha_nacimiento, t.ciudad
+        t.id_grupo, g.nombre_grupo, t.id_cargo, c.nombre_cargo AS cargo, t.activo, t.fecha_nacimiento, t.ciudad
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
-      LEFT JOIN cargos c ON t.cargo = c.nombre_cargo
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
     `;
     if (!incluirInactivos) {
       query += ' WHERE t.activo = 1';
@@ -89,21 +129,21 @@ async function obtenerTrabajadores(incluirInactivos = false) {
 async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
-    // Normalizar capitalización: primera letra en mayúscula por palabra
-    const titleCase = s => {
-      if (!s && s !== '') return s;
-      return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-    };
-
     const nombresNorm = titleCase(nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
-    const cargoNorm = cargo ? titleCase(cargo) : null;
     const ciudadNorm = ciudad ? titleCase(ciudad) : null;
+    const cargoId = await resolveCargoId(connection, cargo);
+
+    if (cargo && !cargoId) {
+      const err = new Error('INVALID_CARGO');
+      err.code = 'INVALID_CARGO';
+      throw err;
+    }
 
     const [result] = await connection.execute(
-      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoNorm, ciudadNorm, fecha_nacimiento]
+      'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, id_cargo, ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoId, ciudadNorm, fecha_nacimiento]
     );
     return result;
   } finally {
@@ -138,17 +178,17 @@ async function eliminarTrabajador(rut) {
 async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
-    // Normalizar capitalización
-    const titleCase = s => {
-      if (!s && s !== '') return s;
-      return String(s || '').trim().split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-    };
-
     const nombresNorm = titleCase(nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
-    const cargoNorm = cargo ? titleCase(cargo) : null;
     const ciudadNorm = ciudad ? titleCase(ciudad) : null;
+    const cargoId = await resolveCargoId(connection, cargo);
+
+    if (cargo && !cargoId) {
+      const err = new Error('INVALID_CARGO');
+      err.code = 'INVALID_CARGO';
+      throw err;
+    }
 
     // Verificar existencia
     const [checkRows] = await connection.execute('SELECT COUNT(*) AS c FROM trabajadores WHERE RUT = ?', [rut]);
@@ -160,8 +200,8 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
     }
 
     const [result] = await connection.execute(
-      'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, cargo = ?, ciudad = ?, fecha_nacimiento = ? WHERE RUT = ?',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoNorm, ciudadNorm, fecha_nacimiento, rut]
+      'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, id_cargo = ?, ciudad = ?, fecha_nacimiento = ? WHERE RUT = ?',
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoId, ciudadNorm, fecha_nacimiento, rut]
     );
     return result;
   } finally {
@@ -174,5 +214,6 @@ module.exports = {
   obtenerTrabajadores,
   agregarTrabajador,
   eliminarTrabajador,
-  editarTrabajador
+  editarTrabajador,
+  resolveCargoId
 };

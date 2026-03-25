@@ -21,7 +21,7 @@ async function obtenerContextoCargoPorRut(rutLimpio) {
     const sqlCargo = `
       SELECT c.id_cargo, c.nombre_cargo, t.id_grupo, g.nombre_grupo
       FROM trabajadores t
-      LEFT JOIN cargos c ON LOWER(TRIM(c.nombre_cargo)) = LOWER(TRIM(t.cargo))
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
       WHERE UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '')) = UPPER(?)
       LIMIT 1
@@ -339,10 +339,12 @@ router.get('/auth/me', async (req, res) => {
         t.telefono,
         t.id_grupo,
         g.nombre_grupo,
-        t.cargo,
+        t.id_cargo,
+        c.nombre_cargo AS cargo,
         t.activo
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
       LIMIT 1
     `;
@@ -421,10 +423,12 @@ router.get('/auth/perfil', async (req, res) => {
         t.telefono,
         t.id_grupo,
         g.nombre_grupo,
-        t.cargo,
+        t.id_cargo,
+        c.nombre_cargo AS cargo,
         t.activo
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       WHERE REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', '') = ?
       LIMIT 1
     `;
@@ -446,6 +450,7 @@ router.get('/auth/perfil', async (req, res) => {
     const esAdmin = Boolean(adminRows && adminRows.length > 0 && Number(adminRows[0].activo) === 1);
     const isSuperAdmin = Boolean(esAdmin && Number(adminRows[0].es_super_admin) === 1);
     const role = esAdmin ? 'admin' : 'user';
+    const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
 
     const userName = `${trabajador.nombres || ''} ${trabajador.apellido_paterno || ''} ${trabajador.apellido_materno || ''}`.trim() || rutLimpio;
     const userEmail = trabajador.email || (esAdmin ? adminRows[0].email : null) || null;
@@ -457,6 +462,8 @@ router.get('/auth/perfil', async (req, res) => {
       Correo: userEmail,
       Rol: role,
       isSuperAdmin,
+      permisos_cargo: contextoCargo?.permisos_cargo || [],
+      permisos_cargo_ids: contextoCargo?.permisos_cargo_ids || [],
       user: {
         userRut: trabajador.RUT || rutLimpio,
         userName,
@@ -464,7 +471,9 @@ router.get('/auth/perfil', async (req, res) => {
         userRole: role,
         isSuperAdmin,
         grupo: trabajador.nombre_grupo ? String(trabajador.nombre_grupo).trim() : (trabajador.id_grupo ? String(trabajador.id_grupo) : null),
-        cargo: trabajador.cargo || null
+        cargo: trabajador.cargo || null,
+        permisos_cargo: contextoCargo?.permisos_cargo || [],
+        permisos_cargo_ids: contextoCargo?.permisos_cargo_ids || []
       }
     });
   } catch (error) {
@@ -494,12 +503,14 @@ router.get('/perfil/:rut', async (req, res) => {
         t.telefono, 
         t.id_grupo, 
         g.nombre_grupo,
-        t.cargo, 
+        t.id_cargo,
+        c.nombre_cargo AS cargo,
         t.activo,
         t.fecha_nacimiento,
         t.ciudad
       FROM trabajadores t
       LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       WHERE REPLACE(REPLACE(REPLACE(t.RUT, ".", ""), "-", ""), " ", "") = ?
       LIMIT 1
     `;

@@ -45,7 +45,7 @@ router.get('/viajes/calendario', async (req, res) => {
         v.estado,
         t.nombres,
         CONCAT(t.apellido_paterno, ' ', IFNULL(t.apellido_materno, '')) as apellidos,
-        t.cargo,
+        c.nombre_cargo AS cargo,
         vt.fecha_salida,
         vt.hora_salida,
         c_origen.nombre_ciudad AS ciudad_origen,
@@ -55,6 +55,7 @@ router.get('/viajes/calendario', async (req, res) => {
       FROM viajes v
       INNER JOIN viajes_tramos vt ON v.id_viaje = vt.id_viaje
       INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       LEFT JOIN ciudades c_origen ON vt.id_ciudad_origen = c_origen.id_ciudad
       LEFT JOIN ciudades c_destino ON vt.id_ciudad_destino = c_destino.id_ciudad
       WHERE v.estado != 'Cancelado'
@@ -269,9 +270,10 @@ router.get('/viajes', async (req, res) => {
         t.nombres,
         CONCAT(t.apellido_paterno, ' ', t.apellido_materno) as apellidos,
         t.id_grupo,
-        t.cargo
+        c.nombre_cargo AS cargo
       FROM viajes v
       INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       ${whereClause}
       ORDER BY fecha_salida ASC, v.fecha_registro DESC`,
       params
@@ -331,9 +333,10 @@ router.get('/viajes/:id', async (req, res) => {
         t.nombres,
         CONCAT(t.apellido_paterno, ' ', IFNULL(t.apellido_materno, '')) as apellidos,
         t.id_grupo,
-        t.cargo
+        c.nombre_cargo AS cargo
       FROM viajes v
       INNER JOIN trabajadores t ON v.rut_trabajador = t.RUT
+      LEFT JOIN cargos c ON t.id_cargo = c.id_cargo
       WHERE v.id_viaje = ?
       LIMIT 1`,
       [id]

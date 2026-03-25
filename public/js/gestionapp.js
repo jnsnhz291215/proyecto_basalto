@@ -5,6 +5,7 @@ let gruposDisponibles = [];
 let rutParaBorrar = null;
 let rutParaOcultar = null;
 let esReactivar = false;
+const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
 
 const el = {
   modalLogin: null,
@@ -52,6 +53,20 @@ function closeManagedModal(modalElement) {
   modalElement.classList.remove('show');
   modalElement.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('overflow-hidden', 'modal-open');
+}
+
+function invalidateCargoCatalogCache() {
+  localStorage.setItem(CARGO_CACHE_BUST_KEY, String(Date.now()));
+}
+
+function formatNombreCompleto(pNombre, pApellido, sApellido) {
+  const nombre = String(pNombre || '').trim();
+  const paterno = String(pApellido || '').trim();
+  const materno = String(sApellido || '').trim();
+  const maternoEsNulo = !materno || materno === 'N/a';
+  return maternoEsNulo
+    ? `${nombre} ${paterno}`.trim()
+    : `${nombre} ${paterno} ${materno}`.trim();
 }
 
 function formatearRUT(val) {
@@ -312,7 +327,7 @@ function render() {
   if (list.length === 0) return;
 
   list.forEach((t, index) => {
-    const nombreCompleto = `${t.nombres || ''} ${t.apellidos || ''}`.trim() || t.RUT || '-';
+    const nombreCompleto = formatNombreCompleto(t.nombres, t.apellido_paterno, t.apellido_materno) || t.RUT || '-';
     const rut = t.RUT || '-';
     const telefono = t.telefono || '-';
     const cargo = t.cargo || 'Sin cargo';
@@ -1401,10 +1416,11 @@ async function guardarNuevaCiudad(nombreCiudad) {
 }
 
 function pedirNuevaCiudad() {
-  const nombre = window.prompt('Ingrese nombre de la ciudad');
-  const nombreTrim = String(nombre || '').trim();
-  if (!nombreTrim) return;
-  guardarNuevaCiudad(nombreTrim);
+  const modal = document.getElementById('modal-nueva-ciudad');
+  const input = document.getElementById('input-nombre-ciudad');
+  if (input) input.value = '';
+  openManagedModal(modal);
+  setTimeout(() => { if (input) input.focus(); }, 100);
 }
 
 function mostrarResultadoCargo(titulo, mensaje) {
@@ -1461,6 +1477,7 @@ async function guardarNuevoCargo() {
     inputNombre.value = '';
     
     // Recargar lista de cargos
+    invalidateCargoCatalogCache();
     await cargarCargos();
     
     // Seleccionar automáticamente el cargo recién creado
@@ -1524,6 +1541,42 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnNuevaCiudad) btnNuevaCiudad.addEventListener('click', pedirNuevaCiudad);
   const btnNuevaCiudadEdit = document.getElementById('btn-nueva-ciudad-edit');
   if (btnNuevaCiudadEdit) btnNuevaCiudadEdit.addEventListener('click', pedirNuevaCiudad);
+
+  // Modal Nueva Ciudad
+  const modalNuevaCiudad = document.getElementById('modal-nueva-ciudad');
+  const cancelNuevaCiudad = document.getElementById('cancel-nueva-ciudad');
+  const guardarNuevaCiudadBtn = document.getElementById('guardar-nueva-ciudad');
+  const inputNombreCiudad = document.getElementById('input-nombre-ciudad');
+
+  if (cancelNuevaCiudad) {
+    cancelNuevaCiudad.addEventListener('click', () => closeManagedModal(modalNuevaCiudad));
+  }
+  if (guardarNuevaCiudadBtn) {
+    guardarNuevaCiudadBtn.addEventListener('click', async () => {
+      const nombre = String(inputNombreCiudad?.value || '').trim();
+      if (!nombre) return;
+      closeManagedModal(modalNuevaCiudad);
+      await guardarNuevaCiudad(nombre);
+    });
+  }
+  if (inputNombreCiudad) {
+    inputNombreCiudad.addEventListener('keypress', async (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const nombre = String(inputNombreCiudad.value || '').trim();
+        if (!nombre) return;
+        closeManagedModal(modalNuevaCiudad);
+        await guardarNuevaCiudad(nombre);
+      }
+    });
+  }
+  if (modalNuevaCiudad) {
+    modalNuevaCiudad.addEventListener('click', (ev) => {
+      if (ev.target === modalNuevaCiudad) closeManagedModal(modalNuevaCiudad);
+    });
+  }
+  console.log('[UI_FIX] Modal de nueva ciudad vinculado y operativo.');
+  console.log('[CLEANUP] \'N/a\' eliminado de la visualización de nombres.');
 
   const btnAgregar = document.getElementById('btn-agregar');
   if (btnAgregar) {
