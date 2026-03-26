@@ -101,24 +101,24 @@
         const dateKey = toISODate(dateObj);
         const data = byDate.get(dateKey) || { fecha: dateKey, dia: [], noche: [] };
 
-        const card = document.createElement('article');
+        const card = document.createElement('div');
         card.className = 'calendar-day-card';
         card.setAttribute('role', 'button');
         card.setAttribute('tabindex', '0');
 
-        const header = document.createElement('header');
+        const header = document.createElement('div');
         header.className = 'card-header';
         header.textContent = formatHeaderDate(dateObj);
 
         const body = document.createElement('div');
         body.className = 'card-body';
 
-        const dayCol = document.createElement('section');
+        const dayCol = document.createElement('div');
         dayCol.className = 'turno-col turno-dia';
         dayCol.innerHTML = '<h4>DIA</h4>';
         this.renderGroupRows(dayCol, data.dia || []);
 
-        const nightCol = document.createElement('section');
+        const nightCol = document.createElement('div');
         nightCol.className = 'turno-col turno-noche';
         nightCol.innerHTML = '<h4>NOCHE</h4>';
         this.renderGroupRows(nightCol, data.noche || []);
@@ -179,22 +179,32 @@
       if (!this.modal || !this.modalTitle || !this.modalBody) return;
 
       if (closeBtn) {
-        closeBtn.onclick = () => this.closeModal();
+        closeBtn.addEventListener('click', () => this.closeModal());
       }
 
       this.modal.addEventListener('click', (evt) => {
         if (evt.target === this.modal) this.closeModal();
       });
+
+      document.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Escape' && this.modal.classList.contains('show')) {
+          this.closeModal();
+        }
+      });
     }
 
     openModal() {
       if (!this.modal) return;
-      this.modal.style.display = 'flex';
+      this.modal.classList.add('show');
+      this.modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
     }
 
     closeModal() {
       if (!this.modal) return;
-      this.modal.style.display = 'none';
+      this.modal.classList.remove('show');
+      this.modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
     }
 
     renderLoadingState() {
