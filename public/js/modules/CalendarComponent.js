@@ -149,6 +149,11 @@
     }
 
     renderGroupRows(columnEl, groups) {
+      const PISTA1 = new Set(['A', 'B', 'C', 'D', 'AB', 'CD']);
+      const PISTA2 = new Set(['E', 'F', 'G', 'H', 'EF', 'GH']);
+      const SEMANAL = new Set(['J', 'K']);
+      const DOBLES  = new Set(['AB', 'CD', 'EF', 'GH']);
+
       if (!groups.length) {
         const empty = document.createElement('div');
         empty.className = 'group-row group-empty';
@@ -157,22 +162,56 @@
         return;
       }
 
-      for (const group of groups) {
-        const row = document.createElement('div');
-        row.className = 'group-row';
+      const normalize = (g) => String(g.grupo || '').toUpperCase().trim();
+      const p1  = groups.filter((g) => PISTA1.has(normalize(g)));
+      const p2  = groups.filter((g) => PISTA2.has(normalize(g)));
+      const sem = groups.filter((g) => SEMANAL.has(normalize(g)));
 
-        const icon = document.createElement('span');
-        icon.className = 'icon-slot';
-        icon.textContent = group.avion_estado || '';
+      const renderSection = (list, labelText) => {
+        if (!list.length) return;
+        const section = document.createElement('div');
+        section.className = 'pista-section';
 
-        const name = document.createElement('span');
-        name.className = 'group-name';
-        name.textContent = group.grupo;
+        const label = document.createElement('span');
+        label.className = 'pista-label';
+        label.textContent = labelText;
+        section.appendChild(label);
 
-        row.appendChild(icon);
-        row.appendChild(name);
-        columnEl.appendChild(row);
+        for (const group of list) {
+          const nombre = String(group.grupo || '').trim();
+          const isDoble = DOBLES.has(nombre.toUpperCase());
+
+          const row = document.createElement('div');
+          row.className = 'group-row' + (isDoble ? ' group-row--doble' : '');
+
+          const icon = document.createElement('span');
+          icon.className = 'icon-slot';
+          icon.textContent = group.avion_estado || '';
+
+          const name = document.createElement('span');
+          name.className = 'group-name';
+          name.textContent = nombre;
+
+          row.appendChild(icon);
+          row.appendChild(name);
+          section.appendChild(row);
+        }
+        columnEl.appendChild(section);
+      };
+
+      renderSection(p1, 'P1');
+      if (p1.length && (p2.length || sem.length)) {
+        const div = document.createElement('div');
+        div.className = 'pista-divider';
+        columnEl.appendChild(div);
       }
+      renderSection(p2, 'P2');
+      if (p2.length && sem.length) {
+        const div = document.createElement('div');
+        div.className = 'pista-divider';
+        columnEl.appendChild(div);
+      }
+      renderSection(sem, 'S');
     }
 
     ensureModal() {

@@ -62,7 +62,17 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
       }
 
       const semaforo = semaforoByPeriodo.get(row.id_periodo_key) || {};
-      const iconos = `${semaforo.ida_completa ? '🛫' : ''}${semaforo.vuelta_completa ? '🛬' : ''}`;
+      const esDiaIda = fecha === semaforo.fecha_ida;
+      const esDiaVuelta = fecha === semaforo.fecha_vuelta;
+      let iconos = '';
+
+      if (esDiaIda) {
+        iconos += semaforo.ida_completa ? '🛫' : '🔴';
+      }
+      if (esDiaVuelta) {
+        iconos += semaforo.vuelta_completa ? '🛬' : '🔴';
+      }
+
       const item = {
         id_grupo: row.id_grupo,
         grupo: row.nombre_grupo,

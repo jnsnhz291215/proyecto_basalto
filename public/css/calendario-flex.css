@@ -123,6 +123,38 @@
     white-space: nowrap;
 }
 
+/* Secciones por PISTA dentro de cada turno-col */
+.pista-section {
+    margin-bottom: 2px;
+}
+
+.pista-label {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 900;
+    color: var(--cal-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+    padding: 1px 4px;
+    background: rgba(87, 84, 168, 0.12);
+    border-radius: 3px;
+}
+
+.pista-divider {
+    height: 1px;
+    background: var(--cal-card-border);
+    margin: 4px 0;
+    opacity: 0.6;
+}
+
+/* Grupos dobles (AB, CD, EF, GH) - siempre DÍA, refuerzo */
+.group-row--doble {
+    opacity: 0.65;
+    font-style: italic;
+    font-size: 11px;
+}
+
 /* Móvil: 1 columna */
 @media (max-width: 768px) {
     .calendar-container {

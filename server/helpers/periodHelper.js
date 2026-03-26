@@ -185,7 +185,9 @@ async function checkLogisticaCompleta(id_periodo_key, db) {
     `SELECT COUNT(DISTINCT v.rut_trabajador) AS total
      FROM viajes_tramos vt
      INNER JOIN viajes v ON vt.id_viaje = v.id_viaje
-     WHERE vt.id_periodo_vinculo = ? AND vt.fecha_salida = ?`,
+     WHERE vt.id_periodo_vinculo = ?
+       AND vt.fecha_salida = ?
+       AND UPPER(vt.tipo_tramo) = 'IDA'`,
     [id_periodo_key, sabadoStr]
   );
 
@@ -194,7 +196,9 @@ async function checkLogisticaCompleta(id_periodo_key, db) {
     `SELECT COUNT(DISTINCT v.rut_trabajador) AS total
      FROM viajes_tramos vt
      INNER JOIN viajes v ON vt.id_viaje = v.id_viaje
-     WHERE vt.id_periodo_vinculo = ? AND vt.fecha_salida = ?`,
+     WHERE vt.id_periodo_vinculo = ?
+       AND vt.fecha_salida = ?
+       AND UPPER(vt.tipo_tramo) = 'VUELTA'`,
     [id_periodo_key, viernesStr]
   );
 
