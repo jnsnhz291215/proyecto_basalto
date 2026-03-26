@@ -111,21 +111,24 @@ router.get('/calendario/detalle/:fecha', async (req, res) => {
       `SELECT
          t.nombres,
          t.apellido_paterno,
-         t.apellido_materno,
          c.nombre_cargo,
          i.turno_asignado
        FROM trabajadores t
-       JOIN cargos c ON t.id_cargo = c.id_cargo
-       JOIN instancias_trabajo i ON t.id_grupo = i.id_grupo
+       INNER JOIN cargos c ON t.id_cargo = c.id_cargo
+       INNER JOIN instancias_trabajo i ON t.id_grupo = i.id_grupo
        WHERE i.fecha = ? AND i.tipo_jornada = 'TRABAJO'`,
       [fecha]
     );
+
+    if (rows.length === 0) {
+      console.log(`[DEBUG] No se encontró personal para la fecha ${fecha} y grupos activos`);
+    }
 
     const dia = [];
     const noche = [];
 
     for (const row of rows) {
-      const nombreCompleto = `${row.nombres || ''} ${row.apellido_paterno || ''} ${row.apellido_materno || ''}`
+      const nombreCompleto = `${row.nombres || ''} ${row.apellido_paterno || ''}`
         .replace(/\s+/g, ' ')
         .trim();
 

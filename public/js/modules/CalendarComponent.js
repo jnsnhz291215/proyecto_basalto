@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   'use strict';
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
@@ -65,36 +65,30 @@
     async nextMonth() {
       let y = this.currentYear;
       let m = this.currentMonth + 1;
-      if (m > 12) {
-        m = 1;
-        y += 1;
-      }
+      if (m > 12) { m = 1; y += 1; }
       await this.draw(y, m);
     }
 
     async prevMonth() {
       let y = this.currentYear;
       let m = this.currentMonth - 1;
-      if (m < 1) {
-        m = 12;
-        y -= 1;
-      }
+      if (m < 1) { m = 12; y -= 1; }
       await this.draw(y, m);
     }
 
     render(payload) {
       this.container.innerHTML = '';
+      // Aplicar la clase del grid modular directamente sobre el contenedor,
+      // evitando el wrapper doble que colocaba .calendar-container como una
+      // sola celda dentro del grid heredado de #days-grid (style.css).
+      this.container.className = 'days-grid calendar-container';
 
       if (this.monthLabel) {
         this.monthLabel.textContent = `${MONTH_NAMES[payload.mes - 1]} ${payload.anio}`;
       }
 
-      const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
-
-      const calendarContainer = document.createElement('div');
-      calendarContainer.className = 'calendar-container';
 
       for (let d = 1; d <= monthEnd.getDate(); d++) {
         const dateObj = new Date(payload.anio, payload.mes - 1, d);
@@ -125,7 +119,6 @@
 
         body.appendChild(dayCol);
         body.appendChild(nightCol);
-
         card.appendChild(header);
         card.appendChild(body);
 
@@ -137,10 +130,8 @@
           }
         });
 
-        calendarContainer.appendChild(card);
+        this.container.appendChild(card);
       }
-
-      this.container.appendChild(calendarContainer);
     }
 
     renderGroupRows(columnEl, groups) {
@@ -219,40 +210,37 @@
         if (!Array.isArray(list) || list.length === 0) {
           return '<div class="worker-item"><span class="worker-cargo">Sin personal asignado</span></div>';
         }
-
         return list.map((worker) => (
-          `<div class="worker-item">` +
-            `<strong>${escapeHtml(worker.nombre_completo)}</strong>` +
-            `<span class="worker-cargo">${escapeHtml(worker.cargo)}</span>` +
-          `</div>`
+          '<div class="worker-item">' +
+            '<strong>' + escapeHtml(worker.nombre_completo) + '</strong>' +
+            '<span class="worker-cargo">' + escapeHtml(worker.cargo) + '</span>' +
+          '</div>'
         )).join('');
       };
 
       this.modalBody.innerHTML =
-        `<div class="modal-book-view">` +
-          `<section class="book-page">` +
-            `<h3 class="page-title">Turnos de Día (8:00 a 20:00)</h3>` +
-            `${renderWorkers(payload.dia)}` +
-          `</section>` +
-          `<section class="book-page">` +
-            `<h3 class="page-title">Turnos de Noche (20:00 a 8:00)</h3>` +
-            `${renderWorkers(payload.noche)}` +
-          `</section>` +
-        `</div>`;
+        '<div class="modal-book-view">' +
+          '<section class="book-page">' +
+            '<h3 class="page-title">Turnos de Día (8:00 a 20:00)</h3>' +
+            renderWorkers(payload.dia) +
+          '</section>' +
+          '<section class="book-page">' +
+            '<h3 class="page-title">Turnos de Noche (20:00 a 8:00)</h3>' +
+            renderWorkers(payload.noche) +
+          '</section>' +
+        '</div>';
     }
 
     async openDayDetail(fecha) {
       if (!this.modal || !this.modalTitle) return;
 
-      this.modalTitle.textContent = `Detalle del horario dia ${fecha}`;
+      this.modalTitle.textContent = 'Detalle del horario dia ' + fecha;
       this.openModal();
       this.renderLoadingState();
 
       try {
-        const response = await fetch(`/api/calendario/detalle/${fecha}`);
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}`);
-        }
+        const response = await fetch('/api/calendario/detalle/' + fecha);
+        if (!response.ok) throw new Error('Error ' + response.status);
         const payload = await response.json();
         this.renderBookView(payload);
       } catch (error) {

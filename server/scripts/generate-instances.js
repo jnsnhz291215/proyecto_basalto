@@ -154,11 +154,21 @@ async function generateInstances(options = {}) {
         const sabadoInicio   = calcularSabadoInicio(current, seed);
         const id_periodo_key = formatPeriodKey(id_grupo, sabadoInicio);
 
-        // Turno asignado
+        // Turno asignado: se calcula UNA VEZ por periodo usando el primer día del bloque
+        // (sabadoInicio), NO el día actual. Esto garantiza que los 14 días de TRABAJO
+        // del mismo periodo siempre reciben el mismo turno incluso si el ciclo de pistas
+        // de 56 días cambia a mitad del bloque.
         const turno_asignado =
           tipo_jornada === 'BAJADA'
             ? 'N/A'
-            : getTurnoAsignado(nombre_grupo, tipo_grupo, current);
+            : getTurnoAsignado(nombre_grupo, tipo_grupo, sabadoInicio);
+
+        // Log diagnóstico al primer día de cada periodo de TRABAJO
+        if (tipo_jornada === 'TRABAJO' && diaEnBloque === 1) {
+          console.log(
+            `[GENERATOR] Grupo ${nombre_grupo} | Periodo ${id_periodo_key} | Turno: ${turno_asignado}`
+          );
+        }
 
         // Insertar o reconciliar la instancia para (fecha, id_grupo)
         const [existing] = await connection.execute(
