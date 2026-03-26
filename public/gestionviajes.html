@@ -314,6 +314,24 @@
             <option value="12">Diciembre</option>
           </select>
         </div>
+
+        <!-- Filtro por Grupo -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Grupo:</label>
+          <select id="filtro-grupo" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <!-- Búsqueda por RUT / Nombre -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Buscar:</label>
+          <input id="filtro-busqueda" type="text" class="modern-input plain" style="padding: 8px 12px; min-width: 220px;" placeholder="RUT o nombre...">
+        </div>
+
+        <button id="btn-limpiar-filtros" class="btn" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;">
+          <i class="fa-solid fa-rotate-left"></i> Limpiar filtros
+        </button>
         
         <button id="btn-nuevo-viaje" class="btn btn-primary">
           <i class="fa-solid fa-plus"></i> Nuevo Viaje

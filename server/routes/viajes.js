@@ -291,7 +291,7 @@ router.post('/viajes', async (req, res) => {
 router.get('/viajes', async (req, res) => {
   let connection;
   try {
-    const { tipo = 'proximos', mes, rut_trabajador } = req.query;
+    const { tipo = 'proximos', mes, rut_trabajador, id_grupo, busqueda } = req.query;
     
     connection = await pool.getConnection();
 
@@ -303,6 +303,24 @@ router.get('/viajes', async (req, res) => {
     if (rut_trabajador) {
       whereConditions.push('v.rut_trabajador = ?');
       params.push(rut_trabajador);
+    }
+
+    // Filtro por grupo del trabajador
+    if (id_grupo && /^\d+$/.test(String(id_grupo))) {
+      whereConditions.push('t.id_grupo = ?');
+      params.push(parseInt(id_grupo, 10));
+    }
+
+    // Búsqueda por RUT o nombre/apellidos
+    if (busqueda && String(busqueda).trim()) {
+      const qRaw = String(busqueda).trim();
+      const qRut = `%${limpiarRUT(qRaw)}%`;
+      const qNombre = `%${qRaw.toLowerCase()}%`;
+      whereConditions.push(`(
+        REPLACE(REPLACE(REPLACE(t.RUT,'.',''),'-',''),' ','') LIKE ?
+        OR LOWER(CONCAT_WS(' ', t.nombres, t.apellido_paterno, IFNULL(t.apellido_materno, ''))) LIKE ?
+      )`);
+      params.push(qRut, qNombre);
     }
     
     if (tipo === 'proximos') {
@@ -431,8 +449,8 @@ router.get('/viajes/instancias-disponibles', async (req, res) => {
       `SELECT
          it.id_periodo_key,
          g.nombre_grupo,
-         MIN(it.fecha) AS fecha_inicio,
-         MAX(it.fecha) AS fecha_fin,
+         DATE_FORMAT(MIN(it.fecha), '%Y-%m-%d') AS fecha_inicio,
+         DATE_FORMAT(MAX(it.fecha), '%Y-%m-%d') AS fecha_fin,
          SUBSTRING_INDEX(
            GROUP_CONCAT(UPPER(it.turno_asignado) ORDER BY it.fecha ASC SEPARATOR ','),
            ',',

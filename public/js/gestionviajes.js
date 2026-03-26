@@ -55,7 +55,10 @@ const el = {
   modalConfirm: null,
   modalResult: null,
   filtroTipo: null,
-  filtroMes: null
+  filtroMes: null,
+  filtroGrupo: null,
+  filtroBusqueda: null,
+  btnLimpiarFiltros: null
 };
 
 function openManagedModal(modalElement) {
@@ -126,6 +129,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   el.modalResult = document.getElementById('modal-result');
   el.filtroTipo = document.getElementById('filtro-tipo');
   el.filtroMes = document.getElementById('filtro-mes');
+  el.filtroGrupo = document.getElementById('filtro-grupo');
+  el.filtroBusqueda = document.getElementById('filtro-busqueda');
+  el.btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
   
   // Cargar datos iniciales
   await Promise.all([
@@ -151,8 +157,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (el.selectGrupoTrabajador) {
     el.selectGrupoTrabajador.addEventListener('change', aplicarFiltroGrupoTrabajador);
   }
-  el.filtroTipo.addEventListener('change', () => cargarViajes());
-  el.filtroMes.addEventListener('change', () => cargarViajes());
+  if (el.filtroTipo) el.filtroTipo.addEventListener('change', () => cargarViajes());
+  if (el.filtroMes) el.filtroMes.addEventListener('change', () => cargarViajes());
+  if (el.filtroGrupo) el.filtroGrupo.addEventListener('change', () => cargarViajes());
+  if (el.filtroBusqueda) {
+    el.filtroBusqueda.addEventListener('input', () => cargarViajes());
+  }
+  if (el.btnLimpiarFiltros) {
+    el.btnLimpiarFiltros.addEventListener('click', limpiarFiltrosViajes);
+  }
   
   // Cerrar modales al hacer click en el fondo
   el.modalNuevoViaje.addEventListener('click', (e) => {
@@ -169,6 +182,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   console.log('[VIAJES] Aplicación lista');
 });
+
+function limpiarFiltrosViajes() {
+  if (el.filtroTipo) el.filtroTipo.value = 'proximos';
+  if (el.filtroMes) el.filtroMes.value = '';
+  if (el.filtroGrupo) el.filtroGrupo.value = '';
+  if (el.filtroBusqueda) el.filtroBusqueda.value = '';
+  void cargarViajes();
+}
 
 function getFechaReferenciaViaje() {
   const fechaInputs = Array.from(el.tramosContainer?.querySelectorAll('[data-field="fecha"]') || []);
@@ -187,7 +208,11 @@ function getFechaReferenciaViaje() {
 }
 
 function formatShortDate(iso) {
-  const date = new Date(`${iso}T00:00:00`);
+  const raw = String(iso || '').trim();
+  if (!raw) return '';
+
+  const base = raw.includes('T') ? raw.split('T')[0] : raw;
+  const date = new Date(`${base}T00:00:00`);
   if (Number.isNaN(date.getTime())) return iso;
   const d = String(date.getDate()).padStart(2, '0');
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -208,7 +233,9 @@ function renderSelectInstancias() {
   for (const inst of instanciasDisponibles) {
     const grupoLabel = String(inst.nombre_grupo || '').trim();
     const grupoTexto = /^grupo\s+/i.test(grupoLabel) ? grupoLabel : `Grupo ${grupoLabel}`;
-    const label = `${grupoTexto}-${mapTurnoLabel(inst.turno_inicio)} ${formatShortDate(inst.fecha_inicio)} - ${formatShortDate(inst.fecha_fin)}`;
+    const inicio = formatShortDate(inst.fecha_inicio);
+    const fin = formatShortDate(inst.fecha_fin);
+    const label = `${grupoTexto} - ${mapTurnoLabel(inst.turno_inicio)} | ${inicio} al ${fin}`;
     options.push(`<option value="${inst.id_periodo_key}">${label}</option>`);
   }
 
@@ -266,11 +293,41 @@ async function cargarTrabajadores() {
     if (!response.ok) throw new Error('Error al cargar trabajadores');
     trabajadores = await response.json();
     console.log('[VIAJES] Trabajadores cargados:', trabajadores.length);
+    actualizarFiltroGrupoVista();
     actualizarSelectorGruposTrabajador();
     actualizarDatalistTrabajadores();
   } catch (error) {
     console.error('[VIAJES] Error cargando trabajadores:', error);
     mostrarError('Error al cargar la lista de trabajadores');
+  }
+}
+
+function actualizarFiltroGrupoVista() {
+  if (!el.filtroGrupo) return;
+
+  const valorActual = String(el.filtroGrupo.value || '');
+  const gruposMap = new Map();
+
+  trabajadores.forEach((t) => {
+    const id = String(t.id_grupo || '').trim();
+    if (!id) return;
+    if (!gruposMap.has(id)) {
+      gruposMap.set(id, t.grupo || `Grupo ${id}`);
+    }
+  });
+
+  const gruposOrdenados = Array.from(gruposMap.entries()).sort((a, b) => Number(a[0]) - Number(b[0]));
+  el.filtroGrupo.innerHTML = '<option value="">Todos</option>';
+
+  gruposOrdenados.forEach(([id, nombre]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = `${nombre} (${id})`;
+    el.filtroGrupo.appendChild(option);
+  });
+
+  if (valorActual && gruposMap.has(valorActual)) {
+    el.filtroGrupo.value = valorActual;
   }
 }
 
@@ -349,6 +406,15 @@ async function cargarViajes() {
     
     if (el.filtroMes && el.filtroMes.value) {
       params.append('mes', el.filtroMes.value);
+    }
+
+    if (el.filtroGrupo && el.filtroGrupo.value) {
+      params.append('id_grupo', el.filtroGrupo.value);
+    }
+
+    const busqueda = String(el.filtroBusqueda?.value || '').trim();
+    if (busqueda) {
+      params.append('busqueda', busqueda);
     }
     
     if (params.toString()) {
