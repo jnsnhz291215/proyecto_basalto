@@ -27,15 +27,15 @@ const DERIVED_SEED_OFFSETS_FROM_A = {
   A: 0,
   B: 0,
   AB: 0,
-  C: -14,
-  D: -14,
-  CD: -14,
-  E: -7,
-  F: -7,
-  EF: -7,
-  G: -21,
-  H: -21,
-  GH: -21
+  C: 14,    // C comienza 14 días después de A (FASE 1 del ciclo)
+  D: 14,    // D comienza con C
+  CD: 14,
+  E: 7,     // E comienza 7 días después de A (NUEVA SEMILLA 2026-01-17)
+  F: 7,     // F comienza con E
+  EF: 7,
+  G: 21,    // G comienza 21 días después de A (7 + 14)
+  H: 21,    // H comienza con G
+  GH: 21
 };
 
 function toMidnight(input) {
@@ -195,11 +195,21 @@ async function generateInstances(options = {}) {
         diasProcesados++;
 
         // Resolver la configuración vigente para el día actual
-        const cfg = groupConfigs.find((candidate) => {
+        let cfg = groupConfigs.find((candidate) => {
           const desde = toMidnight(candidate.valido_desde);
           const hasta = candidate.valido_hasta ? toMidnight(candidate.valido_hasta) : null;
           return current >= desde && (!hasta || current <= hasta);
         });
+
+        // Soporte backward: si la primera config inicia después de RANGE_START,
+        // usarla también para fechas anteriores y así poblar enero-febrero.
+        if (!cfg && groupConfigs.length) {
+          const firstCfg = groupConfigs[0];
+          const firstDesde = toMidnight(firstCfg.valido_desde);
+          if (current < firstDesde) {
+            cfg = firstCfg;
+          }
+        }
 
         if (!cfg) {
           current = new Date(current.getTime() + MS_PER_DAY);

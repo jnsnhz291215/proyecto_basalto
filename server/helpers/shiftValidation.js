@@ -4,11 +4,15 @@ const { pool } = require(path.join(__dirname, '../database.js'));
 // ============================================
 // ALGORITMO MAESTRO DE TURNOS (Fórmula Compartida Backend)
 // ============================================
-const INICIO_CD = new Date(2026, 1, 21); // 21 de febrero 2026 (Pista 1: C-D)
-INICIO_CD.setHours(0, 0, 0, 0);
+const INICIO_AB = new Date(2026, 0, 10); // 10 de enero 2026 (Pista 1: A-DÍA, B-NOCHE - NUEVA SEMILLA)
+INICIO_AB.setHours(0, 0, 0, 0);
 
-const INICIO_EFGH = new Date(2026, 1, 14); // 14 de febrero 2026 (Pista 2: G-H, 7 días antes)
-INICIO_EFGH.setHours(0, 0, 0, 0);
+const INICIO_EF = new Date(2026, 0, 17); // 17 de enero 2026 (Pista 2: E-DÍA, F-NOCHE - 7 días después)
+INICIO_EF.setHours(0, 0, 0, 0);
+
+// Mantener referencias legacy para compatibilidad
+const INICIO_CD = INICIO_AB;
+const INICIO_EFGH = INICIO_EF;
 
 const MS_PER_DAY = 86400000;
 const DIAS_POR_BLOQUE = 14;
@@ -62,35 +66,46 @@ function obtenerGruposDelDia(fecha) {
   fechaCopy.setHours(0, 0, 0, 0);
   
   // ===== PISTA 1: A-B-C-D + grupos dobles AB, CD =====
-  const diasCD = Math.floor((fechaCopy - INICIO_CD) / MS_PER_DAY);
-  const cicloCD = ((diasCD % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+  // SEMILLA: 10/01/2026 (A-DÍA, B-NOCHE)
+  const diasAB = Math.floor((fechaCopy - INICIO_AB) / MS_PER_DAY);
+  const cicloAB = ((diasAB % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
   
   let pista1 = null;
   
-  if (cicloCD >= 0 && cicloCD < 14) {
-    pista1 = { manana: 'C', tarde: 'D', doble: 'CD' };
-  } else if (cicloCD >= 14 && cicloCD < 28) {
+  if (cicloAB >= 0 && cicloAB < 14) {
+    // FASE 0: A-DÍA, B-NOCHE
     pista1 = { manana: 'A', tarde: 'B', doble: 'AB' };
-  } else if (cicloCD >= 28 && cicloCD < 42) {
-    pista1 = { manana: 'D', tarde: 'C', doble: 'CD' };
-  } else if (cicloCD >= 42 && cicloCD < 56) {
+  } else if (cicloAB >= 14 && cicloAB < 28) {
+    // FASE 1: C-DÍA, D-NOCHE
+    pista1 = { manana: 'C', tarde: 'D', doble: 'CD' };
+  } else if (cicloAB >= 28 && cicloAB < 42) {
+    // FASE 2 (INVERTIDO): A-NOCHE, B-DÍA
     pista1 = { manana: 'B', tarde: 'A', doble: 'AB' };
+  } else if (cicloAB >= 42 && cicloAB < 56) {
+    // FASE 3 (INVERTIDO): C-NOCHE, D-DÍA
+    pista1 = { manana: 'D', tarde: 'C', doble: 'CD' };
   }
   
   // ===== PISTA 2: E-F-G-H + grupos dobles EF, GH =====
-  const diasEFGH = Math.floor((fechaCopy - INICIO_EFGH) / MS_PER_DAY);
-  const cicloEFGH = ((diasEFGH % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
+  // SEMILLA: 17/01/2026 (E-DÍA, F-NOCHE) - 7 días después de PISTA 1
+  // Ciclo idéntico a PISTA 1: E→A, F→B, G→C, H→D
+  const diasEF = Math.floor((fechaCopy - INICIO_EF) / MS_PER_DAY);
+  const cicloEF = ((diasEF % CICLO_COMPLETO) + CICLO_COMPLETO) % CICLO_COMPLETO;
   
   let pista2 = null;
   
-  if (cicloEFGH >= 0 && cicloEFGH < 14) {
-    pista2 = { manana: 'G', tarde: 'H', doble: 'GH' };
-  } else if (cicloEFGH >= 14 && cicloEFGH < 28) {
+  if (cicloEF >= 0 && cicloEF < 14) {
+    // FASE 0: E-DÍA, F-NOCHE
     pista2 = { manana: 'E', tarde: 'F', doble: 'EF' };
-  } else if (cicloEFGH >= 28 && cicloEFGH < 42) {
-    pista2 = { manana: 'H', tarde: 'G', doble: 'GH' };
-  } else if (cicloEFGH >= 42 && cicloEFGH < 56) {
+  } else if (cicloEF >= 14 && cicloEF < 28) {
+    // FASE 1: G-DÍA, H-NOCHE
+    pista2 = { manana: 'G', tarde: 'H', doble: 'GH' };
+  } else if (cicloEF >= 28 && cicloEF < 42) {
+    // FASE 2 (INVERTIDO): E-NOCHE, F-DÍA
     pista2 = { manana: 'F', tarde: 'E', doble: 'EF' };
+  } else if (cicloEF >= 42 && cicloEF < 56) {
+    // FASE 3 (INVERTIDO): G-NOCHE, H-DÍA
+    pista2 = { manana: 'H', tarde: 'G', doble: 'GH' };
   }
   
   // ===== GRUPOS SEMANALES J, K =====
