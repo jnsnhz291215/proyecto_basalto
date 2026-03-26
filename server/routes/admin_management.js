@@ -91,6 +91,14 @@ function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+function obtenerPasswordBaseDesdeRut(rut) {
+  const rutLimpio = limpiarRUT(rut);
+  const rutSinDv = rutLimpio.length > 1 ? rutLimpio.slice(0, -1) : '';
+  const cuerpoNumerico = rutSinDv.replace(/\D/g, '');
+  if (!cuerpoNumerico) return '';
+  return cuerpoNumerico.length > 4 ? cuerpoNumerico.slice(-4) : cuerpoNumerico;
+}
+
 // ============================================
 // GET /api/admins - Lista de todos los administradores
 // ============================================
@@ -308,7 +316,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
     const { rut, nombres, apellido_paterno, apellido_materno, apellidos, email, id_permisos } = req.body;
     const rutLimpio = limpiarRUT(rut);
     const emailNormalizado = String(email || '').trim().toLowerCase();
-    const passwordInicial = rutLimpio;
+    const passwordInicial = obtenerPasswordBaseDesdeRut(rutLimpio);
     const apellidosRaw = String(apellidos || '').trim().replace(/\s+/g, ' ');
     const apellidoPaternoRaw = String(apellido_paterno || '').trim();
     const apellidoMaternoRaw = String(apellido_materno || '').trim();
@@ -324,6 +332,13 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'Se requieren: rut, nombres y apellidos' 
+      });
+    }
+
+    if (!passwordInicial || passwordInicial.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fue posible derivar clave base desde el RUT. Verifique el formato.'
       });
     }
 
@@ -409,14 +424,14 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
 
     await connection.commit();
 
-    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio} - password inicial configurada con RUT normalizado - permisos: ${idsSolicitados.join(', ') || 'sin permisos'}`);
+    console.log(`[ADMIN_MGMT] Nuevo administrador creado - RUT: ${rutLimpio} - password inicial configurada con ultimos 4 digitos del RUT sin DV - permisos: ${idsSolicitados.join(', ') || 'sin permisos'}`);
 
     res.status(201).json({ 
       success: true, 
       message: 'Administrador creado exitosamente',
       rut: rutLimpio,
       es_super_admin: 0,
-      password_inicial: rutLimpio,
+      password_inicial: passwordInicial,
       permisos_asignados: idsSolicitados.length
     });
 

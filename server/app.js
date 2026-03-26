@@ -951,8 +951,16 @@ const handleAgregarTrabajador = async (req, res) => {
     const ciudadId = Number.parseInt(nuevoTrabajador.id_ciudad || nuevoTrabajador.ciudad || '1', 10) || 1;
     const fechaNacimiento = nuevoTrabajador.fecha_nacimiento || null;
 
-    // Limpieza de RUT para password inicial en users
+    // Password base para nuevas cuentas: ultimos 4 digitos del RUT sin DV
+    // Ej: 12.345.678-9 => cuerpo 12345678 => base 5678
     const rutLimpio = rutLimpioCross;
+    const rutSinDv = rutLimpio.length > 1 ? rutLimpio.slice(0, -1) : '';
+    const cuerpoNumerico = rutSinDv.replace(/\D/g, '');
+    const passwordBase = cuerpoNumerico.length > 4 ? cuerpoNumerico.slice(-4) : cuerpoNumerico;
+
+    if (!passwordBase || passwordBase.length < 4) {
+      return res.status(400).json({ error: "No fue posible derivar clave base desde el RUT. Verifique el formato." });
+    }
 
     connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -974,7 +982,7 @@ const handleAgregarTrabajador = async (req, res) => {
       ]
     );
 
-    // INSERT 2: users (usa el mismo RUT como foránea, password inicial = RUT limpio)
+    // INSERT 2: users (usa el mismo RUT como foranea, password inicial = ultimos 4 digitos sin DV)
     await connection.execute(
       'INSERT INTO users (rut, nombres, apellido_paterno, apellido_materno, email, password) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = password',
       [
@@ -983,7 +991,7 @@ const handleAgregarTrabajador = async (req, res) => {
         apellidoPaternoNorm,
         apellidoMaternoNorm,
         nuevoTrabajador.email,
-        rutLimpio
+        passwordBase
       ]
     );
 

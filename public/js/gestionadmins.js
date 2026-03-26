@@ -168,7 +168,7 @@
     const clave = String(passwordInicial || '').trim();
     const html = `
       <div class="notification-title">Administrador creado correctamente</div>
-      <div>Clave inicial para ${formatearRUT(rutAdmin) || rutAdmin}: usa el RUT normalizado sin puntos ni guión.</div>
+      <div>Clave inicial para ${formatearRUT(rutAdmin) || rutAdmin}: usa los ultimos 4 digitos del RUT sin DV.</div>
       <div class="notification-copy-row">
         <span class="notification-code">${clave}</span>
         <button type="button" class="notification-copy-btn" data-copy-password="${clave}">
