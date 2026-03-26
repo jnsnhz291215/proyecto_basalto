@@ -355,6 +355,13 @@
           <div class="form-section-label">Trabajador</div>
           <div class="form-grid">
             <div class="form-group">
+              <label for="nuevo-viaje-grupo">Filtrar por Grupo</label>
+              <select id="nuevo-viaje-grupo" class="modern-input plain">
+                <option value="">Todos los grupos</option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label for="nuevo-viaje-trabajador">Buscar por RUT o Nombre</label>
               <div class="input-wrapper">
                 <i class="fa-solid fa-search input-icon"></i>
@@ -368,6 +375,13 @@
                   required>
                 <datalist id="trabajadores-datalist"></datalist>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label for="nuevo-viaje-instancia">Instancia de Trabajo</label>
+              <select id="nuevo-viaje-instancia" class="modern-input plain" required>
+                <option value="">Seleccione trabajador y fecha del viaje...</option>
+              </select>
             </div>
           </div>
 

@@ -15,6 +15,29 @@ function normalizarTipoTramo(valor) {
   return 'IDA';
 }
 
+function fechaSQLHoy() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function validarPeriodoVigente(connection, idPeriodoKey, idGrupo, fechaRef) {
+  const [rows] = await connection.execute(
+    `SELECT MAX(fecha) AS fecha_fin
+     FROM instancias_trabajo
+     WHERE id_periodo_key = ?
+       AND id_grupo = ?
+       AND UPPER(tipo_jornada) = 'TRABAJO'`,
+    [idPeriodoKey, idGrupo]
+  );
+
+  if (!rows.length || !rows[0].fecha_fin) return false;
+  const fechaFin = String(rows[0].fecha_fin).slice(0, 10);
+  return fechaFin >= fechaRef;
+}
+
 async function validarHardDeleteSuperAdmin(req) {
   const rutSolicitante = req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'];
   const rutLimpio = limpiarRUT(rutSolicitante);
@@ -150,7 +173,7 @@ router.get('/viajes/mis-viajes', async (req, res) => {
 router.post('/viajes', async (req, res) => {
   let connection;
   try {
-    const { rut_trabajador, tramos } = req.body;
+    const { rut_trabajador, tramos, id_periodo_vinculo: selectedPeriodo } = req.body;
 
     // Validaciones
     if (!rut_trabajador) {
@@ -188,6 +211,14 @@ router.post('/viajes', async (req, res) => {
     );
     const id_grupo_trabajador = workerGrupoRows[0]?.id_grupo || null;
 
+    if (selectedPeriodo && id_grupo_trabajador) {
+      const fechaRef = String(tramos[0]?.fecha || fechaSQLHoy()).slice(0, 10);
+      const periodoValido = await validarPeriodoVigente(connection, String(selectedPeriodo), id_grupo_trabajador, fechaRef);
+      if (!periodoValido) {
+        return res.status(400).json({ error: 'La instancia seleccionada no es válida para el grupo o ya terminó' });
+      }
+    }
+
     await connection.beginTransaction();
 
     // 1. Insertar el viaje principal
@@ -202,7 +233,9 @@ router.post('/viajes', async (req, res) => {
     for (const tramo of tramos) {
       let id_periodo_vinculo = null;
       const tipoTramo = normalizarTipoTramo(tramo.tipo_movimiento || tramo.tipo_tramo);
-      if (id_grupo_trabajador && tramo.fecha) {
+      if (selectedPeriodo) {
+        id_periodo_vinculo = String(selectedPeriodo).trim();
+      } else if (id_grupo_trabajador && tramo.fecha) {
         id_periodo_vinculo = await obtenerPeriodoPorFecha(tramo.fecha, id_grupo_trabajador, connection);
       }
 
@@ -373,6 +406,62 @@ router.get('/viajes/sugerir-fechas', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/viajes/instancias-disponibles
+ * Lista instancias vigentes de TRABAJO para un grupo dado en una fecha.
+ * Se excluyen instancias ya terminadas.
+ */
+router.get('/viajes/instancias-disponibles', async (req, res) => {
+  let connection;
+  try {
+    const idGrupo = parseInt(req.query.id_grupo, 10);
+    const fechaRef = String(req.query.fecha || fechaSQLHoy()).trim();
+
+    if (!Number.isInteger(idGrupo) || idGrupo <= 0) {
+      return res.status(400).json({ error: 'id_grupo inválido' });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaRef)) {
+      return res.status(400).json({ error: 'fecha inválida. Use YYYY-MM-DD' });
+    }
+
+    connection = await pool.getConnection();
+
+    const [rows] = await connection.execute(
+      `SELECT
+         it.id_periodo_key,
+         g.nombre_grupo,
+         MIN(it.fecha) AS fecha_inicio,
+         MAX(it.fecha) AS fecha_fin,
+         SUBSTRING_INDEX(
+           GROUP_CONCAT(UPPER(it.turno_asignado) ORDER BY it.fecha ASC SEPARATOR ','),
+           ',',
+           1
+         ) AS turno_inicio
+       FROM instancias_trabajo it
+       INNER JOIN grupos g ON g.id_grupo = it.id_grupo
+       WHERE it.id_grupo = ?
+         AND UPPER(it.tipo_jornada) = 'TRABAJO'
+       GROUP BY it.id_periodo_key, g.nombre_grupo
+       HAVING MAX(it.fecha) >= ?
+       ORDER BY MIN(it.fecha) ASC`,
+      [idGrupo, fechaRef]
+    );
+
+    res.json({
+      id_grupo: idGrupo,
+      fecha_referencia: fechaRef,
+      total: rows.length,
+      instancias: rows
+    });
+  } catch (error) {
+    console.error('[ERROR] Error al obtener instancias disponibles:', error);
+    res.status(500).json({ error: 'Error al obtener instancias disponibles' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 // Compatibilidad con implementación previa
 router.get('/viajes/periodo-sugerido', async (req, res) => {
   try {
@@ -451,6 +540,7 @@ router.get('/viajes/:id', async (req, res) => {
         tr.id_tramo,
         tr.tipo_transporte,
         tr.tipo_tramo,
+        tr.id_periodo_vinculo,
         LOWER(tr.tipo_tramo) AS tipo_movimiento,
         tr.codigo_pasaje as codigo_transporte,
         tr.fecha_salida as fecha,
@@ -522,7 +612,7 @@ router.put('/viajes/:id', async (req, res) => {
   let connection;
   try {
     const { id } = req.params;
-    const { rut_trabajador, tramos } = req.body;
+    const { rut_trabajador, tramos, id_periodo_vinculo: selectedPeriodo } = req.body;
 
     // Validaciones
     if (!rut_trabajador) {
@@ -571,11 +661,22 @@ router.put('/viajes/:id', async (req, res) => {
     );
     const id_grupo_trabajador = workerGrupoRows[0]?.id_grupo || null;
 
+    if (selectedPeriodo && id_grupo_trabajador) {
+      const fechaRef = String(tramos[0]?.fecha || fechaSQLHoy()).slice(0, 10);
+      const periodoValido = await validarPeriodoVigente(connection, String(selectedPeriodo), id_grupo_trabajador, fechaRef);
+      if (!periodoValido) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'La instancia seleccionada no es válida para el grupo o ya terminó' });
+      }
+    }
+
     // 3. Insertar nuevos tramos
     for (const tramo of tramos) {
       let id_periodo_vinculo = null;
       const tipoTramo = normalizarTipoTramo(tramo.tipo_movimiento || tramo.tipo_tramo);
-      if (id_grupo_trabajador && tramo.fecha) {
+      if (selectedPeriodo) {
+        id_periodo_vinculo = String(selectedPeriodo).trim();
+      } else if (id_grupo_trabajador && tramo.fecha) {
         id_periodo_vinculo = await obtenerPeriodoPorFecha(tramo.fecha, id_grupo_trabajador, connection);
       }
 

@@ -18,6 +18,7 @@ let trabajadorSeleccionado = null;
 let tramoCounter = 0;
 let viajeEditando = null; // Para modo edición
 let sugerenciasPeriodoActual = null;
+let instanciasDisponibles = [];
 
 function tipoMovimientoPorDefecto(index) {
   return index % 2 === 0 ? 'ida' : 'vuelta';
@@ -44,8 +45,10 @@ const el = {
   btnNuevoViaje: null,
   btnGuardarViaje: null,
   btnCancelViaje: null,
+  selectGrupoTrabajador: null,
   inputTrabajador: null,
   datalistTrabajadores: null,
+  selectInstanciaTrabajo: null,
   trabajadorInfo: null,
   tramosContainer: null,
   btnAgregarTramo: null,
@@ -112,8 +115,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   el.btnNuevoViaje = document.getElementById('btn-nuevo-viaje');
   el.btnGuardarViaje = document.getElementById('guardar-nuevo-viaje');
   el.btnCancelViaje = document.getElementById('cancel-nuevo-viaje');
+  el.selectGrupoTrabajador = document.getElementById('nuevo-viaje-grupo');
   el.inputTrabajador = document.getElementById('nuevo-viaje-trabajador');
   el.datalistTrabajadores = document.getElementById('trabajadores-datalist');
+  el.selectInstanciaTrabajo = document.getElementById('nuevo-viaje-instancia');
   el.trabajadorInfo = document.getElementById('trabajador-info');
   el.tramosContainer = document.getElementById('tramos-container');
   el.btnAgregarTramo = document.getElementById('btn-agregar-tramo');
@@ -143,6 +148,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   el.btnAgregarTramo.addEventListener('click', agregarTramo);
   el.inputTrabajador.addEventListener('input', buscarTrabajador);
   el.inputTrabajador.addEventListener('change', seleccionarTrabajador);
+  if (el.selectGrupoTrabajador) {
+    el.selectGrupoTrabajador.addEventListener('change', aplicarFiltroGrupoTrabajador);
+  }
   el.filtroTipo.addEventListener('change', () => cargarViajes());
   el.filtroMes.addEventListener('change', () => cargarViajes());
   
@@ -162,6 +170,93 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('[VIAJES] Aplicación lista');
 });
 
+function getFechaReferenciaViaje() {
+  const fechaInputs = Array.from(el.tramosContainer?.querySelectorAll('[data-field="fecha"]') || []);
+  const fechas = fechaInputs
+    .map((input) => String(input.value || '').trim())
+    .filter(Boolean)
+    .sort();
+
+  if (fechas.length) return fechas[0];
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatShortDate(iso) {
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return iso;
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${d}/${m}`;
+}
+
+function mapTurnoLabel(turno) {
+  const raw = String(turno || '').toUpperCase();
+  if (raw === 'DIA') return 'Dia';
+  if (raw === 'NOCHE') return 'Noche';
+  return 'N/A';
+}
+
+function renderSelectInstancias() {
+  if (!el.selectInstanciaTrabajo) return;
+
+  const options = ['<option value="">Seleccione una instancia...</option>'];
+  for (const inst of instanciasDisponibles) {
+    const grupoLabel = String(inst.nombre_grupo || '').trim();
+    const grupoTexto = /^grupo\s+/i.test(grupoLabel) ? grupoLabel : `Grupo ${grupoLabel}`;
+    const label = `${grupoTexto}-${mapTurnoLabel(inst.turno_inicio)} ${formatShortDate(inst.fecha_inicio)} - ${formatShortDate(inst.fecha_fin)}`;
+    options.push(`<option value="${inst.id_periodo_key}">${label}</option>`);
+  }
+
+  if (!instanciasDisponibles.length) {
+    options.push('<option value="" disabled>No hay instancias vigentes para la fecha seleccionada</option>');
+  }
+
+  el.selectInstanciaTrabajo.innerHTML = options.join('');
+}
+
+async function cargarInstanciasDisponibles(preferida = null) {
+  if (!el.selectInstanciaTrabajo) return;
+
+  const idGrupo = Number(trabajadorSeleccionado?.id_grupo || 0);
+  if (!idGrupo) {
+    instanciasDisponibles = [];
+    renderSelectInstancias();
+    return;
+  }
+
+  try {
+    const fecha = getFechaReferenciaViaje();
+    const response = await fetch(`/api/viajes/instancias-disponibles?id_grupo=${idGrupo}&fecha=${fecha}`);
+    if (!response.ok) {
+      instanciasDisponibles = [];
+      renderSelectInstancias();
+      return;
+    }
+
+    const payload = await response.json();
+    instanciasDisponibles = Array.isArray(payload.instancias) ? payload.instancias : [];
+    renderSelectInstancias();
+
+    if (preferida && instanciasDisponibles.some((i) => i.id_periodo_key === preferida)) {
+      el.selectInstanciaTrabajo.value = preferida;
+      return;
+    }
+
+    if (instanciasDisponibles.length) {
+      el.selectInstanciaTrabajo.value = instanciasDisponibles[0].id_periodo_key;
+    }
+  } catch (error) {
+    console.warn('[VIAJES] Error cargando instancias disponibles:', error.message || error);
+    instanciasDisponibles = [];
+    renderSelectInstancias();
+  }
+}
+
 // ============================================
 // CARGAR DATOS
 // ============================================
@@ -171,11 +266,60 @@ async function cargarTrabajadores() {
     if (!response.ok) throw new Error('Error al cargar trabajadores');
     trabajadores = await response.json();
     console.log('[VIAJES] Trabajadores cargados:', trabajadores.length);
+    actualizarSelectorGruposTrabajador();
     actualizarDatalistTrabajadores();
   } catch (error) {
     console.error('[VIAJES] Error cargando trabajadores:', error);
     mostrarError('Error al cargar la lista de trabajadores');
   }
+}
+
+function obtenerTrabajadoresFiltradosPorGrupo() {
+  const grupoSeleccionado = String(el.selectGrupoTrabajador?.value || '').trim();
+  if (!grupoSeleccionado) return trabajadores;
+  return trabajadores.filter((t) => String(t.id_grupo || '') === grupoSeleccionado);
+}
+
+function actualizarSelectorGruposTrabajador() {
+  if (!el.selectGrupoTrabajador) return;
+
+  const valorActual = String(el.selectGrupoTrabajador.value || '');
+  const gruposMap = new Map();
+
+  trabajadores.forEach((t) => {
+    const id = String(t.id_grupo || '').trim();
+    if (!id) return;
+    if (!gruposMap.has(id)) {
+      gruposMap.set(id, t.grupo || `Grupo ${id}`);
+    }
+  });
+
+  const gruposOrdenados = Array.from(gruposMap.entries()).sort((a, b) => Number(a[0]) - Number(b[0]));
+  el.selectGrupoTrabajador.innerHTML = '<option value="">Todos los grupos</option>';
+
+  gruposOrdenados.forEach(([id, nombre]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = `${nombre} (${id})`;
+    el.selectGrupoTrabajador.appendChild(option);
+  });
+
+  if (valorActual && gruposMap.has(valorActual)) {
+    el.selectGrupoTrabajador.value = valorActual;
+  }
+}
+
+function aplicarFiltroGrupoTrabajador() {
+  const grupoSeleccionado = String(el.selectGrupoTrabajador?.value || '').trim();
+  if (trabajadorSeleccionado && grupoSeleccionado && String(trabajadorSeleccionado.id_grupo || '') !== grupoSeleccionado) {
+    trabajadorSeleccionado = null;
+    sugerenciasPeriodoActual = null;
+    el.inputTrabajador.value = '';
+    el.trabajadorInfo.classList.remove('visible');
+    instanciasDisponibles = [];
+    renderSelectInstancias();
+  }
+  actualizarDatalistTrabajadores();
 }
 
 async function cargarCiudades() {
@@ -229,8 +373,9 @@ function actualizarDatalistTrabajadores() {
   if (!el.datalistTrabajadores) return;
   
   el.datalistTrabajadores.innerHTML = '';
-  
-  trabajadores.forEach(t => {
+
+  const filtrados = obtenerTrabajadoresFiltradosPorGrupo();
+  filtrados.forEach(t => {
     const option = document.createElement('option');
     option.value = `${t.RUT} - ${t.nombres} ${t.apellidos}`;
     option.dataset.rut = t.RUT;
@@ -250,9 +395,10 @@ function buscarTrabajador() {
 
 function seleccionarTrabajador() {
   const valor = el.inputTrabajador.value.trim();
+  const candidatos = obtenerTrabajadoresFiltradosPorGrupo();
   
   // Buscar trabajador por RUT o nombre
-  const trabajador = trabajadores.find(t => {
+  const trabajador = candidatos.find(t => {
     const rutMatch = valor.includes(t.RUT);
     const nombreMatch = valor.toLowerCase().includes(t.nombres.toLowerCase()) || 
                         valor.toLowerCase().includes(t.apellidos.toLowerCase());
@@ -263,10 +409,13 @@ function seleccionarTrabajador() {
     trabajadorSeleccionado = trabajador;
     mostrarInfoTrabajador(trabajador);
     void cargarSugerenciasPeriodoTrabajador();
+    void cargarInstanciasDisponibles();
   } else {
     trabajadorSeleccionado = null;
     sugerenciasPeriodoActual = null;
     el.trabajadorInfo.classList.remove('visible');
+    instanciasDisponibles = [];
+    renderSelectInstancias();
   }
 }
 
@@ -296,6 +445,10 @@ async function cargarSugerenciasPeriodoTrabajador() {
         fechaInput.value = obtenerFechaSugeridaPorTipo(tipoMovimiento);
       }
     });
+
+    if (trabajadorSeleccionado) {
+      void cargarInstanciasDisponibles(el.selectInstanciaTrabajo?.value || null);
+    }
   } catch (error) {
     console.warn('[VIAJES] No se pudieron cargar fechas sugeridas:', error.message || error);
     sugerenciasPeriodoActual = null;
@@ -339,17 +492,19 @@ function mostrarInfoTrabajador(trabajador) {
 // ============================================
 function agregarTramo() {
   tramoCounter++;
-  const tramoIndex = tramoCounter - 1;
+  const tramoId = tramoCounter;
+  const tramoIndex = (el.tramosContainer?.querySelectorAll('.tramo-item').length || 0);
+  const tramoNumeroVisible = tramoIndex + 1;
   const tipoDefault = tipoMovimientoPorDefecto(tramoIndex);
   
   const tramoDiv = document.createElement('div');
   tramoDiv.className = 'tramo-item';
-  tramoDiv.dataset.tramoId = tramoCounter;
+  tramoDiv.dataset.tramoId = tramoId;
   
   tramoDiv.innerHTML = `
     <div class="tramo-header">
-      <span class="tramo-numero"><i class="fa-solid fa-route"></i> Tramo ${tramoCounter}</span>
-      <button type="button" class="btn-eliminar-tramo" onclick="eliminarTramo(${tramoCounter})">
+      <span class="tramo-numero"><i class="fa-solid fa-route"></i> Tramo ${tramoNumeroVisible}</span>
+      <button type="button" class="btn-eliminar-tramo" onclick="eliminarTramo(${tramoId})">
         <i class="fa-solid fa-trash"></i> Eliminar
       </button>
     </div>
@@ -428,6 +583,12 @@ function agregarTramo() {
         fechaInput.value = obtenerFechaSugeridaPorTipo(tipoMovimientoEl.value);
       }
     });
+
+    fechaInput.addEventListener('change', () => {
+      if (trabajadorSeleccionado) {
+        void cargarInstanciasDisponibles(el.selectInstanciaTrabajo?.value || null);
+      }
+    });
   }
 }
 
@@ -435,8 +596,8 @@ window.eliminarTramo = function(tramoId) {
   const tramoDiv = document.querySelector(`[data-tramo-id="${tramoId}"]`);
   if (tramoDiv) {
     tramoDiv.remove();
-    
-    // Renumerar tramos
+
+    // Renumerar tramos visibles según orden actual
     const tramos = el.tramosContainer.querySelectorAll('.tramo-item');
     tramos.forEach((tramo, index) => {
       const numero = tramo.querySelector('.tramo-numero');
@@ -444,6 +605,14 @@ window.eliminarTramo = function(tramoId) {
         numero.innerHTML = `<i class="fa-solid fa-route"></i> Tramo ${index + 1}`;
       }
     });
+
+    if (tramos.length === 0) {
+      tramoCounter = 0;
+    }
+
+    if (trabajadorSeleccionado) {
+      void cargarInstanciasDisponibles(el.selectInstanciaTrabajo?.value || null);
+    }
   }
 };
 
@@ -461,6 +630,10 @@ function prepararNuevoViaje() {
   el.formNuevoViaje.reset();
   trabajadorSeleccionado = null;
   sugerenciasPeriodoActual = null;
+  instanciasDisponibles = [];
+  if (el.selectGrupoTrabajador) el.selectGrupoTrabajador.value = '';
+  actualizarDatalistTrabajadores();
+  renderSelectInstancias();
   el.trabajadorInfo.classList.remove('visible');
   el.tramosContainer.innerHTML = '';
   tramoCounter = 0;
@@ -492,6 +665,12 @@ async function guardarViaje() {
     // Validar trabajador
     if (!trabajadorSeleccionado) {
       mostrarError('Debe seleccionar un trabajador');
+      return;
+    }
+
+    const idPeriodoSeleccionado = String(el.selectInstanciaTrabajo?.value || '').trim();
+    if (!idPeriodoSeleccionado) {
+      mostrarError('Debe seleccionar una instancia de trabajo vigente');
       return;
     }
     
@@ -546,7 +725,8 @@ async function guardarViaje() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut_trabajador: trabajadorSeleccionado.RUT,
-          tramos: tramos
+          tramos: tramos,
+          id_periodo_vinculo: idPeriodoSeleccionado
         })
       });
     } else {
@@ -556,7 +736,8 @@ async function guardarViaje() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut_trabajador: trabajadorSeleccionado.RUT,
-          tramos: tramos
+          tramos: tramos,
+          id_periodo_vinculo: idPeriodoSeleccionado
         })
       });
     }
@@ -741,6 +922,7 @@ window.prepararEdicionViaje = async function(idViaje) {
     }
 
     if (Array.isArray(viaje.tramos) && viaje.tramos.length) {
+      const periodoPreferido = String(viaje.tramos.find((t) => t.id_periodo_vinculo)?.id_periodo_vinculo || '').trim();
       viaje.tramos.forEach(tramo => {
         tramoCounter++;
         const tipoMovimientoEditRaw = String(tramo.tipo_movimiento || tramo.tipo_tramo || '').toLowerCase();
@@ -826,9 +1008,25 @@ window.prepararEdicionViaje = async function(idViaje) {
         `;
 
         el.tramosContainer.appendChild(tramoDiv);
+
+        const fechaInputEdit = tramoDiv.querySelector('[data-field="fecha"]');
+        if (fechaInputEdit) {
+          fechaInputEdit.addEventListener('change', () => {
+            if (trabajadorSeleccionado) {
+              void cargarInstanciasDisponibles(el.selectInstanciaTrabajo?.value || null);
+            }
+          });
+        }
       });
+
+      if (trabajadorSeleccionado) {
+        await cargarInstanciasDisponibles(periodoPreferido || null);
+      }
     } else {
       agregarTramo();
+      if (trabajadorSeleccionado) {
+        await cargarInstanciasDisponibles();
+      }
     }
   } catch (error) {
     console.error('[VIAJES] Error preparando edición:', error);
