@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../database.js');
+const { obtenerPeriodoPorFecha, obtenerFechasSugeridas, checkLogisticaCompleta } = require('../helpers/periodHelper.js');
 
 function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
@@ -170,6 +171,15 @@ router.post('/viajes', async (req, res) => {
     });
 
     connection = await pool.getConnection();
+
+    // Obtener id_grupo del trabajador para vincular periodos logísticos
+    const [workerGrupoRows] = await connection.execute(
+      `SELECT id_grupo FROM trabajadores
+       WHERE REPLACE(REPLACE(REPLACE(RUT,'.',''),'-',''),' ','') = ? LIMIT 1`,
+      [limpiarRUT(rut_trabajador)]
+    );
+    const id_grupo_trabajador = workerGrupoRows[0]?.id_grupo || null;
+
     await connection.beginTransaction();
 
     // 1. Insertar el viaje principal
@@ -180,12 +190,18 @@ router.post('/viajes', async (req, res) => {
 
     const id_viaje = resultViaje.insertId;
 
-    // 2. Insertar cada tramo asociado al viaje
+    // 2. Insertar cada tramo con id_periodo_vinculo autocompletado
     for (const tramo of tramos) {
+      let id_periodo_vinculo = null;
+      if (id_grupo_trabajador && tramo.fecha) {
+        id_periodo_vinculo = await obtenerPeriodoPorFecha(tramo.fecha, id_grupo_trabajador, connection);
+      }
+
       await connection.execute(
-        `INSERT INTO viajes_tramos 
-        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO viajes_tramos
+         (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida,
+          id_ciudad_origen, id_ciudad_destino, empresa_transporte, id_periodo_vinculo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id_viaje,
           tramo.tipo_transporte,
@@ -194,16 +210,21 @@ router.post('/viajes', async (req, res) => {
           tramo.hora,
           tramo.id_ciudad_origen,
           tramo.id_ciudad_destino,
-          tramo.empresa_transporte
+          tramo.empresa_transporte,
+          id_periodo_vinculo
         ]
       );
+
+      if (id_periodo_vinculo) {
+        console.log(`[LOGISTICS] Tramo vinculado a jornada ${id_periodo_vinculo}.`);
+      }
     }
 
     await connection.commit();
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Viaje creado exitosamente',
-      id_viaje: id_viaje,
+      id_viaje,
       total_tramos: tramos.length
     });
 
@@ -311,6 +332,71 @@ router.get('/viajes', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener los viajes' });
   } finally {
     if (connection) connection.release();
+  }
+});
+
+/**
+ * GET /api/viajes/sugerir-fechas
+ * Retorna la id_periodo_key actual y las fechas sugeridas de IDA y VUELTA
+ * para un grupo dado, útil para que el modal pre-rellene fechas.
+ *
+ * Query params:
+ *   - id_grupo: INT requerido
+ *   - fecha:    YYYY-MM-DD opcional (default: hoy)
+ */
+router.get('/viajes/sugerir-fechas', async (req, res) => {
+  try {
+    const { id_grupo, fecha } = req.query;
+    if (!id_grupo) {
+      return res.status(400).json({ error: 'Se requiere id_grupo' });
+    }
+    const sugerido = await obtenerFechasSugeridas(parseInt(id_grupo, 10), pool, fecha || null);
+    if (!sugerido) {
+      return res.status(404).json({ error: 'No se encontró configuración de turno para este grupo' });
+    }
+    res.json(sugerido);
+  } catch (error) {
+    console.error('[ERROR] Error al obtener periodo sugerido:', error);
+    res.status(500).json({ error: 'Error al obtener el periodo sugerido' });
+  }
+});
+
+// Compatibilidad con implementación previa
+router.get('/viajes/periodo-sugerido', async (req, res) => {
+  try {
+    const { id_grupo, fecha } = req.query;
+    if (!id_grupo) {
+      return res.status(400).json({ error: 'Se requiere id_grupo' });
+    }
+    const sugerido = await obtenerFechasSugeridas(parseInt(id_grupo, 10), pool, fecha || null);
+    if (!sugerido) {
+      return res.status(404).json({ error: 'No se encontró configuración de turno para este grupo' });
+    }
+    res.json(sugerido);
+  } catch (error) {
+    console.error('[ERROR] Error al obtener periodo sugerido:', error);
+    res.status(500).json({ error: 'Error al obtener el periodo sugerido' });
+  }
+});
+
+/**
+ * GET /api/viajes/check-logistica
+ * Semáforo de logística: devuelve { ida_completa, vuelta_completa } para un periodo.
+ *
+ * Query params:
+ *   - id_periodo_key: Ej: "1-20260321"
+ */
+router.get('/viajes/check-logistica', async (req, res) => {
+  try {
+    const { id_periodo_key } = req.query;
+    if (!id_periodo_key) {
+      return res.status(400).json({ error: 'Se requiere id_periodo_key' });
+    }
+    const resultado = await checkLogisticaCompleta(id_periodo_key, pool);
+    res.json(resultado);
+  } catch (error) {
+    console.error('[ERROR] Error al verificar logística:', error);
+    res.status(500).json({ error: 'Error al verificar la logística del periodo' });
   }
 });
 

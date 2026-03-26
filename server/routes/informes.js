@@ -480,14 +480,42 @@ router.post('/informes', async (req, res) => {
     }
     const folio = `IT-${String(nextNum).padStart(5, '0')}`;
 
+    // Buscar la instancia_trabajo correspondiente para preservar integridad histórica
+    // y bloquear creación si el grupo está en BAJADA.
+    let id_instancia_vinculada = null;
+    if (datosGenerales.fecha) {
+      const [workerGrpRows] = await connection.execute(
+        `SELECT id_grupo FROM trabajadores
+         WHERE REPLACE(REPLACE(REPLACE(RUT,'.',''),'-',''),' ','') = ? LIMIT 1`,
+        [limpiarRUT(operadorRut)]
+      );
+      const id_grupo_op = workerGrpRows[0]?.id_grupo || null;
+      if (id_grupo_op) {
+        const [instRows] = await connection.execute(
+          `SELECT id_instancia, tipo_jornada FROM instancias_trabajo
+           WHERE fecha = ? AND id_grupo = ?
+           LIMIT 1`,
+          [datosGenerales.fecha, id_grupo_op]
+        );
+
+        const instancia = instRows[0] || null;
+        if (instancia?.tipo_jornada === 'BAJADA') {
+          await connection.rollback();
+          return res.status(409).json({ error: 'Grupo en descanso según calendario' });
+        }
+
+        id_instancia_vinculada = instancia?.id_instancia || null;
+      }
+    }
+
     const [result] = await connection.execute(
       `INSERT INTO informes_turno (
         numero_informe, fecha, turno, horas_trabajadas, faena, lugar, equipo,
         operador_rut, ayudante_1, ayudante_2, ayudante_3, ayudante_4, ayudante_5, pozo_numero, sector, diametro,
         inclinacion, profundidad_inicial, profundidad_final, mts_perforados,
         pull_down, rpm, horometro_inicial, horometro_final, horometro_hrs,
-        insumo_petroleo, insumo_lubricantes, observaciones, estado, creado_el
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        insumo_petroleo, insumo_lubricantes, observaciones, estado, id_instancia, creado_el
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         folio,
         datosGenerales.fecha || null,
@@ -517,7 +545,8 @@ router.post('/informes', async (req, res) => {
         datosGenerales.insumo_petroleo || null,
         datosGenerales.insumo_lubricantes || null,
         datosGenerales.observaciones || null,
-        datosGenerales.estado || 'Borrador'
+        datosGenerales.estado || 'Borrador',
+        id_instancia_vinculada
       ]
     );
 

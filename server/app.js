@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require("express");
 const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador, resolveCargoId } = require("./database.js");
 const { validarRUT } = require('./utils/validators.js');
+const { generateInstances } = require('./scripts/generate-instances.js');
 
 const app = express();
 
@@ -75,6 +76,33 @@ const AUTO_CIERRE_MS = 60 * 60 * 1000; // 1 hora
 
 let ultimoEstado = null;
 let autoCierreTimeout = null;
+let instanceGenerationPromise = null;
+
+function triggerInstanceGeneration(options = {}) {
+  const {
+    forceRebuild = true,
+    origin = 'manual'
+  } = options;
+
+  if (instanceGenerationPromise) {
+    console.log(`[GENERATOR] Ya hay una regeneración en curso. Se reutiliza proceso actual. Origen: ${origin}`);
+    return instanceGenerationPromise;
+  }
+
+  instanceGenerationPromise = generateInstances({ closePool: false, forceRebuild })
+    .then(() => {
+      console.log(`[GENERATOR] Regeneración completada. Origen: ${origin}.`);
+    })
+    .catch((error) => {
+      console.error('[GENERATOR] Error en regeneración:', error.message || error);
+      throw error;
+    })
+    .finally(() => {
+      instanceGenerationPromise = null;
+    });
+
+  return instanceGenerationPromise;
+}
 
 function normalizarTextoSimple(valor) {
   return String(valor || '').trim().replace(/\s+/g, ' ');
@@ -1701,6 +1729,19 @@ app.put("/api/config-turnos", async (req, res) => {
 
     console.log(`[ACTUALIZACIÓN] Ciclo re-calibrado: ${pista_nombre} (${tipoCiclo})`);
 
+    // Si cambia semilla/configuración, se fuerza recalculo inmediato de instancias.
+    try {
+      await triggerInstanceGeneration({
+        forceRebuild: true,
+        origin: `config-turnos:${pista_nombre}`
+      });
+    } catch (regenError) {
+      return res.status(500).json({
+        error: 'Configuración guardada, pero falló la regeneración de instancias',
+        detalle: regenError.message || String(regenError)
+      });
+    }
+
     res.json({ 
       success: true, 
       message: "Configuración actualizada correctamente",
@@ -1737,4 +1778,19 @@ app.post("/cerrar", (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
+
+  const autoGenerate = String(process.env.AUTO_GENERATE_INSTANCES || 'true').toLowerCase() !== 'false';
+  const autoGenerateForce = String(process.env.AUTO_GENERATE_FORCE_REBUILD || 'true').toLowerCase() !== 'false';
+  if (!autoGenerate) {
+    console.log('[GENERATOR] Auto-generación desactivada por AUTO_GENERATE_INSTANCES=false.');
+    return;
+  }
+
+  triggerInstanceGeneration({ forceRebuild: autoGenerateForce, origin: 'startup' })
+    .then(() => {
+      console.log('[GENERATOR] Auto-generación de instancias ejecutada al iniciar la app.');
+    })
+    .catch((error) => {
+      console.error('[GENERATOR] Error en auto-generación al iniciar:', error.message || error);
+    });
 });
