@@ -213,6 +213,7 @@ async function generateInstances(options = {}) {
       `[GENERATOR] Proceso completado. Total nuevas: ${totalGeneradas}. ` +
       `Total actualizadas: ${totalActualizadas}.`
     );
+    console.log('[SUCCESS] 2026 poblado y calendario alineado');
 
   } catch (err) {
     console.error('[GENERATOR] Error durante la generación de instancias:', err.message);
