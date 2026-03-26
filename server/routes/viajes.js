@@ -7,6 +7,14 @@ function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
 }
 
+function normalizarTipoTramo(valor) {
+  const raw = String(valor || '').trim().toUpperCase();
+  if (raw === 'IDA') return 'IDA';
+  if (raw === 'VUELTA') return 'VUELTA';
+  if (raw === 'CONEXION' || raw === 'CONEXIÓN') return 'CONEXION';
+  return 'IDA';
+}
+
 async function validarHardDeleteSuperAdmin(req) {
   const rutSolicitante = req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'];
   const rutLimpio = limpiarRUT(rutSolicitante);
@@ -193,6 +201,7 @@ router.post('/viajes', async (req, res) => {
     // 2. Insertar cada tramo con id_periodo_vinculo autocompletado
     for (const tramo of tramos) {
       let id_periodo_vinculo = null;
+      const tipoTramo = normalizarTipoTramo(tramo.tipo_movimiento || tramo.tipo_tramo);
       if (id_grupo_trabajador && tramo.fecha) {
         id_periodo_vinculo = await obtenerPeriodoPorFecha(tramo.fecha, id_grupo_trabajador, connection);
       }
@@ -200,8 +209,8 @@ router.post('/viajes', async (req, res) => {
       await connection.execute(
         `INSERT INTO viajes_tramos
          (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida,
-          id_ciudad_origen, id_ciudad_destino, empresa_transporte, id_periodo_vinculo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id_ciudad_origen, id_ciudad_destino, empresa_transporte, id_periodo_vinculo, tipo_tramo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id_viaje,
           tramo.tipo_transporte,
@@ -211,7 +220,8 @@ router.post('/viajes', async (req, res) => {
           tramo.id_ciudad_origen,
           tramo.id_ciudad_destino,
           tramo.empresa_transporte,
-          id_periodo_vinculo
+          id_periodo_vinculo,
+          tipoTramo
         ]
       );
 
@@ -306,6 +316,8 @@ router.get('/viajes', async (req, res) => {
         `SELECT 
           tr.id_tramo,
           tr.tipo_transporte,
+          tr.tipo_tramo,
+          LOWER(tr.tipo_tramo) AS tipo_movimiento,
           tr.codigo_pasaje as codigo_transporte,
           tr.fecha_salida as fecha,
           tr.hora_salida as hora,
@@ -438,6 +450,8 @@ router.get('/viajes/:id', async (req, res) => {
       `SELECT 
         tr.id_tramo,
         tr.tipo_transporte,
+        tr.tipo_tramo,
+        LOWER(tr.tipo_tramo) AS tipo_movimiento,
         tr.codigo_pasaje as codigo_transporte,
         tr.fecha_salida as fecha,
         tr.hora_salida as hora,
@@ -549,12 +563,26 @@ router.put('/viajes/:id', async (req, res) => {
       [id]
     );
 
+    // Obtener id_grupo del trabajador para recalcular periodo logístico
+    const [workerGrupoRows] = await connection.execute(
+      `SELECT id_grupo FROM trabajadores
+       WHERE REPLACE(REPLACE(REPLACE(RUT,'.',''),'-',''),' ','') = ? LIMIT 1`,
+      [limpiarRUT(rut_trabajador)]
+    );
+    const id_grupo_trabajador = workerGrupoRows[0]?.id_grupo || null;
+
     // 3. Insertar nuevos tramos
     for (const tramo of tramos) {
+      let id_periodo_vinculo = null;
+      const tipoTramo = normalizarTipoTramo(tramo.tipo_movimiento || tramo.tipo_tramo);
+      if (id_grupo_trabajador && tramo.fecha) {
+        id_periodo_vinculo = await obtenerPeriodoPorFecha(tramo.fecha, id_grupo_trabajador, connection);
+      }
+
       await connection.execute(
         `INSERT INTO viajes_tramos 
-        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id_viaje, tipo_transporte, codigo_pasaje, fecha_salida, hora_salida, id_ciudad_origen, id_ciudad_destino, empresa_transporte, id_periodo_vinculo, tipo_tramo) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           tramo.tipo_transporte,
@@ -563,9 +591,15 @@ router.put('/viajes/:id', async (req, res) => {
           tramo.hora,
           tramo.id_ciudad_origen,
           tramo.id_ciudad_destino,
-          tramo.empresa_transporte
+          tramo.empresa_transporte,
+          id_periodo_vinculo,
+          tipoTramo
         ]
       );
+
+      if (id_periodo_vinculo) {
+        console.log(`[LOGISTICS] Tramo vinculado a jornada ${id_periodo_vinculo}.`);
+      }
     }
 
     await connection.commit();

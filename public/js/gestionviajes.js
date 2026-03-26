@@ -17,6 +17,18 @@ let viajes = [];
 let trabajadorSeleccionado = null;
 let tramoCounter = 0;
 let viajeEditando = null; // Para modo edición
+let sugerenciasPeriodoActual = null;
+
+function tipoMovimientoPorDefecto(index) {
+  return index % 2 === 0 ? 'ida' : 'vuelta';
+}
+
+function obtenerFechaSugeridaPorTipo(tipoMovimiento) {
+  if (!sugerenciasPeriodoActual) return '';
+  if (tipoMovimiento === 'ida') return sugerenciasPeriodoActual.fecha_ida_sugerida || '';
+  if (tipoMovimiento === 'vuelta') return sugerenciasPeriodoActual.fecha_vuelta_sugerida || '';
+  return '';
+}
 
 const canViewViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_ver') : true);
 const canManageViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_editar') : true);
@@ -250,9 +262,43 @@ function seleccionarTrabajador() {
   if (trabajador) {
     trabajadorSeleccionado = trabajador;
     mostrarInfoTrabajador(trabajador);
+    void cargarSugerenciasPeriodoTrabajador();
   } else {
     trabajadorSeleccionado = null;
+    sugerenciasPeriodoActual = null;
     el.trabajadorInfo.classList.remove('visible');
+  }
+}
+
+async function cargarSugerenciasPeriodoTrabajador() {
+  try {
+    const idGrupo = Number(trabajadorSeleccionado?.id_grupo || 0);
+    if (!idGrupo) {
+      sugerenciasPeriodoActual = null;
+      return;
+    }
+
+    const response = await fetch(`/api/viajes/sugerir-fechas?id_grupo=${idGrupo}`);
+    if (!response.ok) {
+      sugerenciasPeriodoActual = null;
+      return;
+    }
+
+    sugerenciasPeriodoActual = await response.json();
+
+    // Completa automáticamente fechas sugeridas en tramos sin fecha.
+    const tramos = el.tramosContainer?.querySelectorAll('.tramo-item') || [];
+    tramos.forEach((tramoEl, index) => {
+      const fechaInput = tramoEl.querySelector('[data-field="fecha"]') || tramoEl.querySelector('input[type="date"]');
+      const tipoMovimientoEl = tramoEl.querySelector('[data-field="tipo_movimiento"]');
+      const tipoMovimiento = tipoMovimientoEl?.value || tipoMovimientoPorDefecto(index);
+      if (fechaInput && !fechaInput.value) {
+        fechaInput.value = obtenerFechaSugeridaPorTipo(tipoMovimiento);
+      }
+    });
+  } catch (error) {
+    console.warn('[VIAJES] No se pudieron cargar fechas sugeridas:', error.message || error);
+    sugerenciasPeriodoActual = null;
   }
 }
 
@@ -293,6 +339,8 @@ function mostrarInfoTrabajador(trabajador) {
 // ============================================
 function agregarTramo() {
   tramoCounter++;
+  const tramoIndex = tramoCounter - 1;
+  const tipoDefault = tipoMovimientoPorDefecto(tramoIndex);
   
   const tramoDiv = document.createElement('div');
   tramoDiv.className = 'tramo-item';
@@ -309,31 +357,40 @@ function agregarTramo() {
     <div class="form-grid">
       <div class="form-group">
         <label>Tipo de Transporte</label>
-        <select class="modern-input plain" required>
+        <select class="modern-input plain" data-field="tipo_transporte" required>
           <option value="" disabled selected>Seleccione...</option>
           <option value="Bus">🚌 BUS</option>
           <option value="Avión">✈️ AVIÓN</option>
         </select>
       </div>
+
+      <div class="form-group">
+        <label>Tipo de Movimiento</label>
+        <select class="modern-input plain" data-field="tipo_movimiento" required>
+          <option value="ida" ${tipoDefault === 'ida' ? 'selected' : ''}>Ida</option>
+          <option value="vuelta" ${tipoDefault === 'vuelta' ? 'selected' : ''}>Vuelta</option>
+          <option value="conexion">Conexión</option>
+        </select>
+      </div>
       
       <div class="form-group">
         <label>Código/Número (Opcional)</label>
-        <input type="text" placeholder="Ej: LA-1234" class="modern-input plain">
+        <input type="text" data-field="codigo_transporte" placeholder="Ej: LA-1234" class="modern-input plain">
       </div>
       
       <div class="form-group">
         <label>Fecha</label>
-        <input type="date" class="modern-input plain" required>
+        <input type="date" data-field="fecha" class="modern-input plain" required>
       </div>
       
       <div class="form-group">
         <label>Hora</label>
-        <input type="time" class="modern-input plain" required>
+        <input type="time" data-field="hora" class="modern-input plain" required>
       </div>
       
       <div class="form-group">
         <label>Origen</label>
-        <select class="modern-input plain" required>
+        <select class="modern-input plain" data-field="id_ciudad_origen" required>
           <option value="">Seleccionar ciudad...</option>
           ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
         </select>
@@ -341,7 +398,7 @@ function agregarTramo() {
       
       <div class="form-group">
         <label>Destino</label>
-        <select class="modern-input plain" required>
+        <select class="modern-input plain" data-field="id_ciudad_destino" required>
           <option value="">Seleccionar ciudad...</option>
           ${ciudades.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('')}
         </select>
@@ -349,12 +406,29 @@ function agregarTramo() {
       
       <div class="form-group">
         <label>Empresa de Transporte</label>
-        <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" required>
+        <input type="text" data-field="empresa_transporte" placeholder="Ej: Transportes Basalto" class="modern-input plain" required>
       </div>
     </div>
   `;
   
   el.tramosContainer.appendChild(tramoDiv);
+
+  const tipoMovimientoEl = tramoDiv.querySelector('[data-field="tipo_movimiento"]');
+  const fechaInput = tramoDiv.querySelector('[data-field="fecha"]');
+  if (fechaInput) {
+    const fechaSugerida = obtenerFechaSugeridaPorTipo(tipoMovimientoEl?.value || tipoDefault);
+    if (fechaSugerida) {
+      fechaInput.value = fechaSugerida;
+    }
+  }
+
+  if (tipoMovimientoEl && fechaInput) {
+    tipoMovimientoEl.addEventListener('change', () => {
+      if (!fechaInput.value) {
+        fechaInput.value = obtenerFechaSugeridaPorTipo(tipoMovimientoEl.value);
+      }
+    });
+  }
 }
 
 window.eliminarTramo = function(tramoId) {
@@ -386,6 +460,7 @@ function prepararNuevoViaje() {
   openManagedModal(el.modalNuevoViaje);
   el.formNuevoViaje.reset();
   trabajadorSeleccionado = null;
+  sugerenciasPeriodoActual = null;
   el.trabajadorInfo.classList.remove('visible');
   el.tramosContainer.innerHTML = '';
   tramoCounter = 0;
@@ -432,16 +507,16 @@ async function guardarViaje() {
     let error = false;
     
     tramosElements.forEach((tramoEl, index) => {
-      const inputs = tramoEl.querySelectorAll('input, select');
-      const tipoTransporte = inputs[0].value;
-      const codigoTransporte = inputs[1].value;
-      const fecha = inputs[2].value;
-      const hora = inputs[3].value;
-      const idOrigen = inputs[4].value;
-      const idDestino = inputs[5].value;
-      const empresaTransporte = inputs[6].value;
+      const tipoTransporte = tramoEl.querySelector('[data-field="tipo_transporte"]')?.value || '';
+      const tipoMovimiento = tramoEl.querySelector('[data-field="tipo_movimiento"]')?.value || '';
+      const codigoTransporte = tramoEl.querySelector('[data-field="codigo_transporte"]')?.value || '';
+      const fecha = tramoEl.querySelector('[data-field="fecha"]')?.value || '';
+      const hora = tramoEl.querySelector('[data-field="hora"]')?.value || '';
+      const idOrigen = tramoEl.querySelector('[data-field="id_ciudad_origen"]')?.value || '';
+      const idDestino = tramoEl.querySelector('[data-field="id_ciudad_destino"]')?.value || '';
+      const empresaTransporte = tramoEl.querySelector('[data-field="empresa_transporte"]')?.value || '';
       
-      if (!tipoTransporte || !fecha || !hora || !idOrigen || !idDestino || !empresaTransporte) {
+      if (!tipoTransporte || !tipoMovimiento || !fecha || !hora || !idOrigen || !idDestino || !empresaTransporte) {
         mostrarError(`Tramo ${index + 1}: Complete todos los campos obligatorios`);
         error = true;
         return;
@@ -449,6 +524,7 @@ async function guardarViaje() {
       
       tramos.push({
         tipo_transporte: tipoTransporte,
+        tipo_movimiento: tipoMovimiento,
         codigo_transporte: codigoTransporte,
         fecha: fecha,
         hora: hora,
@@ -667,6 +743,10 @@ window.prepararEdicionViaje = async function(idViaje) {
     if (Array.isArray(viaje.tramos) && viaje.tramos.length) {
       viaje.tramos.forEach(tramo => {
         tramoCounter++;
+        const tipoMovimientoEditRaw = String(tramo.tipo_movimiento || tramo.tipo_tramo || '').toLowerCase();
+        const tipoMovimientoEdit = ['ida', 'vuelta', 'conexion'].includes(tipoMovimientoEditRaw)
+          ? tipoMovimientoEditRaw
+          : tipoMovimientoPorDefecto(tramoCounter - 1);
 
         const tramoDiv = document.createElement('div');
         tramoDiv.className = 'tramo-item';
@@ -689,7 +769,7 @@ window.prepararEdicionViaje = async function(idViaje) {
             <div class="form-group">
               <label>Tipo de Transporte</label>
               <div class="select-wrapper">
-                <select class="modern-input plain" required>
+                <select class="modern-input plain" data-field="tipo_transporte" required>
                   <option value="" disabled>Seleccione...</option>
                   <option value="Bus" ${tramo.tipo_transporte === 'Bus' ? 'selected' : ''}>🚌 BUS</option>
                   <option value="Avión" ${tramo.tipo_transporte === 'Avión' ? 'selected' : ''}>✈️ AVIÓN</option>
@@ -697,25 +777,34 @@ window.prepararEdicionViaje = async function(idViaje) {
                 <i class="fa-solid fa-chevron-down select-arrow"></i>
               </div>
             </div>
+
+            <div class="form-group">
+              <label>Tipo de Movimiento</label>
+              <select class="modern-input plain" data-field="tipo_movimiento" required>
+                <option value="ida" ${tipoMovimientoEdit === 'ida' ? 'selected' : ''}>Ida</option>
+                <option value="vuelta" ${tipoMovimientoEdit === 'vuelta' ? 'selected' : ''}>Vuelta</option>
+                <option value="conexion">Conexión</option>
+              </select>
+            </div>
             
             <div class="form-group">
               <label>Código/Número (Opcional)</label>
-              <input type="text" value="${tramo.codigo_transporte || ''}" placeholder="Ej: LA-1234" class="modern-input plain">
+              <input type="text" data-field="codigo_transporte" value="${tramo.codigo_transporte || ''}" placeholder="Ej: LA-1234" class="modern-input plain">
             </div>
             
             <div class="form-group">
               <label>Fecha</label>
-              <input type="date" value="${fechaFormato}" class="modern-input plain" required>
+              <input type="date" data-field="fecha" value="${fechaFormato}" class="modern-input plain" required>
             </div>
             
             <div class="form-group">
               <label>Hora</label>
-              <input type="time" value="${tramo.hora}" class="modern-input plain" required>
+              <input type="time" data-field="hora" value="${tramo.hora}" class="modern-input plain" required>
             </div>
             
             <div class="form-group">
               <label>Origen</label>
-              <select class="modern-input plain" required>
+              <select class="modern-input plain" data-field="id_ciudad_origen" required>
                 <option value="">Seleccionar ciudad...</option>
                 ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_origen ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
               </select>
@@ -723,7 +812,7 @@ window.prepararEdicionViaje = async function(idViaje) {
             
             <div class="form-group">
               <label>Destino</label>
-              <select class="modern-input plain" required>
+              <select class="modern-input plain" data-field="id_ciudad_destino" required>
                 <option value="">Seleccionar ciudad...</option>
                 ${ciudades.map(c => `<option value="${c.id_ciudad}" ${c.id_ciudad === tramo.id_ciudad_destino ? 'selected' : ''}>${c.nombre_ciudad}</option>`).join('')}
               </select>
@@ -731,7 +820,7 @@ window.prepararEdicionViaje = async function(idViaje) {
             
             <div class="form-group">
               <label>Empresa de Transporte</label>
-              <input type="text" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
+              <input type="text" data-field="empresa_transporte" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
             </div>
           </div>
         `;

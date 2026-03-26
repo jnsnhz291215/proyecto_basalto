@@ -1,0 +1,182 @@
+:root {
+    --cal-bg: #f2f3f8;
+    --cal-card-bg: #ffffff;
+    --cal-card-border: #d5d8e4;
+    --cal-header-bg: linear-gradient(135deg, #5754a8 0%, #434084 100%);
+    --cal-header-text: #f7f7ff;
+    --cal-day-bg: #f7f6ff;
+    --cal-night-bg: #ececfb;
+    --cal-col-title: #3f3a72;
+    --cal-text: #1f2334;
+    --cal-muted: #8f93a8;
+}
+
+.calendar-wrapper {
+    background: var(--cal-bg);
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.calendar-responsive-wrapper {
+    overflow: visible;
+}
+
+/* Contenedor principal: 7 columnas desktop */
+.calendar-container {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.calendar-day-card {
+    border: 1px solid var(--cal-card-border);
+    background: var(--cal-card-bg);
+    border-radius: 10px;
+    min-height: 168px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(20, 22, 34, 0.06);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.calendar-day-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(40, 44, 76, 0.12);
+}
+
+.card-header {
+    background: var(--cal-header-bg);
+    color: var(--cal-header-text);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 8px 10px;
+}
+
+/* Cuerpo 50/50 */
+.card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid #e4e6f2;
+    min-height: 130px;
+}
+
+.turno-col {
+    padding: 8px 7px;
+}
+
+.turno-col h4 {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--cal-col-title);
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.turno-dia {
+    background: var(--cal-day-bg);
+    border-right: 1px solid #e1e3ef;
+}
+
+.turno-noche {
+    background: var(--cal-night-bg);
+}
+
+.group-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.2;
+    margin-bottom: 3px;
+    color: var(--cal-text);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.group-empty {
+    color: var(--cal-muted);
+    font-weight: 500;
+}
+
+/* Espacio reservado para el icono */
+.icon-slot {
+    display: inline-block;
+    width: 25px;
+    min-width: 25px;
+    text-align: center;
+}
+
+.group-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Móvil: 1 columna */
+@media (max-width: 768px) {
+    .calendar-container {
+        grid-template-columns: 1fr;
+    }
+
+    .calendar-day-card {
+        min-height: 150px;
+    }
+}
+
+/* Contenedor del Modal Estilo Libro */
+.modal-book-view {
+    display: flex;
+    gap: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* Páginas del libro */
+.book-page {
+    flex: 1;
+    background: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+}
+
+.calendar-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: #4b4f70;
+    font-weight: 600;
+}
+
+/* Títulos de turno */
+.page-title {
+    border-bottom: 2px solid #6366f1; /* Morado Basalto */
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Lista de personal */
+.worker-item {
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 0.9rem;
+}
+
+.worker-cargo {
+    display: block;
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+    .modal-book-view {
+        flex-direction: column;
+        gap: 12px;
+    }
+}

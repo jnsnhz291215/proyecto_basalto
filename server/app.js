@@ -25,6 +25,12 @@ const turnosRoutes = require('./routes/turnos');
 app.use('/api', turnosRoutes);
 
 // ============================================
+// RUTAS DE CALENDARIO MODULAR
+// ============================================
+const calendarioRoutes = require('./routes/calendario');
+app.use('/api', calendarioRoutes);
+
+// ============================================
 // RUTAS DE VIAJES
 // ============================================
 const viajesRoutes = require('./routes/viajes');
