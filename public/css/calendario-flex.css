@@ -29,6 +29,15 @@
     width: 100%;
 }
 
+.calendar-container > .card-header {
+    text-align: center;
+}
+
+.calendar-day-card[aria-hidden="true"] {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .calendar-day-card {
     border: 1px solid var(--cal-card-border);
     background: var(--cal-card-bg);

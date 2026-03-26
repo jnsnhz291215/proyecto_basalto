@@ -51,8 +51,6 @@ function calcularSabadoInicio(fechaTarget, fechaSemilla) {
   const seed   = toMidnight(fechaSemilla);
 
   const diasDesdeSemilla = Math.floor((target - seed) / MS_PER_DAY);
-  if (diasDesdeSemilla < 0) return null;
-
   const bloque14 = Math.floor(diasDesdeSemilla / 14);
   return new Date(seed.getTime() + bloque14 * 14 * MS_PER_DAY);
 }

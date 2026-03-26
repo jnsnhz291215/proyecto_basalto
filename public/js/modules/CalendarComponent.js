@@ -2,6 +2,7 @@
   'use strict';
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+  const GRID_DAY_NAMES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   function toISODate(date) {
@@ -78,17 +79,30 @@
 
     render(payload) {
       this.container.innerHTML = '';
-      // Aplicar la clase del grid modular directamente sobre el contenedor,
-      // evitando el wrapper doble que colocaba .calendar-container como una
-      // sola celda dentro del grid heredado de #days-grid (style.css).
       this.container.className = 'days-grid calendar-container';
 
       if (this.monthLabel) {
         this.monthLabel.textContent = `${MONTH_NAMES[payload.mes - 1]} ${payload.anio}`;
       }
 
+      const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
+
+      for (const dayName of GRID_DAY_NAMES) {
+        const weekdayHeader = document.createElement('div');
+        weekdayHeader.className = 'card-header';
+        weekdayHeader.textContent = dayName;
+        this.container.appendChild(weekdayHeader);
+      }
+
+      const leadingEmptySlots = (monthStart.getDay() + 6) % 7;
+      for (let slot = 0; slot < leadingEmptySlots; slot++) {
+        const emptyCard = document.createElement('div');
+        emptyCard.className = 'calendar-day-card';
+        emptyCard.setAttribute('aria-hidden', 'true');
+        this.container.appendChild(emptyCard);
+      }
 
       for (let d = 1; d <= monthEnd.getDate(); d++) {
         const dateObj = new Date(payload.anio, payload.mes - 1, d);

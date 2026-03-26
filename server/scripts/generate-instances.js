@@ -37,6 +37,10 @@ function toSQLDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+function positiveModulo(value, divisor) {
+  return ((value % divisor) + divisor) % divisor;
+}
+
 /**
  * Determina el turno asignado (DIA / NOCHE / N/A) para un grupo en una fecha.
  * Usa el algoritmo de rotación pista existente para grupos rotativos,
@@ -45,12 +49,7 @@ function toSQLDate(date) {
 function getTurnoAsignado(nombreGrupo, tipoGrupo, fecha) {
   const grupo = String(nombreGrupo || '').toUpperCase().trim();
 
-  if (tipoGrupo === 'fijo_dia') return 'DIA';
-
-  if (tipoGrupo === 'semanal') {
-    const dow = fecha.getDay(); // 0=Dom, 6=Sab
-    return (dow >= 1 && dow <= 5) ? 'DIA' : 'N/A';
-  }
+  if (tipoGrupo === 'fijo_dia' || tipoGrupo === 'semanal') return 'DIA';
 
   // Rotativo: consultar algoritmo de pistas
   const gruposDelDia = obtenerGruposDelDia(fecha);
@@ -136,16 +135,9 @@ async function generateInstances(options = {}) {
 
         const seed = toMidnight(cfg.fecha_semilla_inicio);
         const diasDesdeSemilla = Math.floor((current - seed) / MS_PER_DAY);
-        if (diasDesdeSemilla < 0) {
-          current = new Date(current.getTime() + MS_PER_DAY);
-          continue;
-        }
-
-        const bloque14 = Math.floor(diasDesdeSemilla / 14);
-        const diaEnBloque = (diasDesdeSemilla % 14) + 1;
-        const dia_n = (bloque14 % 2 === 0)
-          ? diaEnBloque
-          : 14 + diaEnBloque;
+        const ciclo28 = positiveModulo(diasDesdeSemilla, 28);
+        const dia_n = ciclo28 + 1;
+        const diaEnBloque = positiveModulo(diasDesdeSemilla, 14) + 1;
 
         // Regla de oro 14x14: primeros 14 TRABAJO, siguientes 14 BAJADA
         const tipo_jornada = dia_n <= 14 ? 'TRABAJO' : 'BAJADA';
