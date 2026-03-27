@@ -839,7 +839,12 @@ async function verificarSuperAdminPorRut(rutSolicitante) {
 
 async function resolverIdGrupo(grupoInput) {
   const valor = String(grupoInput || '').trim();
-  if (!valor) return null;
+  if (!valor) return 15;
+
+  const valorNormalizado = valor.toLowerCase();
+  if (valorNormalizado === 'sin_grupo' || valorNormalizado === 'sin grupo') {
+    return 15;
+  }
 
   const posibleId = parseInt(valor, 10);
   if (Number.isInteger(posibleId)) {

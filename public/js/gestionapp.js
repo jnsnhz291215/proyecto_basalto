@@ -315,8 +315,12 @@ function getFiltrados() {
   
   // Manejar filtro de grupo
   if (grupo === 'sin_grupo') {
-    // Mostrar solo trabajadores sin grupo asignado
-    list = list.filter(t => !t.grupo || t.grupo === '');
+    // Mostrar solo trabajadores en el grupo base Sin grupo.
+    list = list.filter(t => {
+      const groupName = String(t.grupo || '').trim().toLowerCase();
+      const groupId = Number(t.id_grupo || 0);
+      return groupName === 'sin grupo' || groupId === 15 || !groupName;
+    });
   } else if (grupo) {
     // Filtrar por grupo específico
     list = list.filter(t => t.grupo === grupo);
@@ -1364,6 +1368,7 @@ async function cargarGrupos(seleccionarValor = '') {
     if (selectFiltro) {
       selectFiltro.innerHTML = '<option value="">Todos los grupos</option>';
       grupos.forEach(grupo => {
+        if (String(grupo.nombre_grupo || '').trim().toLowerCase() === 'sin grupo') return;
         const option = document.createElement('option');
         option.value = String(grupo.nombre_grupo);
         option.textContent = `Grupo ${grupo.nombre_grupo}`;
@@ -1371,7 +1376,7 @@ async function cargarGrupos(seleccionarValor = '') {
       });
       const optionSinGrupo = document.createElement('option');
       optionSinGrupo.value = 'sin_grupo';
-      optionSinGrupo.textContent = 'Sin Grupo / Por Asignar';
+      optionSinGrupo.textContent = 'Sin grupo';
       selectFiltro.appendChild(optionSinGrupo);
     }
 

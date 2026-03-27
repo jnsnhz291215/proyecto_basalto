@@ -63,6 +63,35 @@ function normalizeCargoName(value) {
     .toLowerCase();
 }
 
+async function ensureSinGrupo(connection) {
+  const nombreSinGrupo = 'sin grupo';
+  const [rows] = await connection.execute(
+    'SELECT id_grupo, nombre_grupo FROM grupos WHERE id_grupo = 15 LIMIT 1'
+  );
+
+  if (rows && rows[0]) {
+    if (String(rows[0].nombre_grupo || '').trim().toLowerCase() !== nombreSinGrupo) {
+      await connection.execute(
+        'UPDATE grupos SET nombre_grupo = ? WHERE id_grupo = 15',
+        [nombreSinGrupo]
+      );
+      rows[0].nombre_grupo = nombreSinGrupo;
+    }
+    return rows[0];
+  }
+
+  throw new Error('El grupo base con id_grupo=15 no existe. Debe existir como Sin grupo.');
+}
+
+async function normalizarTrabajadoresSinGrupo(connection) {
+  const sinGrupo = await ensureSinGrupo(connection);
+  await connection.execute(
+    'UPDATE trabajadores SET id_grupo = ? WHERE id_grupo IS NULL OR id_grupo = 0',
+    [sinGrupo.id_grupo]
+  );
+  return sinGrupo;
+}
+
 async function resolveCiudadId(connection, ciudadInput) {
   const rawValue = String(ciudadInput || '').trim();
   if (!rawValue) return 1;
@@ -82,6 +111,31 @@ async function resolveCiudadId(connection, ciudadInput) {
   const normalizedInput = String(rawValue).trim().toLowerCase();
   const ciudadMatch = (rows || []).find((row) => String(row.nombre_ciudad || '').trim().toLowerCase() === normalizedInput);
   return ciudadMatch ? Number(ciudadMatch.id_ciudad) : null;
+}
+
+async function resolveGrupoId(connection, grupoInput) {
+  const rawValue = String(grupoInput || '').trim();
+  if (!rawValue) return 15;
+
+  const normalized = rawValue.toLowerCase();
+  if (normalized === 'sin_grupo' || normalized === 'sin grupo') {
+    return 15;
+  }
+
+  const numericId = Number.parseInt(rawValue, 10);
+  if (Number.isInteger(numericId)) {
+    const [rows] = await connection.execute(
+      'SELECT id_grupo FROM grupos WHERE id_grupo = ? LIMIT 1',
+      [numericId]
+    );
+    return rows && rows[0] ? Number(rows[0].id_grupo) : null;
+  }
+
+  const [rows] = await connection.execute(
+    'SELECT id_grupo, nombre_grupo FROM grupos ORDER BY id_grupo ASC'
+  );
+  const grupoMatch = (rows || []).find((row) => String(row.nombre_grupo || '').trim().toLowerCase() === normalized);
+  return grupoMatch ? Number(grupoMatch.id_grupo) : null;
 }
 
 async function resolveCargoId(connection, cargoInput) {
@@ -109,6 +163,8 @@ async function resolveCargoId(connection, cargoInput) {
 async function obtenerTrabajadores(incluirInactivos = false) {
   const connection = await pool.getConnection();
   try {
+    await normalizarTrabajadoresSinGrupo(connection);
+
     let query = `
       SELECT 
         t.RUT, t.nombres, t.apellido_paterno, t.apellido_materno, t.email, t.telefono,
@@ -124,7 +180,9 @@ async function obtenerTrabajadores(incluirInactivos = false) {
     }
     const [rows] = await connection.execute(query);
     return rows.map(r => {
-      const grupoNormalizado = r.nombre_grupo ? String(r.nombre_grupo).trim() : (r.id_grupo ? String(r.id_grupo).trim() : '');
+      const grupoNormalizado = r.nombre_grupo
+        ? String(r.nombre_grupo).trim()
+        : (Number(r.id_grupo) === 15 ? 'Sin grupo' : (r.id_grupo ? String(r.id_grupo).trim() : 'Sin grupo'));
 
       return {
       RUT: r.RUT,
@@ -153,11 +211,19 @@ async function obtenerTrabajadores(incluirInactivos = false) {
 async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, rut, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
+    await normalizarTrabajadoresSinGrupo(connection);
     const nombresNorm = titleCase(nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
+    const grupoId = await resolveGrupoId(connection, id_grupo);
     const cargoId = await resolveCargoId(connection, cargo);
     const ciudadId = await resolveCiudadId(connection, ciudad);
+
+    if (!grupoId) {
+      const err = new Error('INVALID_GROUP');
+      err.code = 'INVALID_GROUP';
+      throw err;
+    }
 
     if (cargo && !cargoId) {
       const err = new Error('INVALID_CARGO');
@@ -173,7 +239,7 @@ async function agregarTrabajador(nombres, apellido_paterno, apellido_materno, ru
 
     const [result] = await connection.execute(
       'INSERT INTO trabajadores (nombres, apellido_paterno, apellido_materno, RUT, email, telefono, id_grupo, id_cargo, id_ciudad, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, id_grupo, cargoId, ciudadId || 1, fecha_nacimiento]
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, rut, email, telefono, grupoId, cargoId, ciudadId || 1, fecha_nacimiento]
     );
     return result;
   } finally {
@@ -208,11 +274,19 @@ async function eliminarTrabajador(rut) {
 async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno, email, telefono, id_grupo, cargo = null, ciudad = null, fecha_nacimiento = null) {
   const connection = await pool.getConnection();
   try {
+    await normalizarTrabajadoresSinGrupo(connection);
     const nombresNorm = titleCase(nombres);
     const apellidoPaternoNorm = titleCase(apellido_paterno);
     const apellidoMaternoNorm = titleCase(apellido_materno);
+    const grupoId = await resolveGrupoId(connection, id_grupo);
     const cargoId = await resolveCargoId(connection, cargo);
     const ciudadId = await resolveCiudadId(connection, ciudad);
+
+    if (!grupoId) {
+      const err = new Error('INVALID_GROUP');
+      err.code = 'INVALID_GROUP';
+      throw err;
+    }
 
     if (cargo && !cargoId) {
       const err = new Error('INVALID_CARGO');
@@ -237,7 +311,7 @@ async function editarTrabajador(rut, nombres, apellido_paterno, apellido_materno
 
     const [result] = await connection.execute(
       'UPDATE trabajadores SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, email = ?, telefono = ?, id_grupo = ?, id_cargo = ?, id_ciudad = ?, fecha_nacimiento = ? WHERE RUT = ?',
-      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, id_grupo, cargoId, ciudadId || 1, fecha_nacimiento, rut]
+      [nombresNorm, apellidoPaternoNorm, apellidoMaternoNorm, email, telefono, grupoId, cargoId, ciudadId || 1, fecha_nacimiento, rut]
     );
     return result;
   } finally {
@@ -252,5 +326,8 @@ module.exports = {
   eliminarTrabajador,
   editarTrabajador,
   resolveCargoId,
-  resolveCiudadId
+  resolveCiudadId,
+  resolveGrupoId,
+  ensureSinGrupo,
+  normalizarTrabajadoresSinGrupo
 };

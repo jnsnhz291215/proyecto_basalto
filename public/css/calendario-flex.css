@@ -12,21 +12,30 @@
 }
 
 .calendar-wrapper {
-    background: var(--cal-bg);
-    border-radius: 14px;
-    padding: 12px;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0;
+    border-radius: 0;
 }
 
 .calendar-responsive-wrapper {
     overflow: visible;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
 }
 
-/* Contenedor principal del calendario */
+/* Contenedor principal del calendario — única capa con shadow y fondo */
 .calendar-container {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 12px;
     width: 100%;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 20px;
 }
 
 .calendar-container > .card-header {

@@ -1,13 +1,16 @@
 const express = require('express');
-const { pool, obtenerTrabajadores } = require('../database.js');
+const { pool, obtenerTrabajadores, normalizarTrabajadoresSinGrupo } = require('../database.js');
 
 const router = express.Router();
 
 // GET /api/grupos - Lista de grupos disponibles
 router.get('/grupos', async (req, res) => {
   try {
+    await normalizarTrabajadoresSinGrupo(pool);
     const [rows] = await pool.execute(
-      'SELECT id_grupo, nombre_grupo, tipo_grupo FROM grupos ORDER BY id_grupo ASC'
+      `SELECT id_grupo, nombre_grupo, tipo_grupo
+       FROM grupos
+       ORDER BY CASE WHEN LOWER(TRIM(nombre_grupo)) = 'sin grupo' THEN 0 ELSE 1 END, id_grupo ASC`
     );
     res.json(rows);
   } catch (error) {

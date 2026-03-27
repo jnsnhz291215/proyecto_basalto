@@ -85,9 +85,7 @@
     }
 
     render(payload) {
-      this.sanitizeHostWrapper();
       this.container.innerHTML = '';
-      this.container.className = 'days-grid calendar-container';
 
       if (this.monthLabel) {
         this.monthLabel.textContent = `${MONTH_NAMES[payload.mes - 1]} ${payload.anio}`;
@@ -96,15 +94,6 @@
       const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
-
-      if (usesSevenColumnLayout()) {
-        for (const dayName of GRID_DAY_NAMES) {
-          const headerCell = document.createElement('div');
-          headerCell.className = 'weekday-grid-header';
-          headerCell.textContent = dayName;
-          this.container.appendChild(headerCell);
-        }
-      }
 
       const leadingEmptySlots = usesSevenColumnLayout()
         ? (monthStart.getDay() + 6) % 7
@@ -162,19 +151,6 @@
         });
 
         this.container.appendChild(card);
-      }
-    }
-
-    sanitizeHostWrapper() {
-      if (!this.container || !this.container.parentElement) return;
-      const parent = this.container.parentElement;
-
-      // Mantener solo #days-grid como hijo directo del wrapper del calendario.
-      const children = Array.from(parent.children);
-      for (const child of children) {
-        if (child !== this.container) {
-          child.remove();
-        }
       }
     }
 

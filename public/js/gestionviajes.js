@@ -319,14 +319,20 @@ function actualizarFiltroGrupoVista() {
   const gruposOrdenados = Array.from(gruposMap.entries()).sort((a, b) => Number(a[0]) - Number(b[0]));
   el.filtroGrupo.innerHTML = '<option value="">Todos</option>';
 
+  const optionSinGrupo = document.createElement('option');
+  optionSinGrupo.value = '15';
+  optionSinGrupo.textContent = 'Sin grupo';
+  el.filtroGrupo.appendChild(optionSinGrupo);
+
   gruposOrdenados.forEach(([id, nombre]) => {
+    if (String(nombre || '').trim().toLowerCase() === 'sin grupo' || String(id) === '15') return;
     const option = document.createElement('option');
     option.value = id;
     option.textContent = `${nombre} (${id})`;
     el.filtroGrupo.appendChild(option);
   });
 
-  if (valorActual && gruposMap.has(valorActual)) {
+  if (valorActual && (valorActual === '15' || gruposMap.has(valorActual))) {
     el.filtroGrupo.value = valorActual;
   }
 }
@@ -354,14 +360,20 @@ function actualizarSelectorGruposTrabajador() {
   const gruposOrdenados = Array.from(gruposMap.entries()).sort((a, b) => Number(a[0]) - Number(b[0]));
   el.selectGrupoTrabajador.innerHTML = '<option value="">Todos los grupos</option>';
 
+  const optionSinGrupo = document.createElement('option');
+  optionSinGrupo.value = '15';
+  optionSinGrupo.textContent = 'Sin grupo';
+  el.selectGrupoTrabajador.appendChild(optionSinGrupo);
+
   gruposOrdenados.forEach(([id, nombre]) => {
+    if (String(nombre || '').trim().toLowerCase() === 'sin grupo' || String(id) === '15') return;
     const option = document.createElement('option');
     option.value = id;
     option.textContent = `${nombre} (${id})`;
     el.selectGrupoTrabajador.appendChild(option);
   });
 
-  if (valorActual && gruposMap.has(valorActual)) {
+  if (valorActual && (valorActual === '15' || gruposMap.has(valorActual))) {
     el.selectGrupoTrabajador.value = valorActual;
   }
 }
