@@ -27,6 +27,11 @@
       .replace(/'/g, '&#39;');
   }
 
+  function usesSevenColumnLayout() {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth > 1400;
+  }
+
   class BasaltoCalendar {
     constructor(containerId, options = {}) {
       this.container = document.getElementById(containerId);
@@ -88,7 +93,9 @@
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
 
-      const leadingEmptySlots = (monthStart.getDay() + 6) % 7;
+      const leadingEmptySlots = usesSevenColumnLayout()
+        ? (monthStart.getDay() + 6) % 7
+        : 0;
       for (let slot = 0; slot < leadingEmptySlots; slot++) {
         const emptyCard = document.createElement('div');
         emptyCard.className = 'calendar-day-card';
