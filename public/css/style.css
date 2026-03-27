@@ -295,25 +295,25 @@ body {
 .sidebar-right {
   min-width: 180px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   position: absolute;
   right: 12px; /* pequeño margen desde el borde */
-  top: 0; /* alinear con el tope del contenedor principal */
+  top: 8px; /* mantener fuera del flujo visual del calendario */
   transform: none;
 }
 
 .referencia, .sidebar-referencia {
-  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); /* Degradado profesional */
-  color: white;
-  padding: 20px;
+  background: transparent;
+  color: inherit;
+  padding: 0;
   margin-top: 0;
   border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 /* Dejar espacio al main-content para que no quede debajo de la referencia */
 .main-content {
-  margin-right: 260px; /* ajuste de espacio para que quede cercano pero sin solapar */
+  margin-right: 280px; /* reserva estable para la referencia lateral */
 }
 
 @media (max-width: 900px) {
@@ -340,6 +340,34 @@ body {
   }
   .referencia {
     margin-top: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar-right {
+    order: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 0;
+    margin-bottom: 8px;
+  }
+
+  .main-content {
+    order: 1;
+  }
+
+  .referencia {
+    margin-top: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .legend-help-btn,
+  #btn-referencia {
+    width: auto;
+    margin: 0 auto 8px;
   }
 }
 
