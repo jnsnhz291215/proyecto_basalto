@@ -21,11 +21,11 @@
     overflow: visible;
 }
 
-/* Contenedor principal: 7 columnas desktop */
+/* Contenedor principal del calendario */
 .calendar-container {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 10px;
+    gap: 12px;
     width: 100%;
 }
 
@@ -39,19 +39,19 @@
 }
 
 .calendar-day-card {
-    border: 1px solid var(--cal-card-border);
+    border: none;
     background: var(--cal-card-bg);
     border-radius: 10px;
     min-height: 168px;
     overflow: hidden;
-    box-shadow: 0 2px 6px rgba(20, 22, 34, 0.06);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    transition: all 0.3s ease;
 }
 
 .calendar-day-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(40, 44, 76, 0.12);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(87, 84, 168, 0.15);
 }
 
 .card-header {
@@ -69,6 +69,16 @@
     grid-template-columns: 1fr 1fr;
     border-top: 1px solid #e4e6f2;
     min-height: 130px;
+    position: relative;
+}
+
+.logistica-corner-icon {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 14px;
+    line-height: 1;
+    z-index: 2;
 }
 
 .turno-col {
@@ -93,70 +103,60 @@
     background: var(--cal-night-bg);
 }
 
-.group-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    line-height: 1.2;
-    margin-bottom: 3px;
-    color: var(--cal-text);
-    font-size: 12px;
-    font-weight: 600;
-}
-
 .group-empty {
     color: var(--cal-muted);
     font-weight: 500;
-}
-
-/* Espacio reservado para el icono */
-.icon-slot {
-    display: inline-block;
-    width: 25px;
-    min-width: 25px;
-    text-align: center;
-}
-
-.group-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 11px;
 }
 
 /* Secciones por PISTA dentro de cada turno-col */
 .pista-section {
-    margin-bottom: 2px;
+    margin-bottom: 6px;
 }
 
 .pista-label {
-    display: inline-block;
-    font-size: 9px;
-    font-weight: 900;
+    font-size: 10px;
     color: var(--cal-muted);
-    letter-spacing: 0.5px;
+    font-weight: 700;
     text-transform: uppercase;
-    margin-bottom: 2px;
-    padding: 1px 4px;
-    background: rgba(87, 84, 168, 0.12);
-    border-radius: 3px;
+    margin-bottom: 4px;
+    display: block;
+    border-bottom: 1px solid #eee;
 }
 
-.pista-divider {
-    height: 1px;
-    background: var(--cal-card-border);
-    margin: 4px 0;
-    opacity: 0.6;
+.pista-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
-/* Grupos dobles (AB, CD, EF, GH) - siempre DÍA, refuerzo */
-.group-row--doble {
-    opacity: 0.65;
-    font-style: italic;
+.group-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #f0f1fa;
+    color: #434084;
+    border-radius: 4px;
     font-size: 11px;
+    font-weight: 800;
+    margin: 1px;
 }
 
-/* Móvil: 1 columna */
-@media (max-width: 768px) {
+/* Desktop estandar: 5 columnas */
+@media (max-width: 1400px) {
+    .calendar-container {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+/* Tablet / Laptop pequena: 3 columnas */
+@media (max-width: 1000px) {
+    .calendar-container {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* Movil: 1 columna */
+@media (max-width: 600px) {
     .calendar-container {
         grid-template-columns: 1fr;
     }

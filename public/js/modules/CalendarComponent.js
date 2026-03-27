@@ -121,6 +121,11 @@
         const body = document.createElement('div');
         body.className = 'card-body';
 
+        const logisticaIcon = this.createLogisticaCornerIcon(data);
+        if (logisticaIcon) {
+          body.appendChild(logisticaIcon);
+        }
+
         const dayCol = document.createElement('div');
         dayCol.className = 'turno-col turno-dia';
         dayCol.innerHTML = '<h4>DIA</h4>';
@@ -148,27 +153,60 @@
       }
     }
 
+    createLogisticaCornerIcon(data) {
+      const groups = [...(data.dia || []), ...(data.noche || [])];
+      const hasTakeoff = groups.some((g) => String(g.avion_estado || '').includes('🛫'));
+      if (!hasTakeoff) return null;
+
+      const icon = document.createElement('span');
+      icon.className = 'logistica-corner-icon';
+      icon.textContent = '🛫';
+      icon.setAttribute('aria-label', 'Logistica con salida');
+      return icon;
+    }
+
     renderGroupRows(columnEl, groups) {
       const PISTA1 = new Set(['A', 'B', 'C', 'D', 'AB', 'CD']);
-      const PISTA2 = new Set(['E', 'F', 'G', 'H', 'EF', 'GH']);
-      const SEMANAL = new Set(['J', 'K']);
-      const DOBLES  = new Set(['AB', 'CD', 'EF', 'GH']);
+      const PISTA2 = new Set(['E', 'F', 'G', 'H', 'EF', 'GH', 'J', 'K']);
 
-      if (!groups.length) {
+      const normalize = (g) => String(g.grupo || '').toUpperCase().trim();
+      const isActiveGroup = (item) => {
+        const groupName = normalize(item);
+        if (!groupName || groupName === 'DESCANSO') return false;
+
+        const jornada = String(item.tipo_jornada || item.estado_turno || '').toUpperCase().trim();
+        if (jornada === 'DESCANSO') return false;
+
+        return true;
+      };
+
+      const activeGroups = (groups || []).filter(isActiveGroup);
+
+      if (!activeGroups.length) {
         const empty = document.createElement('div');
-        empty.className = 'group-row group-empty';
-        empty.innerHTML = '<span class="icon-slot"></span><span>-</span>';
+        empty.className = 'group-empty';
+        empty.textContent = '-';
         columnEl.appendChild(empty);
         return;
       }
 
-      const normalize = (g) => String(g.grupo || '').toUpperCase().trim();
-      const p1  = groups.filter((g) => PISTA1.has(normalize(g)));
-      const p2  = groups.filter((g) => PISTA2.has(normalize(g)));
-      const sem = groups.filter((g) => SEMANAL.has(normalize(g)));
+      const dedupeByGroup = (list) => {
+        const used = new Set();
+        const out = [];
+        for (const item of list) {
+          const key = normalize(item);
+          if (used.has(key)) continue;
+          used.add(key);
+          out.push(item);
+        }
+        return out;
+      };
+
+      const uniqueGroups = dedupeByGroup(activeGroups);
+      const p1  = uniqueGroups.filter((g) => PISTA1.has(normalize(g)));
+      const p2  = uniqueGroups.filter((g) => PISTA2.has(normalize(g)));
 
       const renderSection = (list, labelText) => {
-        if (!list.length) return;
         const section = document.createElement('div');
         section.className = 'pista-section';
 
@@ -177,41 +215,29 @@
         label.textContent = labelText;
         section.appendChild(label);
 
-        for (const group of list) {
-          const nombre = String(group.grupo || '').trim();
-          const isDoble = DOBLES.has(nombre.toUpperCase());
+        const badgesWrap = document.createElement('div');
+        badgesWrap.className = 'pista-badges';
 
-          const row = document.createElement('div');
-          row.className = 'group-row' + (isDoble ? ' group-row--doble' : '');
-
-          const icon = document.createElement('span');
-          icon.className = 'icon-slot';
-          icon.textContent = group.avion_estado || '';
-
-          const name = document.createElement('span');
-          name.className = 'group-name';
-          name.textContent = nombre;
-
-          row.appendChild(icon);
-          row.appendChild(name);
-          section.appendChild(row);
+        if (!list.length) {
+          const empty = document.createElement('span');
+          empty.className = 'group-empty';
+          empty.textContent = '-';
+          badgesWrap.appendChild(empty);
+        } else {
+          for (const group of list) {
+            const badge = document.createElement('span');
+            badge.className = 'group-badge';
+            badge.textContent = String(group.grupo || '').trim();
+            badgesWrap.appendChild(badge);
+          }
         }
+
+        section.appendChild(badgesWrap);
         columnEl.appendChild(section);
       };
 
-      renderSection(p1, 'P1');
-      if (p1.length && (p2.length || sem.length)) {
-        const div = document.createElement('div');
-        div.className = 'pista-divider';
-        columnEl.appendChild(div);
-      }
-      renderSection(p2, 'P2');
-      if (p2.length && sem.length) {
-        const div = document.createElement('div');
-        div.className = 'pista-divider';
-        columnEl.appendChild(div);
-      }
-      renderSection(sem, 'S');
+      renderSection(p1, 'Pista 1');
+      renderSection(p2, 'Pista 2');
     }
 
     ensureModal() {

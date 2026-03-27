@@ -39,7 +39,19 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
       [anio, mes]
     );
 
-    const activeRows = rows.filter((r) => String(r.tipo_jornada || '').toUpperCase() === 'TRABAJO');
+    const activeRowsRaw = rows.filter((r) => String(r.tipo_jornada || '').toUpperCase() === 'TRABAJO');
+
+    // Defensa contra duplicados en BD: un solo registro por fecha+grupo+turno.
+    const seen = new Set();
+    const activeRows = [];
+    for (const r of activeRowsRaw) {
+      const fechaKey = toISODate(r.fecha);
+      const turnoKey = String(r.turno_asignado || '').toUpperCase().trim();
+      const uniqueKey = `${fechaKey}|${r.id_grupo}|${turnoKey}`;
+      if (seen.has(uniqueKey)) continue;
+      seen.add(uniqueKey);
+      activeRows.push(r);
+    }
 
     const periodKeys = [...new Set(activeRows.map((r) => r.id_periodo_key).filter(Boolean))];
     const semaforoByPeriodo = new Map();
