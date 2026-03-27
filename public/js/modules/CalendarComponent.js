@@ -118,13 +118,10 @@
         header.className = 'card-header';
         header.textContent = formatHeaderDate(dateObj);
 
+        const logisticsBar = this.createLogisticsBar(dateKey, data);
+
         const body = document.createElement('div');
         body.className = 'card-body';
-
-        const logisticaIcon = this.createLogisticaCornerIcon(data);
-        if (logisticaIcon) {
-          body.appendChild(logisticaIcon);
-        }
 
         const dayCol = document.createElement('div');
         dayCol.className = 'turno-col turno-dia';
@@ -139,6 +136,9 @@
         body.appendChild(dayCol);
         body.appendChild(nightCol);
         card.appendChild(header);
+        if (logisticsBar) {
+          card.appendChild(logisticsBar);
+        }
         card.appendChild(body);
 
         card.addEventListener('click', () => this.openDayDetail(dateKey));
@@ -153,16 +153,81 @@
       }
     }
 
-    createLogisticaCornerIcon(data) {
-      const groups = [...(data.dia || []), ...(data.noche || [])];
-      const hasTakeoff = groups.some((g) => String(g.avion_estado || '').includes('🛫'));
-      if (!hasTakeoff) return null;
+    createLogisticsBar(dateKey, data) {
+      const allGroups = [...(data.dia || []), ...(data.noche || [])];
+      const uniqueByGroup = new Map();
+      for (const item of allGroups) {
+        const key = String(item.grupo || '').toUpperCase().trim();
+        if (!key || key === 'DESCANSO') continue;
+        if (!uniqueByGroup.has(key)) uniqueByGroup.set(key, item);
+      }
 
-      const icon = document.createElement('span');
-      icon.className = 'logistica-corner-icon';
-      icon.textContent = '🛫';
-      icon.setAttribute('aria-label', 'Logistica con salida');
-      return icon;
+      const entries = [];
+      let hasSubida = false;
+      let hasBajada = false;
+
+      for (const group of uniqueByGroup.values()) {
+        const isSubida = dateKey === String(group.fecha_ida || '');
+        const isBajada = dateKey === String(group.fecha_vuelta || '');
+        if (!isSubida && !isBajada) continue;
+
+        const total = Number(group.total_trabajadores || 0);
+        const done = isSubida ? Number(group.ida_count || 0) : Number(group.vuelta_count || 0);
+
+        let statusClass = 'status-ready';
+        if (total > 0 && done <= 0) {
+          statusClass = 'status-danger';
+        } else if (total > 0 && done < total) {
+          statusClass = 'status-warning';
+        }
+
+        entries.push({
+          group: String(group.grupo || '').trim(),
+          done,
+          total,
+          statusClass
+        });
+
+        hasSubida = hasSubida || isSubida;
+        hasBajada = hasBajada || isBajada;
+      }
+
+      if (!entries.length) return null;
+
+      const bar = document.createElement('div');
+      bar.className = 'logistics-bar';
+
+      const hitos = document.createElement('span');
+      hitos.className = 'logistics-hitos';
+      if (hasSubida && hasBajada) {
+        hitos.textContent = '🛫/🛬 Hitos';
+      } else if (hasSubida) {
+        hitos.textContent = '🛫 Subida';
+      } else {
+        hitos.textContent = '🛬 Bajada';
+      }
+      bar.appendChild(hitos);
+
+      const list = document.createElement('div');
+      list.className = 'logistics-items';
+
+      for (const item of entries) {
+        const row = document.createElement('span');
+        row.className = 'logistics-item';
+
+        const dot = document.createElement('span');
+        dot.className = `status-dot ${item.statusClass}`;
+
+        const label = document.createElement('span');
+        label.textContent = `${item.group} (${item.done}/${item.total})`;
+
+        row.appendChild(dot);
+        row.appendChild(label);
+        list.appendChild(row);
+      }
+
+      bar.appendChild(list);
+      return bar;
     }
 
     renderGroupRows(columnEl, groups) {

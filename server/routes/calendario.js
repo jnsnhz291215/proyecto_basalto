@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../database.js');
 const { checkLogisticaCompleta } = require('../helpers/periodHelper.js');
+const { obtenerGruposDelDia } = require('../helpers/shiftValidation.js');
 
 function toISODate(dateLike) {
   const d = new Date(dateLike);
@@ -9,6 +10,37 @@ function toISODate(dateLike) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function resolveExpectedTurno(fechaISO, nombreGrupo) {
+  const grupo = String(nombreGrupo || '').toUpperCase().trim();
+  if (!grupo) return null;
+
+  const grupos = obtenerGruposDelDia(new Date(`${fechaISO}T00:00:00`));
+  const isDia = Boolean(
+    grupos?.pista1?.manana === grupo
+    || grupos?.pista1?.doble === grupo
+    || grupos?.pista2?.manana === grupo
+    || grupos?.pista2?.doble === grupo
+    || (Array.isArray(grupos?.semanales) && grupos.semanales.includes(grupo))
+  );
+  if (isDia) return 'DIA';
+
+  const isNoche = Boolean(
+    grupos?.pista1?.tarde === grupo
+    || grupos?.pista2?.tarde === grupo
+  );
+  if (isNoche) return 'NOCHE';
+
+  return null;
+}
+
+function getCandidateScore(row, expectedTurno) {
+  const turno = String(row.turno_asignado || '').toUpperCase().trim();
+  let score = 0;
+  if (expectedTurno && turno === expectedTurno) score += 10;
+  if (Number.isFinite(Number(row.id_instancia))) score += Number(row.id_instancia) / 1000000;
+  return score;
 }
 
 router.get('/calendario/mes/:anio/:mes', async (req, res) => {
@@ -25,6 +57,7 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
 
     const [rows] = await connection.execute(
       `SELECT
+         it.id_instancia,
          it.fecha,
          it.id_grupo,
          g.nombre_grupo,
@@ -53,7 +86,25 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
       activeRows.push(r);
     }
 
-    const periodKeys = [...new Set(activeRows.map((r) => r.id_periodo_key).filter(Boolean))];
+    // Resolver conflictos históricos (mismo grupo/fecha con turnos distintos)
+    // quedándonos con una sola fila canónica por fecha+nombre_grupo.
+    const canonicalByDateGroup = new Map();
+    for (const row of activeRows) {
+      const fechaISO = toISODate(row.fecha);
+      const groupName = String(row.nombre_grupo || '').toUpperCase().trim();
+      const mapKey = `${fechaISO}|${groupName}`;
+      const expectedTurno = resolveExpectedTurno(fechaISO, groupName);
+      const score = getCandidateScore(row, expectedTurno);
+
+      const existing = canonicalByDateGroup.get(mapKey);
+      if (!existing || score > existing.score) {
+        canonicalByDateGroup.set(mapKey, { row, score });
+      }
+    }
+
+    const canonicalRows = Array.from(canonicalByDateGroup.values()).map((entry) => entry.row);
+
+    const periodKeys = [...new Set(canonicalRows.map((r) => r.id_periodo_key).filter(Boolean))];
     const semaforoByPeriodo = new Map();
 
     for (const key of periodKeys) {
@@ -63,7 +114,7 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
 
     const fechasMap = new Map();
 
-    for (const row of activeRows) {
+    for (const row of canonicalRows) {
       const fecha = toISODate(row.fecha);
       if (!fechasMap.has(fecha)) {
         fechasMap.set(fecha, {
@@ -92,7 +143,12 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
         id_periodo_key: row.id_periodo_key,
         avion_estado: iconos,
         ida_completa: Boolean(semaforo.ida_completa),
-        vuelta_completa: Boolean(semaforo.vuelta_completa)
+        vuelta_completa: Boolean(semaforo.vuelta_completa),
+        total_trabajadores: Number(semaforo.total_trabajadores || 0),
+        ida_count: Number(semaforo.ida_count || 0),
+        vuelta_count: Number(semaforo.vuelta_count || 0),
+        fecha_ida: semaforo.fecha_ida || null,
+        fecha_vuelta: semaforo.fecha_vuelta || null
       };
 
       if (String(row.turno_asignado || '').toUpperCase() === 'DIA') {
@@ -107,7 +163,7 @@ router.get('/calendario/mes/:anio/:mes', async (req, res) => {
     res.json({
       anio,
       mes,
-      total_instancias_activas: activeRows.length,
+      total_instancias_activas: canonicalRows.length,
       total_fechas: fechas.length,
       fechas
     });
