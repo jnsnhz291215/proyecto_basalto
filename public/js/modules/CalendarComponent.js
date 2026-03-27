@@ -2,6 +2,7 @@
   'use strict';
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+  const GRID_DAY_NAMES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   function toISODate(date) {
@@ -43,12 +44,14 @@
       this.modal = null;
       this.modalTitle = null;
       this.modalBody = null;
+      this._escapeListener = null;
 
       if (!this.container) {
         throw new Error(`[CALENDAR] No existe el contenedor con id ${containerId}`);
       }
 
       this.ensureModal();
+      this.ensureLegendHelp();
     }
 
     async draw(year = this.currentYear, month = this.currentMonth) {
@@ -82,6 +85,7 @@
     }
 
     render(payload) {
+      this.sanitizeHostWrapper();
       this.container.innerHTML = '';
       this.container.className = 'days-grid calendar-container';
 
@@ -92,6 +96,15 @@
       const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
+
+      if (usesSevenColumnLayout()) {
+        for (const dayName of GRID_DAY_NAMES) {
+          const headerCell = document.createElement('div');
+          headerCell.className = 'weekday-grid-header';
+          headerCell.textContent = dayName;
+          this.container.appendChild(headerCell);
+        }
+      }
 
       const leadingEmptySlots = usesSevenColumnLayout()
         ? (monthStart.getDay() + 6) % 7
@@ -150,6 +163,76 @@
 
         this.container.appendChild(card);
       }
+    }
+
+    sanitizeHostWrapper() {
+      if (!this.container || !this.container.parentElement) return;
+      const parent = this.container.parentElement;
+
+      // Mantener solo #days-grid como hijo directo del wrapper del calendario.
+      const children = Array.from(parent.children);
+      for (const child of children) {
+        if (child !== this.container) {
+          child.remove();
+        }
+      }
+    }
+
+    ensureLegendHelp() {
+      const trigger = document.getElementById('btn-referencia');
+      if (!trigger) return;
+      if (trigger.dataset.boundLegendHelp === '1') return;
+      trigger.dataset.boundLegendHelp = '1';
+
+      trigger.addEventListener('click', () => {
+        this.openLegendHelpModal();
+      });
+    }
+
+    openLegendHelpModal() {
+      const existing = document.getElementById('help-leyenda-modal');
+      if (existing) {
+        existing.classList.add('show');
+        existing.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        return;
+      }
+
+      const modal = document.createElement('div');
+      modal.id = 'help-leyenda-modal';
+      modal.className = 'modal help-leyenda-modal show';
+      modal.setAttribute('aria-hidden', 'false');
+
+      modal.innerHTML =
+        '<div class="modal-content help-leyenda-content">' +
+          '<span class="close-modal" aria-label="Cerrar">&times;</span>' +
+          '<h2>Ayuda / Leyenda</h2>' +
+          '<div class="help-leyenda-list">' +
+            '<p><strong>Turnos:</strong> DIA (08:00-20:00) y NOCHE (20:00-08:00).</p>' +
+            '<p><strong>Pistas:</strong> P1 agrupa A-D y P2 agrupa E-H.</p>' +
+            '<p><strong>Badges:</strong> la letra indica el grupo activo del turno.</p>' +
+            '<p><strong>Logistica:</strong> 🛫 indica Subida, 🛬 indica Bajada.</p>' +
+            '<p><strong>Semaforo:</strong> verde completo, amarillo parcial, rojo sin pasajes.</p>' +
+          '</div>' +
+        '</div>';
+
+      const close = () => {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+      };
+
+      const closeBtn = modal.querySelector('.close-modal');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', close);
+      }
+
+      modal.addEventListener('click', (evt) => {
+        if (evt.target === modal) close();
+      });
+
+      document.body.appendChild(modal);
+      document.body.classList.add('modal-open');
     }
 
     createLogisticsBar(dateKey, data) {
@@ -312,19 +395,26 @@
 
       if (!this.modal || !this.modalTitle || !this.modalBody) return;
 
-      if (closeBtn) {
+      if (closeBtn && closeBtn.dataset.boundDayModalClose !== '1') {
         closeBtn.addEventListener('click', () => this.closeModal());
+        closeBtn.dataset.boundDayModalClose = '1';
       }
 
-      this.modal.addEventListener('click', (evt) => {
-        if (evt.target === this.modal) this.closeModal();
-      });
+      if (this.modal.dataset.boundDayModalOverlay !== '1') {
+        this.modal.addEventListener('click', (evt) => {
+          if (evt.target === this.modal) this.closeModal();
+        });
+        this.modal.dataset.boundDayModalOverlay = '1';
+      }
 
-      document.addEventListener('keydown', (evt) => {
-        if (evt.key === 'Escape' && this.modal.classList.contains('show')) {
-          this.closeModal();
-        }
-      });
+      if (!this._escapeListener) {
+        this._escapeListener = (evt) => {
+          if (evt.key === 'Escape' && this.modal.classList.contains('show')) {
+            this.closeModal();
+          }
+        };
+        document.addEventListener('keydown', this._escapeListener);
+      }
     }
 
     openModal() {

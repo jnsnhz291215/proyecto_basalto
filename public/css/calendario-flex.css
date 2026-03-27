@@ -33,6 +33,17 @@
     text-align: center;
 }
 
+.weekday-grid-header {
+    background: #5754a8;
+    color: #f7f7ff;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    padding: 7px 6px;
+}
+
 .calendar-day-card[aria-hidden="true"] {
     visibility: hidden;
     pointer-events: none;
@@ -361,4 +372,34 @@
         width: min(96vw, 680px);
         padding: 18px;
     }
+}
+
+.legend-help-btn {
+    width: 100%;
+    border: 1px solid #d9dbeb;
+    background: #ffffff;
+    color: #5754a8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.legend-help-btn:hover {
+    background: #f2f3f8;
+}
+
+.help-leyenda-content {
+    max-width: 540px;
+    width: min(94vw, 540px);
+    padding: 20px;
+}
+
+.help-leyenda-list p {
+    margin: 0 0 10px;
+    color: #2b2f45;
+    font-size: 14px;
+    line-height: 1.45;
 }
