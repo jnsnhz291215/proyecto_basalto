@@ -236,6 +236,11 @@
     }
 
     createLogisticsBar(dateKey, data) {
+      const PISTA1 = new Set(['A', 'B', 'C', 'D', 'AB', 'CD']);
+      const PISTA2 = new Set(['E', 'F', 'G', 'H', 'EF', 'GH']);
+      const ORDER_P1 = ['A', 'B', 'C', 'D', 'AB', 'CD'];
+      const ORDER_P2 = ['E', 'F', 'G', 'H', 'EF', 'GH'];
+
       const allGroups = [...(data.dia || []), ...(data.noche || [])];
       const uniqueByGroup = new Map();
       for (const item of allGroups) {
@@ -244,11 +249,17 @@
         if (!uniqueByGroup.has(key)) uniqueByGroup.set(key, item);
       }
 
-      const entries = [];
+      const entriesP1 = [];
+      const entriesP2 = [];
       let hasSubida = false;
       let hasBajada = false;
 
       for (const group of uniqueByGroup.values()) {
+        const groupName = String(group.grupo || '').toUpperCase().trim();
+        const isP1 = PISTA1.has(groupName);
+        const isP2 = PISTA2.has(groupName);
+        if (!isP1 && !isP2) continue;
+
         const isSubida = dateKey === String(group.fecha_ida || '');
         const isBajada = dateKey === String(group.fecha_vuelta || '');
         if (!isSubida && !isBajada) continue;
@@ -257,58 +268,70 @@
         const done = isSubida ? Number(group.ida_count || 0) : Number(group.vuelta_count || 0);
 
         let statusClass = 'status-ready';
-        if (total > 0 && done <= 0) {
+        if (done <= 0) {
           statusClass = 'status-danger';
         } else if (total > 0 && done < total) {
           statusClass = 'status-warning';
         }
 
-        entries.push({
-          group: String(group.grupo || '').trim(),
+        const row = {
+          group: groupName,
           done,
           total,
           statusClass
-        });
+        };
+
+        if (isP1) entriesP1.push(row);
+        if (isP2) entriesP2.push(row);
 
         hasSubida = hasSubida || isSubida;
         hasBajada = hasBajada || isBajada;
       }
 
-      if (!entries.length) return null;
+      if (!entriesP1.length && !entriesP2.length) return null;
+
+      const sortByOrder = (list, order) => {
+        const rank = new Map(order.map((g, idx) => [g, idx]));
+        return list.sort((a, b) => {
+          const ra = rank.has(a.group) ? rank.get(a.group) : 999;
+          const rb = rank.has(b.group) ? rank.get(b.group) : 999;
+          return ra - rb;
+        });
+      };
+
+      sortByOrder(entriesP1, ORDER_P1);
+      sortByOrder(entriesP2, ORDER_P2);
 
       const bar = document.createElement('div');
       bar.className = 'logistics-bar';
 
-      const hitos = document.createElement('span');
-      hitos.className = 'logistics-hitos';
-      if (hasSubida && hasBajada) {
-        hitos.textContent = '🛫/🛬 Hitos';
-      } else if (hasSubida) {
-        hitos.textContent = '🛫 Subida';
-      } else {
-        hitos.textContent = '🛬 Bajada';
-      }
-      bar.appendChild(hitos);
+      const hitoIcon = document.createElement('span');
+      hitoIcon.className = 'logistics-hitos';
+      hitoIcon.textContent = hasSubida && hasBajada ? '🛫🛬' : (hasSubida ? '🛫' : '🛬');
+      bar.appendChild(hitoIcon);
 
-      const list = document.createElement('div');
-      list.className = 'logistics-items';
+      const renderCol = (entries) => {
+        const col = document.createElement('div');
+        col.className = 'logistics-col';
+        for (const item of entries) {
+          const row = document.createElement('span');
+          row.className = 'logistics-item';
 
-      for (const item of entries) {
-        const row = document.createElement('span');
-        row.className = 'logistics-item';
+          const dot = document.createElement('span');
+          dot.className = `status-dot ${item.statusClass}`;
 
-        const dot = document.createElement('span');
-        dot.className = `status-dot ${item.statusClass}`;
+          const label = document.createElement('span');
+          label.textContent = `${item.group} (${item.done}/${item.total})`;
 
-        const label = document.createElement('span');
-        label.textContent = `${item.group} (${item.done}/${item.total})`;
+          row.appendChild(dot);
+          row.appendChild(label);
+          col.appendChild(row);
+        }
+        return col;
+      };
 
-        row.appendChild(dot);
-        row.appendChild(label);
-        list.appendChild(row);
-      }
-
-      bar.appendChild(list);
+      bar.appendChild(renderCol(entriesP1));
+      bar.appendChild(renderCol(entriesP2));
       return bar;
     }
 
