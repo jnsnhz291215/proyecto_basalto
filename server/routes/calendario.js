@@ -187,13 +187,16 @@ router.get('/calendario/detalle/:fecha', async (req, res) => {
 
     const [rows] = await connection.execute(
       `SELECT
+         t.RUT,
          t.nombres,
          t.apellido_paterno,
          c.nombre_cargo,
-         i.turno_asignado
+         i.turno_asignado,
+         g.nombre_grupo
        FROM trabajadores t
        INNER JOIN cargos c ON t.id_cargo = c.id_cargo
        INNER JOIN instancias_trabajo i ON t.id_grupo = i.id_grupo
+       INNER JOIN grupos g ON g.id_grupo = t.id_grupo
        WHERE i.fecha = ? AND i.tipo_jornada = 'TRABAJO'`,
       [fecha]
     );
@@ -204,21 +207,35 @@ router.get('/calendario/detalle/:fecha', async (req, res) => {
 
     const dia = [];
     const noche = [];
+    const seen = new Set();
 
     for (const row of rows) {
       const nombreCompleto = `${row.nombres || ''} ${row.apellido_paterno || ''}`
         .replace(/\s+/g, ' ')
         .trim();
 
+      const turno = String(row.turno_asignado || '').toUpperCase();
+      const groupName = String(row.nombre_grupo || '').toUpperCase().trim();
+      const dedupeKey = `${String(row.RUT || '').toUpperCase()}|${turno}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      let pista = 'OTROS';
+      if (['A', 'B', 'C', 'D', 'AB', 'CD'].includes(groupName)) pista = 'P1';
+      else if (['E', 'F', 'G', 'H', 'EF', 'GH'].includes(groupName)) pista = 'P2';
+      else if (['J', 'K'].includes(groupName)) pista = 'SEM';
+
       const item = {
         nombre_completo: nombreCompleto,
         cargo: row.nombre_cargo || 'Sin cargo',
-        turno_asignado: row.turno_asignado
+        turno_asignado: turno,
+        grupo: groupName,
+        pista
       };
 
-      if (String(row.turno_asignado || '').toUpperCase() === 'DIA') {
+      if (turno === 'DIA') {
         dia.push(item);
-      } else if (String(row.turno_asignado || '').toUpperCase() === 'NOCHE') {
+      } else if (turno === 'NOCHE') {
         noche.push(item);
       }
     }

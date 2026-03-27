@@ -2,7 +2,6 @@
   'use strict';
 
   const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
-  const GRID_DAY_NAMES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   function toISODate(date) {
@@ -88,13 +87,6 @@
       const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
-
-      for (const dayName of GRID_DAY_NAMES) {
-        const weekdayHeader = document.createElement('div');
-        weekdayHeader.className = 'card-header';
-        weekdayHeader.textContent = dayName;
-        this.container.appendChild(weekdayHeader);
-      }
 
       const leadingEmptySlots = (monthStart.getDay() + 6) % 7;
       for (let slot = 0; slot < leadingEmptySlots; slot++) {
@@ -350,16 +342,60 @@
     renderBookView(payload) {
       if (!this.modalBody) return;
 
+      const pistaLabel = {
+        P1: 'Pista 1',
+        P2: 'Pista 2',
+        SEM: 'Semanales',
+        OTROS: 'Otros'
+      };
+
       const renderWorkers = (list) => {
         if (!Array.isArray(list) || list.length === 0) {
           return '<div class="worker-item"><span class="worker-cargo">Sin personal asignado</span></div>';
         }
-        return list.map((worker) => (
-          '<div class="worker-item">' +
-            '<strong>' + escapeHtml(worker.nombre_completo) + '</strong>' +
-            '<span class="worker-cargo">' + escapeHtml(worker.cargo) + '</span>' +
-          '</div>'
-        )).join('');
+
+        const grouped = new Map();
+        for (const worker of list) {
+          const pista = String(worker.pista || 'OTROS').toUpperCase();
+          const grupo = String(worker.grupo || 'SG').toUpperCase();
+          if (!grouped.has(pista)) grouped.set(pista, new Map());
+          const groupsMap = grouped.get(pista);
+          if (!groupsMap.has(grupo)) groupsMap.set(grupo, []);
+          groupsMap.get(grupo).push(worker);
+        }
+
+        const pistaOrder = ['P1', 'P2', 'SEM', 'OTROS'];
+        let html = '';
+
+        for (const key of pistaOrder) {
+          if (!grouped.has(key)) continue;
+          html += '<section class="turno-pista-block">';
+          html += '<h4 class="turno-pista-title">' + escapeHtml(pistaLabel[key] || key) + '</h4>';
+
+          const byGroup = grouped.get(key);
+          const groupKeys = Array.from(byGroup.keys()).sort();
+          for (const groupKey of groupKeys) {
+            html += '<div class="turno-group-block">';
+            html += '<div class="turno-group-header"><span class="group-badge">' + escapeHtml(groupKey) + '</span></div>';
+
+            const workers = byGroup.get(groupKey);
+            for (const worker of workers) {
+              html += '<div class="worker-item">';
+              html += '<div class="worker-name-row">';
+              html += '<strong>' + escapeHtml(worker.nombre_completo) + '</strong>';
+              html += '<span class="worker-group-mini">' + escapeHtml(groupKey) + '</span>';
+              html += '</div>';
+              html += '<span class="worker-cargo">' + escapeHtml(worker.cargo) + '</span>';
+              html += '</div>';
+            }
+
+            html += '</div>';
+          }
+
+          html += '</section>';
+        }
+
+        return html;
       };
 
       this.modalBody.innerHTML =

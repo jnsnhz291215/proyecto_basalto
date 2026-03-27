@@ -147,13 +147,14 @@
 }
 
 .pista-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--cal-muted);
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     margin-bottom: 4px;
     display: block;
     border-bottom: 1px solid #eee;
+    opacity: 0.78;
 }
 
 .pista-badges {
@@ -213,9 +214,57 @@
 .modal-book-view {
     display: flex;
     gap: 20px;
-    background: #f9f9f9;
-    border-radius: 8px;
+    background: #f2f3f8;
+    border-radius: 12px;
     padding: 20px;
+}
+
+#day-modal .modal-content {
+    max-width: 980px;
+    width: min(96vw, 980px);
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid #e2e4f0;
+    background: #ffffff;
+    color: var(--cal-text);
+    box-shadow: 0 18px 40px rgba(20, 22, 34, 0.18);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#day-modal .close-modal {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    line-height: 1;
+    color: #5754a8;
+    border: 1px solid #d9dbeb;
+    background: #f8f9ff;
+    cursor: pointer;
+    z-index: 4;
+}
+
+#day-modal .close-modal:hover {
+    background: #ececfb;
+    color: #434084;
+}
+
+#day-modal #modal-date-title {
+    margin: 0 36px 8px 0;
+    color: #5754a8;
+    font-weight: 800;
+}
+
+#day-modal #modal-date-subtitle {
+    margin-bottom: 14px;
+    color: var(--cal-muted);
+    font-size: 13px;
 }
 
 /* Páginas del libro */
@@ -223,8 +272,9 @@
     flex: 1;
     background: #fff;
     padding: 15px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid #e2e4f0;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(20, 22, 34, 0.05);
 }
 
 .calendar-loading {
@@ -252,6 +302,48 @@
     font-size: 0.9rem;
 }
 
+.worker-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.worker-group-mini {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #5754a8;
+    background: #f1f2fb;
+    border: 1px solid #d9dbeb;
+    border-radius: 999px;
+    padding: 1px 6px;
+}
+
+.turno-pista-block {
+    margin-bottom: 14px;
+}
+
+.turno-pista-title {
+    margin: 0 0 8px;
+    color: #7d8197;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.turno-group-block {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid #ececf4;
+    border-radius: 8px;
+    background: #fcfcff;
+}
+
+.turno-group-header {
+    margin-bottom: 6px;
+}
+
 .worker-cargo {
     display: block;
     font-size: 0.75rem;
@@ -263,5 +355,10 @@
     .modal-book-view {
         flex-direction: column;
         gap: 12px;
+    }
+
+    #day-modal .modal-content {
+        width: min(96vw, 680px);
+        padding: 18px;
     }
 }
