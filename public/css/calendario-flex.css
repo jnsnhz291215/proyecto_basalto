@@ -415,6 +415,11 @@
     margin-bottom: 10px;
 }
 
+.header-controls .legend-help-btn {
+    width: auto;
+    margin-bottom: 0;
+}
+
 .legend-help-btn:hover {
     background: #f2f3f8;
 }

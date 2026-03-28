@@ -273,75 +273,67 @@
   <div id="shared-menu-placeholder"></div>
 
   <div class="gestionar-container">
-    <!-- Header con controles -->
-    <header class="gestionar-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-          <i class="fa-solid fa-bus" style="color: white; font-size: 24px;"></i>
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+          <i class="fa-solid fa-bus"></i>
         </div>
-        <div>
-          <h1 class="gestionar-title">Gestión de Viajes</h1>
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">Administrar viajes y tramos de transporte</p>
+        <div class="page-title">
+          <h1>Gestión de Viajes</h1>
+          <p>Administrar viajes y tramos de transporte</p>
         </div>
       </div>
-
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-        <!-- Filtro de Tipo -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Vista:</label>
-          <select id="filtro-tipo" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
-            <option value="proximos">Próximos</option>
-            <option value="historial">Historial/Ocultos</option>
-          </select>
-        </div>
-        
-        <!-- Filtro de Mes -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Mes:</label>
-          <select id="filtro-mes" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
-            <option value="">Todos</option>
-            <option value="01">Enero</option>
-            <option value="02">Febrero</option>
-            <option value="03">Marzo</option>
-            <option value="04">Abril</option>
-            <option value="05">Mayo</option>
-            <option value="06">Junio</option>
-            <option value="07">Julio</option>
-            <option value="08">Agosto</option>
-            <option value="09">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
-          </select>
-        </div>
-
-        <!-- Filtro por Grupo -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Grupo:</label>
-          <select id="filtro-grupo" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
-            <option value="">Todos</option>
-          </select>
-        </div>
-
-        <!-- Búsqueda por RUT / Nombre -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Buscar:</label>
-          <input id="filtro-busqueda" type="text" class="modern-input plain" style="padding: 8px 12px; min-width: 220px;" placeholder="RUT o nombre...">
-        </div>
-
-        <button id="btn-limpiar-filtros" class="btn" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;">
-          <i class="fa-solid fa-rotate-left"></i> Limpiar filtros
-        </button>
-        
-        <button id="btn-nuevo-viaje" class="btn btn-primary">
-          <i class="fa-solid fa-plus"></i> Nuevo Viaje
-        </button>
+      <div class="header-actions">
+        <button id="btn-nuevo-viaje" class="action-btn"><i class="fa-solid fa-plus"></i> Nuevo Viaje</button>
       </div>
-    </header>
+    </div>
 
     <div id="viajes-permission-banner" class="permission-banner" role="status" aria-live="polite">
       <i class="fa-solid fa-eye"></i>
       <span>Modo solo lectura: puedes revisar viajes, pero no crear, editar ni desactivar registros.</span>
+    </div>
+
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label for="filtro-tipo">Vista</label>
+        <select id="filtro-tipo" class="filter-select">
+          <option value="proximos">Próximos</option>
+          <option value="historial">Historial/Ocultos</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filtro-mes">Mes</label>
+        <select id="filtro-mes" class="filter-select">
+          <option value="">Todos</option>
+          <option value="01">Enero</option>
+          <option value="02">Febrero</option>
+          <option value="03">Marzo</option>
+          <option value="04">Abril</option>
+          <option value="05">Mayo</option>
+          <option value="06">Junio</option>
+          <option value="07">Julio</option>
+          <option value="08">Agosto</option>
+          <option value="09">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filtro-grupo">Grupo</label>
+        <select id="filtro-grupo" class="filter-select">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="filter-group" style="flex: 1; min-width: 220px;">
+        <label for="filtro-busqueda">Buscador</label>
+        <input id="filtro-busqueda" type="text" class="filter-input" placeholder="RUT o nombre...">
+      </div>
+      <div class="filter-group" style="justify-content: flex-end; padding-top: 18px;">
+        <button id="btn-limpiar-filtros" type="button" class="btn-toggle-sin-viajes">
+          <i class="fa-solid fa-rotate-left"></i> Limpiar filtros
+        </button>
+      </div>
     </div>
 
     <!-- Vista de Viajes -->
