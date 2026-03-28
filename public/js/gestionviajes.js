@@ -33,6 +33,7 @@ function obtenerFechaSugeridaPorTipo(tipoMovimiento) {
 
 const canViewViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_ver') : true);
 const canManageViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_editar') : true);
+const canSoftDeleteViajes = () => (window.hasAdminPermission ? window.hasAdminPermission('viajes_soft_delete') : false);
 const isSuperAdminSession = () => localStorage.getItem('user_super_admin') === '1';
 
 // Elementos del DOM
@@ -720,6 +721,14 @@ function prepararNuevoViaje() {
   const modalTitle = document.getElementById('modalViajeLabel');
   if (modalTitle) modalTitle.innerText = 'Crear Nuevo Viaje';
   if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Viaje';
+
+  // Resetear sección de ticket
+  const ticketInput = document.getElementById('ticket-file-input');
+  if (ticketInput) ticketInput.value = '';
+  const ticketLabel = document.getElementById('ticket-upload-label');
+  if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
+  const ticketActualSection = document.getElementById('ticket-actual-section');
+  if (ticketActualSection) ticketActualSection.style.display = 'none';
   
   // Agregar un tramo inicial
   agregarTramo();
@@ -828,6 +837,30 @@ async function guardarViaje() {
     
     // Éxito
     const accion = viajeEditando ? 'actualizado' : 'creado';
+    const idViajeGuardado = viajeEditando ? viajeEditando.id_viaje : data.id_viaje;
+
+    // Si hay ticket adjunto, subirlo
+    const ticketInput = document.getElementById('ticket-file-input');
+    if (ticketInput && ticketInput.files.length > 0 && idViajeGuardado) {
+      try {
+        const formData = new FormData();
+        formData.append('ticket', ticketInput.files[0]);
+        const ticketRes = await fetch(`/api/viajes/${idViajeGuardado}/upload-ticket`, {
+          method: 'POST',
+          body: formData
+        });
+        if (!ticketRes.ok) {
+          const td = await ticketRes.json();
+          console.warn('[TICKET] Viaje guardado pero error al subir ticket:', td.error);
+        }
+      } catch (ticketErr) {
+        console.error('[TICKET] Error subiendo ticket tras guardar:', ticketErr);
+      }
+      ticketInput.value = '';
+      const ticketLabel = document.getElementById('ticket-upload-label');
+      if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
+    }
+
     mostrarExito(`Viaje ${accion} exitosamente con ${data.total_tramos || tramos.length} tramo${(data.total_tramos || tramos.length) !== 1 ? 's' : ''}`);
     cerrarModalNuevoViaje();
     await cargarViajes();
@@ -870,6 +903,7 @@ function crearCardViaje(viaje) {
   card.className = (viaje.estado === 'Cancelado' || viaje.estado === 'Finalizado') ? 'viaje-card oculto' : 'viaje-card';
   const puedeGestionar = canManageViajes();
   const puedeHardDelete = isSuperAdminSession();
+  const puedeBorrarTicket = puedeHardDelete || canSoftDeleteViajes();
   
   // Formatear fecha de creación (registro)
   const fecha = new Date(viaje.fecha_registro);
@@ -936,6 +970,31 @@ function crearCardViaje(viaje) {
       </strong>
       ${tramosHTML}
     </div>
+    <div class="viaje-ticket-section" style="margin:10px 0;padding:10px 0;border-top:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      ${viaje.url_ticket ? `
+        <span style="font-size:12px;color:#059669;font-weight:600;margin-right:4px;">
+          <i class="fa-solid fa-file-circle-check"></i> Ticket adjunto
+        </span>
+        <button class="btn-accion" style="background:#dcfce7;color:#166534;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;"
+          onclick="descargarTicketAdmin(${viaje.id_viaje})">
+          <i class="fa-regular fa-file-pdf"></i> Descargar
+        </button>
+        ${puedeBorrarTicket ? `
+        <button class="btn-accion" style="background:#fee2e2;color:#991b1b;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;"
+          onclick="confirmarBorrarTicket(${viaje.id_viaje})">
+          <i class="fa-solid fa-file-circle-xmark"></i> Quitar Ticket
+        </button>
+        ` : ''}
+      ` : (puedeGestionar ? `
+        <span style="font-size:12px;color:#9ca3af;">
+          <i class="fa-regular fa-file-pdf"></i> Sin ticket
+        </span>
+        <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px dashed #93c5fd;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;">
+          <i class="fa-solid fa-file-arrow-up"></i> Subir Ticket
+          <input type="file" accept=".pdf" style="display:none;" onchange="uploadTicketFromCard(${viaje.id_viaje}, this)">
+        </label>
+      ` : '')}
+    </div>
     <div class="viaje-acciones">
       ${puedeGestionar ? `
       <button class="btn-accion btn-editar" onclick="prepararEdicionViaje(${viaje.id_viaje})">
@@ -984,6 +1043,21 @@ window.prepararEdicionViaje = async function(idViaje) {
     const modalTitle = document.getElementById('modalViajeLabel');
     if (modalTitle) modalTitle.innerText = 'Editar Viaje';
     if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Cambios';
+
+    // Mostrar o limpiar sección de ticket según si el viaje ya tiene uno
+    const ticketInput = document.getElementById('ticket-file-input');
+    if (ticketInput) ticketInput.value = '';
+    const ticketLabel = document.getElementById('ticket-upload-label');
+    const ticketActualSection = document.getElementById('ticket-actual-section');
+    const ticketActualNombre = document.getElementById('ticket-actual-nombre');
+    if (viaje.url_ticket) {
+      if (ticketActualSection) ticketActualSection.style.display = 'block';
+      if (ticketActualNombre) ticketActualNombre.textContent = viaje.url_ticket.split('/').pop();
+      if (ticketLabel) ticketLabel.textContent = 'Reemplazar archivo PDF';
+    } else {
+      if (ticketActualSection) ticketActualSection.style.display = 'none';
+      if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
+    }
 
     openManagedModal(el.modalNuevoViaje);
     el.formNuevoViaje.reset();
@@ -1225,4 +1299,88 @@ function mostrarError(mensaje) {
   document.getElementById('result-title').textContent = 'Error';
   document.getElementById('result-message').textContent = mensaje;
   openManagedModal(el.modalResult);
+}
+
+// ============================================
+// GESTIÓN DE TICKETS PDF
+// ============================================
+
+/** Abre el endpoint de descarga en una nueva pestaña (para admins) */
+window.descargarTicketAdmin = function(idViaje) {
+  const rut = localStorage.getItem('user_rut') || '';
+  window.open(`/api/viajes/download-ticket/${idViaje}?rut=${encodeURIComponent(rut)}`, '_blank');
+};
+
+/** Upload desde el botón inline de la tarjeta */
+window.uploadTicketFromCard = async function(idViaje, inputEl) {
+  if (!inputEl.files.length) return;
+  const file = inputEl.files[0];
+  if (file.type !== 'application/pdf') {
+    mostrarError('Solo se permiten archivos PDF');
+    inputEl.value = '';
+    return;
+  }
+  try {
+    const formData = new FormData();
+    formData.append('ticket', file);
+    const response = await fetch(`/api/viajes/${idViaje}/upload-ticket`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Error al subir el ticket');
+    mostrarExito('Ticket subido exitosamente');
+    await cargarViajes();
+  } catch (error) {
+    console.error('[TICKET] Error subiendo ticket:', error);
+    mostrarError(error.message || 'Error al subir el ticket');
+  }
+};
+
+/**
+ * Confirma antes de borrar el ticket.
+ * SuperAdmin → requireHardDelete (doble confirmación).
+ * Admin soft_delete → modal confirm simple.
+ */
+window.confirmarBorrarTicket = function(idViaje) {
+  const viaje = viajes.find(v => v.id_viaje === idViaje);
+  if (!viaje) return;
+
+  if (isSuperAdminSession()) {
+    if (window.basaltoSecurity?.requireHardDelete) {
+      window.basaltoSecurity.requireHardDelete({
+        title: 'Eliminar Ticket Permanentemente',
+        message: `¿Eliminar el ticket del viaje de ${viaje.nombres} ${viaje.apellidos}? El archivo se borrará del servidor y no se puede recuperar.`,
+        onConfirm: () => borrarTicket(idViaje)
+      });
+    } else {
+      mostrarError('Error interno: componente de seguridad no disponible');
+    }
+  } else {
+    document.getElementById('confirm-title').textContent = 'Archivar Ticket';
+    document.getElementById('confirm-message').textContent =
+      `¿Archivar el ticket del viaje de ${viaje.nombres} ${viaje.apellidos}? El archivo se moverá a la carpeta de archivados.`;
+    document.getElementById('confirm-ok').onclick = () => {
+      closeManagedModal(el.modalConfirm);
+      borrarTicket(idViaje);
+    };
+    openManagedModal(el.modalConfirm);
+  }
+};
+
+async function borrarTicket(idViaje) {
+  try {
+    const rutSolicitante = localStorage.getItem('user_rut') || '';
+    const response = await fetch(`/api/viajes/${idViaje}/ticket`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'rut_solicitante': rutSolicitante }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Error al eliminar el ticket');
+    mostrarExito(data.message || 'Ticket eliminado');
+    await cargarViajes();
+  } catch (error) {
+    console.error('[TICKET] Error borrando ticket:', error);
+    mostrarError(error.message || 'Error al eliminar el ticket');
+  }
 }
