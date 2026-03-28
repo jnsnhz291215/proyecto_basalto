@@ -32,7 +32,7 @@ const InformeTurno = (() => {
   ];
   const MAX_AYUDANTES = 5;
   const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
-  const AUTOSAVE_INTERVAL_MS = 2 * 60 * 1000;
+  const AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000;
   const HEARTBEAT_INTERVAL_MS = 30 * 1000;
   const SPINNER_FIELD_IDS = [
     'input-horas-trabajadas',
@@ -169,7 +169,13 @@ const InformeTurno = (() => {
     const folioChip = document.getElementById('folio-chip');
     const estadoChip = document.getElementById('estado-chip');
     if (folioChip) {
-      folioChip.textContent = getFolioLabelFromId(state.currentReportId);
+      const isCerrado = normalizeStatus(state.currentReportStatus || '') === 'cerrado';
+      if (isCerrado && state.currentReportId) {
+        folioChip.textContent = getFolioLabelFromId(state.currentReportId);
+        folioChip.style.display = '';
+      } else {
+        folioChip.style.display = 'none';
+      }
     }
     if (estadoChip) {
       const label = getEstadoVisualLabel(state.currentReportStatus);
@@ -1454,6 +1460,14 @@ const InformeTurno = (() => {
     params.delete('id');
     window.history.replaceState({}, '', params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname);
 
+    // Limpiar selects de personal para evitar que buildSelectOptions preserve valores stale
+    const selOp = document.getElementById('input-operador');
+    if (selOp) selOp.value = '';
+    for (let idx = 1; idx <= MAX_AYUDANTES; idx++) {
+      const selA = document.getElementById(`input-ayudante-${idx}`);
+      if (selA) selA.value = '';
+    }
+
     populateInforme({}, [], [], [], { preserveDate: true, forcedDate: fechaPreservada });
     setLockedTurnoValue(selectedGroup);
   }
@@ -1810,6 +1824,8 @@ const InformeTurno = (() => {
 
   function startAutosaveCycle() {
     if (state.auditModeEnabled || state.accessRestricted) return;
+    if (hasElevatedAccess()) return; // Solo trabajadores
+    if (!state.currentReportId) return; // Solo cuando el informe ya fue guardado
     if (state.autosaveIntervalId) window.clearInterval(state.autosaveIntervalId);
     state.autosaveIntervalId = window.setInterval(async () => {
       if (state.documentBlocked || !state.canWriteAnySection || state.accessRestricted) return;
@@ -2233,6 +2249,9 @@ const InformeTurno = (() => {
       const params = new URLSearchParams(window.location.search);
       params.set('id', String(result.id_informe));
       window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+      // Primer guardado: activar autosave y llevar a pestaña Cierre
+      startAutosaveCycle();
+      if (estadoFinal === 'Borrador' && !autoSave) activateTab('cierre');
     }
 
     state.currentReportStatus = result.estado || estadoFinal;

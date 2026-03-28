@@ -85,6 +85,38 @@
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  const PERM_MAP = {
+    inf_sec_actividades_w:      { label: 'Actividades',  suffix: 'Escritura', type: 'sec-w',  icon: 'fa-pen' },
+    inf_sec_antecedentes_w:     { label: 'Antecedentes', suffix: 'Escritura', type: 'sec-w',  icon: 'fa-pen' },
+    inf_sec_cierre_w:           { label: 'Cierre',       suffix: 'Escritura', type: 'sec-w',  icon: 'fa-pen' },
+    inf_sec_materiales_w:       { label: 'Materiales',   suffix: 'Escritura', type: 'sec-w',  icon: 'fa-pen' },
+    inf_sec_operacion_w:        { label: 'Operación',    suffix: 'Escritura', type: 'sec-w',  icon: 'fa-pen' },
+    inf_sec_actividades_r:      { label: 'Actividades',  suffix: 'Lectura',   type: 'sec-r',  icon: 'fa-eye' },
+    inf_sec_antecedentes_r:     { label: 'Antecedentes', suffix: 'Lectura',   type: 'sec-r',  icon: 'fa-eye' },
+    inf_sec_cierre_r:           { label: 'Cierre',       suffix: 'Lectura',   type: 'sec-r',  icon: 'fa-eye' },
+    inf_sec_materiales_r:       { label: 'Materiales',   suffix: 'Lectura',   type: 'sec-r',  icon: 'fa-eye' },
+    inf_sec_operacion_r:        { label: 'Operación',    suffix: 'Lectura',   type: 'sec-r',  icon: 'fa-eye' },
+    admin_v_kpis:               { label: 'KPIs Admin',      type: 'kpi',    icon: 'fa-chart-bar' },
+    responsable_turno:          { label: 'Resp. Turno',     type: 'role',   icon: 'fa-user-tie' },
+    viajes_ver:                 { label: 'Viajes Ver',      type: 'viajes', icon: 'fa-bus' },
+    viajes_editar:              { label: 'Viajes Editar',   type: 'viajes', icon: 'fa-bus' },
+    viajes_soft_delete:         { label: 'Viajes Borrar',   type: 'viajes', icon: 'fa-bus' },
+    gestionar_cargos:           { label: 'Gestión Cargos',  type: 'admin',  icon: 'fa-id-card' },
+    admin_v_cargos:             { label: 'Ver Cargos',      type: 'admin',  icon: 'fa-id-card' },
+    editar_informes_anteriores: { label: 'Inf. Anteriores', type: 'admin',  icon: 'fa-clock-rotate-left' },
+    cerrar_turno:               { label: 'Cerrar Turno',    type: 'danger', icon: 'fa-lock' },
+  };
+
+  function chipHtml(permiso) {
+    const clave = String(permiso.clave_permiso || '').toLowerCase().trim();
+    const cfg = PERM_MAP[clave];
+    if (cfg) {
+      const suffixHtml = cfg.suffix ? ` <span style="opacity:.65;font-weight:500">${cfg.suffix}</span>` : '';
+      return `<span class="chip chip--${cfg.type}"><i class="fa-solid ${cfg.icon}"></i> ${cfg.label}${suffixHtml}</span>`;
+    }
+    return `<span class="chip chip--default">${humanizeKey(clave)}</span>`;
+  }
+
   function buildHeaders() {
     const rut = sanitizeRut(localStorage.getItem('user_rut'));
     return {
@@ -167,14 +199,8 @@
       const row = document.createElement('tr');
       const permisos = cargo.permisos || [];
       const chips = permisos.length
-        ? permisos.map((permiso) => {
-            const isKpi = Number(permiso.id_permiso) === 21 || permiso.clave_permiso === 'admin_v_kpis';
-            if (isKpi) {
-              return `<span class="chip operacion" style="font-weight: 800; background: #dcfce7; color: #15803d;">Admin V Kpis</span>`;
-            }
-            return `<span class="chip gestion">${humanizeKey(permiso.clave_permiso || permiso.nombre_permiso)}</span>`;
-          }).join('')
-        : '<span style="color:#6b7280">Sin permisos</span>';
+        ? permisos.map(chipHtml).join('')
+        : '<span style="color:#6b7280;font-size:13px;">Sin permisos</span>';
 
       row.innerHTML = `
         <td><strong>${cargo.nombre_cargo}</strong></td>

@@ -643,8 +643,19 @@ function agregarTramo() {
         <input type="text" data-field="empresa_transporte" placeholder="Ej: Transportes Basalto" class="modern-input plain" required>
       </div>
     </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+      <label style="font-size:13px;font-weight:600;color:#6b7280;display:block;margin-bottom:8px;">
+        Ticket PDF <span style="font-weight:400;color:#9ca3af;">(opcional)</span>
+      </label>
+      <label style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:13px;font-weight:600;">
+        <i class="fa-solid fa-file-arrow-up"></i>
+        <span class="ticket-upload-label">Seleccionar PDF</span>
+        <input type="file" data-field="ticket_pdf" accept=".pdf" style="display:none;"
+          onchange="this.previousElementSibling.textContent = this.files[0]?.name || 'Seleccionar PDF'">
+      </label>
+    </div>
   `;
-  
+
   el.tramosContainer.appendChild(tramoDiv);
 
   const tipoMovimientoEl = tramoDiv.querySelector('[data-field="tipo_movimiento"]');
@@ -722,14 +733,6 @@ function prepararNuevoViaje() {
   if (modalTitle) modalTitle.innerText = 'Crear Nuevo Viaje';
   if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Viaje';
 
-  // Resetear sección de ticket
-  const ticketInput = document.getElementById('ticket-file-input');
-  if (ticketInput) ticketInput.value = '';
-  const ticketLabel = document.getElementById('ticket-upload-label');
-  if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
-  const ticketActualSection = document.getElementById('ticket-actual-section');
-  if (ticketActualSection) ticketActualSection.style.display = 'none';
-  
   // Agregar un tramo inicial
   agregarTramo();
 }
@@ -839,26 +842,29 @@ async function guardarViaje() {
     const accion = viajeEditando ? 'actualizado' : 'creado';
     const idViajeGuardado = viajeEditando ? viajeEditando.id_viaje : data.id_viaje;
 
-    // Si hay ticket adjunto, subirlo
-    const ticketInput = document.getElementById('ticket-file-input');
-    if (ticketInput && ticketInput.files.length > 0 && idViajeGuardado) {
-      try {
-        const formData = new FormData();
-        formData.append('ticket', ticketInput.files[0]);
-        const ticketRes = await fetch(`/api/viajes/${idViajeGuardado}/upload-ticket`, {
-          method: 'POST',
-          body: formData
-        });
-        if (!ticketRes.ok) {
-          const td = await ticketRes.json();
-          console.warn('[TICKET] Viaje guardado pero error al subir ticket:', td.error);
+    // Si hay ticket en algún tramo, subirlo
+    if (el.tramosContainer && idViajeGuardado) {
+      const ticketInputs = el.tramosContainer.querySelectorAll('[data-field="ticket_pdf"]');
+      let ticketFile = null;
+      ticketInputs.forEach(inp => {
+        if (!ticketFile && inp.files && inp.files.length > 0) ticketFile = inp.files[0];
+      });
+      if (ticketFile) {
+        try {
+          const formData = new FormData();
+          formData.append('ticket', ticketFile);
+          const ticketRes = await fetch(`/api/viajes/${idViajeGuardado}/upload-ticket`, {
+            method: 'POST',
+            body: formData
+          });
+          if (!ticketRes.ok) {
+            const td = await ticketRes.json();
+            console.warn('[TICKET] Viaje guardado pero error al subir ticket:', td.error);
+          }
+        } catch (ticketErr) {
+          console.error('[TICKET] Error subiendo ticket tras guardar:', ticketErr);
         }
-      } catch (ticketErr) {
-        console.error('[TICKET] Error subiendo ticket tras guardar:', ticketErr);
       }
-      ticketInput.value = '';
-      const ticketLabel = document.getElementById('ticket-upload-label');
-      if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
     }
 
     mostrarExito(`Viaje ${accion} exitosamente con ${data.total_tramos || tramos.length} tramo${(data.total_tramos || tramos.length) !== 1 ? 's' : ''}`);
@@ -1044,21 +1050,6 @@ window.prepararEdicionViaje = async function(idViaje) {
     if (modalTitle) modalTitle.innerText = 'Editar Viaje';
     if (el.btnGuardarViaje) el.btnGuardarViaje.innerText = 'Guardar Cambios';
 
-    // Mostrar o limpiar sección de ticket según si el viaje ya tiene uno
-    const ticketInput = document.getElementById('ticket-file-input');
-    if (ticketInput) ticketInput.value = '';
-    const ticketLabel = document.getElementById('ticket-upload-label');
-    const ticketActualSection = document.getElementById('ticket-actual-section');
-    const ticketActualNombre = document.getElementById('ticket-actual-nombre');
-    if (viaje.url_ticket) {
-      if (ticketActualSection) ticketActualSection.style.display = 'block';
-      if (ticketActualNombre) ticketActualNombre.textContent = viaje.url_ticket.split('/').pop();
-      if (ticketLabel) ticketLabel.textContent = 'Reemplazar archivo PDF';
-    } else {
-      if (ticketActualSection) ticketActualSection.style.display = 'none';
-      if (ticketLabel) ticketLabel.textContent = 'Seleccionar archivo PDF';
-    }
-
     openManagedModal(el.modalNuevoViaje);
     el.formNuevoViaje.reset();
     el.tramosContainer.innerHTML = '';
@@ -1156,6 +1147,22 @@ window.prepararEdicionViaje = async function(idViaje) {
               <label>Empresa de Transporte</label>
               <input type="text" data-field="empresa_transporte" placeholder="Ej: Transportes Basalto" class="modern-input plain" value="${tramo.empresa_transporte || ''}" required>
             </div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+            <label style="font-size:13px;font-weight:600;color:#6b7280;display:block;margin-bottom:8px;">
+              Ticket PDF <span style="font-weight:400;color:#9ca3af;">(opcional)</span>
+            </label>
+            ${tramoCounter === 1 && viaje.url_ticket ? `
+              <div style="margin-bottom:8px;padding:6px 10px;background:#dcfce7;border-radius:6px;font-size:12px;color:#166534;font-weight:600;">
+                <i class="fa-solid fa-file-circle-check"></i> Ticket actual: ${viaje.url_ticket.split('/').pop()}
+              </div>
+            ` : ''}
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:13px;font-weight:600;">
+              <i class="fa-solid fa-file-arrow-up"></i>
+              <span class="ticket-upload-label">${tramoCounter === 1 && viaje.url_ticket ? 'Reemplazar PDF' : 'Seleccionar PDF'}</span>
+              <input type="file" data-field="ticket_pdf" accept=".pdf" style="display:none;"
+                onchange="this.previousElementSibling.textContent = this.files[0]?.name || 'Seleccionar PDF'">
+            </label>
           </div>
         `;
 
