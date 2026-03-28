@@ -61,10 +61,16 @@
     th { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
     tr:hover { background: #f9fafb; }
 
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 600; }
-    .chip.gestion { background: #ede9fe; color: #6d28d9; }
-    .chip.operacion { background: #dcfce7; color: #15803d; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+    .chip--sec-w   { background: #ede9fe; color: #5b21b6; }
+    .chip--sec-r   { background: #f1f5f9; color: #475569; border: 1px solid #dde1e7; }
+    .chip--kpi     { background: #dcfce7; color: #15803d; }
+    .chip--role    { background: #fef9c3; color: #92400e; }
+    .chip--viajes  { background: #e0f2fe; color: #0369a1; }
+    .chip--admin   { background: #fce7f3; color: #9d174d; }
+    .chip--danger  { background: #fee2e2; color: #b91c1c; }
+    .chip--default { background: #f3f4f6; color: #374151; }
 
     .btn-icon { border: 0; background: #e0e7ff; color: #3730a3; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
 

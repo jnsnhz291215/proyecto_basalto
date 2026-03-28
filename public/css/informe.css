@@ -7,7 +7,7 @@ body {
 	margin: 0 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 20px; /* Reduced from 32px */
+	gap: 7px; /* Reduced from 20px */
 	padding-bottom: 50px;
 	font-size: 1rem; /* Reduced from 1.25rem (~20% decrease) */
 }
@@ -93,7 +93,7 @@ body {
 .tab-content.active {
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	gap: 7px;
 }
 
 @keyframes slideInTab {
@@ -943,12 +943,12 @@ body {
 }
 
 .card-section {
-	padding: 25px;
-	margin-bottom: 30px;
+	padding: 12px 14px;
+	margin-bottom: 0;
 }
 
 .tabs-header {
-	margin-bottom: 30px;
+	margin-bottom: 10px;
 }
 
 .header-iden-row {
@@ -1054,7 +1054,7 @@ body {
 
 .tabs-header {
 	margin-top: 0;
-	margin-bottom: 30px;
+	margin-bottom: 10px;
 }
 
 
