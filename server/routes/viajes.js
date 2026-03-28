@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../database.js');
 const { obtenerPeriodoPorFecha, obtenerFechasSugeridas, checkLogisticaCompleta } = require('../helpers/periodHelper.js');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
+const multer = require('multer');
 
 function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
@@ -21,6 +25,72 @@ function fechaSQLHoy() {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+// ============================================================
+// MÓDULO DE TICKETS PDF – Rutas y helpers
+// ============================================================
+const TEMP_DIR       = path.join(__dirname, '..', '..', 'uploads', 'temp');
+const TICKETS_DIR    = '/home/basalto/apps/basalto/storage/tickets-activos';
+const SOFTDELETE_DIR = '/home/basalto/apps/basalto/storage/viajes-softdelete';
+
+// Crear directorios si no existen
+[TEMP_DIR, TICKETS_DIR, SOFTDELETE_DIR].forEach(d => {
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+});
+
+// Multer – almacenamiento en carpeta temporal
+const ticketStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, TEMP_DIR),
+  filename:    (_req, _file, cb) => cb(null, `tmp_ticket_${Date.now()}.pdf`)
+});
+const uploadTicket = multer({
+  storage:    ticketStorage,
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten archivos PDF'));
+  },
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// Comprimir PDF con Ghostscript 10.05.1
+function comprimirConGS(origen, destino) {
+  return new Promise((resolve, reject) => {
+    const cmd = `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -sOutputFile="${destino}" "${origen}"`;
+    exec(cmd, { timeout: 60000 }, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+// Mover ticket a carpeta de softdelete (solo filesystem, sin tocar DB)
+function moverTicketASoftdelete(urlTicket) {
+  if (!urlTicket) return;
+  try {
+    const filename = path.basename(urlTicket);
+    const origen   = path.join(TICKETS_DIR, filename);
+    const destino  = path.join(SOFTDELETE_DIR, filename);
+    if (fs.existsSync(origen)) fs.renameSync(origen, destino);
+  } catch (e) {
+    console.error('[TICKET] Error moviendo ticket a softdelete:', e.message);
+  }
+}
+
+// Validar que el solicitante sea admin activo; devuelve { ok, esSuperAdmin }
+async function validarAdminParaTicket(req) {
+  const rutSolicitante = limpiarRUT(
+    req.body?.rut_solicitante || req.query?.rut_solicitante || req.headers['rut_solicitante'] || ''
+  );
+  if (!rutSolicitante) return { ok: false, status: 401, message: 'Se requiere rut_solicitante' };
+
+  const [rows] = await pool.execute(
+    'SELECT es_super_admin, activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut,".",""),"-","")," ","") = ? LIMIT 1',
+    [rutSolicitante]
+  );
+  if (!rows.length) return { ok: false, status: 401, message: 'Administrador no encontrado' };
+  if (Number(rows[0].activo) === 0) return { ok: false, status: 403, message: 'Cuenta inactiva' };
+  return { ok: true, esSuperAdmin: Number(rows[0].es_super_admin) === 1 };
 }
 
 async function validarPeriodoVigente(connection, idPeriodoKey, idGrupo, fechaRef) {
@@ -122,11 +192,12 @@ router.get('/viajes/mis-viajes', async (req, res) => {
     connection = await pool.getConnection();
 
     let query = `
-      SELECT 
+      SELECT
         v.id_viaje,
         v.rut_trabajador,
         v.estado,
         v.fecha_registro,
+        v.url_ticket,
         vt.id_tramo,
         vt.codigo_pasaje,
         vt.fecha_salida,
@@ -343,11 +414,12 @@ router.get('/viajes', async (req, res) => {
 
     // Obtener viajes con datos del trabajador y fecha de salida calculada
     const [viajes] = await connection.execute(
-      `SELECT 
+      `SELECT
         v.id_viaje,
         v.rut_trabajador,
         v.fecha_registro,
         v.estado,
+        v.url_ticket,
         (SELECT MIN(fecha_salida) FROM viajes_tramos WHERE id_viaje = v.id_viaje) as fecha_salida,
         t.nombres,
         CONCAT(t.apellido_paterno, ' ', t.apellido_materno) as apellidos,
@@ -519,6 +591,156 @@ router.get('/viajes/check-logistica', async (req, res) => {
   }
 });
 
+// ============================================================
+// TICKETS PDF – Upload / Download / Delete
+// ============================================================
+
+/**
+ * POST /api/viajes/:id/upload-ticket
+ * Sube un archivo PDF, lo comprime con Ghostscript y lo almacena.
+ * Requiere multipart/form-data con campo "ticket".
+ */
+router.post('/viajes/:id/upload-ticket', uploadTicket.single('ticket'), async (req, res) => {
+  let connection;
+  const tempPath = req.file?.path;
+  try {
+    const idViaje = parseInt(req.params.id, 10);
+    if (!req.file) return res.status(400).json({ error: 'No se adjuntó ningún archivo PDF' });
+
+    connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT rut_trabajador, url_ticket FROM viajes WHERE id_viaje = ? LIMIT 1',
+      [idViaje]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Viaje no encontrado' });
+
+    // Si ya tenía ticket, mover el anterior a softdelete antes de reemplazarlo
+    if (rows[0].url_ticket) moverTicketASoftdelete(rows[0].url_ticket);
+
+    const rutLimpio  = limpiarRUT(rows[0].rut_trabajador);
+    const timestamp  = Date.now();
+    const nombreFinal = `TICKET_${rutLimpio}_${idViaje}_${timestamp}.pdf`;
+    const destinoFinal = path.join(TICKETS_DIR, nombreFinal);
+
+    await comprimirConGS(tempPath, destinoFinal);
+    fs.unlinkSync(tempPath);   // borrar tmp original
+
+    await connection.execute(
+      'UPDATE viajes SET url_ticket = ? WHERE id_viaje = ?',
+      [destinoFinal, idViaje]
+    );
+
+    res.json({ message: 'Ticket subido y comprimido exitosamente', nombre: nombreFinal });
+  } catch (error) {
+    if (tempPath && fs.existsSync(tempPath)) { try { fs.unlinkSync(tempPath); } catch (_) {} }
+    console.error('[TICKET] Error al subir ticket:', error);
+    res.status(500).json({ error: 'Error al procesar el ticket PDF', detalle: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * GET /api/viajes/download-ticket/:id_viaje
+ * Descarga protegida del ticket.
+ * Seguridad: solo el propio trabajador (por RUT en ?rut=) o un admin activo puede descargar.
+ */
+router.get('/viajes/download-ticket/:id_viaje', async (req, res) => {
+  let connection;
+  try {
+    const idViaje      = parseInt(req.params.id_viaje, 10);
+    const rutSolicitante = limpiarRUT(req.query.rut || req.headers['rut_solicitante'] || '');
+
+    if (!rutSolicitante) {
+      return res.status(401).json({ error: 'Se requiere autenticación (parámetro ?rut=)' });
+    }
+
+    connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT rut_trabajador, url_ticket FROM viajes WHERE id_viaje = ? LIMIT 1',
+      [idViaje]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Viaje no encontrado' });
+
+    const { rut_trabajador, url_ticket } = rows[0];
+    if (!url_ticket) return res.status(404).json({ error: 'Este viaje no tiene ticket adjunto' });
+
+    // Autorización: es el propio trabajador O es admin activo
+    const esElTrabajador = rutSolicitante === limpiarRUT(rut_trabajador);
+    if (!esElTrabajador) {
+      const [adminRows] = await connection.execute(
+        'SELECT activo FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut,".",""),"-","")," ","") = ? LIMIT 1',
+        [rutSolicitante]
+      );
+      if (!adminRows.length || Number(adminRows[0].activo) !== 1) {
+        return res.status(403).json({ error: 'No tiene autorización para descargar este ticket' });
+      }
+    }
+
+    const filePath = path.join(TICKETS_DIR, path.basename(url_ticket));
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Archivo de ticket no encontrado en el servidor' });
+    }
+
+    const filename = path.basename(url_ticket);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/pdf');
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('[TICKET] Error al descargar ticket:', error);
+    res.status(500).json({ error: 'Error al descargar el ticket' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+/**
+ * DELETE /api/viajes/:id/ticket
+ * Elimina el ticket adjunto a un viaje.
+ * SuperAdmin → harddelete (borra el archivo del servidor).
+ * Admin con viajes_soft_delete → softdelete (mueve a carpeta archivada).
+ */
+router.delete('/viajes/:id/ticket', async (req, res) => {
+  let connection;
+  try {
+    const idViaje    = parseInt(req.params.id, 10);
+    const validacion = await validarAdminParaTicket(req);
+    if (!validacion.ok) return res.status(validacion.status).json({ error: validacion.message });
+
+    connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      'SELECT url_ticket FROM viajes WHERE id_viaje = ? LIMIT 1',
+      [idViaje]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Viaje no encontrado' });
+
+    const { url_ticket } = rows[0];
+    if (!url_ticket) return res.status(404).json({ error: 'Este viaje no tiene ticket adjunto' });
+
+    if (validacion.esSuperAdmin) {
+      // Harddelete: borrar el archivo del disco
+      const filePath = path.join(TICKETS_DIR, path.basename(url_ticket));
+      if (fs.existsSync(filePath)) { try { fs.unlinkSync(filePath); } catch (_) {} }
+    } else {
+      // Softdelete: mover a carpeta de archivado
+      moverTicketASoftdelete(url_ticket);
+    }
+
+    await connection.execute('UPDATE viajes SET url_ticket = NULL WHERE id_viaje = ?', [idViaje]);
+
+    res.json({
+      message: validacion.esSuperAdmin
+        ? 'Ticket eliminado permanentemente'
+        : 'Ticket archivado correctamente'
+    });
+  } catch (error) {
+    console.error('[TICKET] Error al borrar ticket:', error);
+    res.status(500).json({ error: 'Error al eliminar el ticket', detalle: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 /**
  * GET /api/viajes/:id
  * Obtener un viaje por id con sus tramos
@@ -530,11 +752,12 @@ router.get('/viajes/:id', async (req, res) => {
     connection = await pool.getConnection();
 
     const [viajes] = await connection.execute(
-      `SELECT 
+      `SELECT
         v.id_viaje,
         v.rut_trabajador,
         v.fecha_registro,
         v.estado,
+        v.url_ticket,
         t.nombres,
         CONCAT(t.apellido_paterno, ' ', IFNULL(t.apellido_materno, '')) as apellidos,
         t.id_grupo,
@@ -752,6 +975,15 @@ router.delete('/viajes/:id', async (req, res) => {
 
     connection = await pool.getConnection();
     await connection.beginTransaction();
+
+    // Si el viaje tiene ticket, archivarlo antes del DELETE CASCADE
+    const [ticketRows] = await connection.execute(
+      'SELECT url_ticket FROM viajes WHERE id_viaje = ? LIMIT 1',
+      [id]
+    );
+    if (ticketRows.length && ticketRows[0].url_ticket) {
+      moverTicketASoftdelete(ticketRows[0].url_ticket);
+    }
 
     // Eliminar viaje (la DB se encarga del cascade en viajes_tramos)
     const [result] = await connection.execute(

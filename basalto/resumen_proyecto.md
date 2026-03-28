@@ -30,9 +30,10 @@ Las vistas y scripts están organizados por módulo funcional:
 
 - Operación principal y navegación: `index.html`, `dashboard.html`, `navbar.html`, `js/navbar.js`, `js/navbar_core.js`, `js/common.js`.
 - Guardas de acceso y sesión: `js/auth_guard.js`, `js/route-guard.js`.
-- Gestión operativa y maestra: `datos.html`, `gestionar.html`, `gestionadmins.html`, `gestioncargos.html`, `gestioninformes.html`, `gestionviajes.html`.
+- Gestión operativa y maestra: `datos.html`, `gestionar.html`, `gestionadmins.html`, `gestioncargos.html`, `gestioninformes.html`, `gestionviajes.html`, `ciudades.html`.
 - Informes: `informe.html`, `js/informe.js`, `js/informe_export.js`, `js/audit_viewer.js`.
 - Viajes: `viajes.html`, `js/viajes.js`.
+- Componentes reutilizables: `js/modules/CalendarComponent.js` (calendario visual usado por vistas de viajes y turnos).
 - Configuración de calendario/turnos: `js/config.js` define fecha base, grupos y colores.
 
 ### Backend (`server/`)
@@ -40,15 +41,18 @@ Las vistas y scripts están organizados por módulo funcional:
 - `app.js`: inicializa Express, aplica middlewares globales, sirve estáticos y monta rutas bajo `/api`.
 - `database.js`: crea el pool de conexión, valida `.env` y concentra operaciones de datos reutilizadas.
 - `helpers/shiftValidation.js`: lógica de turno, jornada y validación de trabajador/grupo en turno.
+- `helpers/periodHelper.js`: cálculo de claves de período usadas para vincular instancias de trabajo con viajes.
 - `utils/validators.js`: validaciones generales, incluyendo normalización/validación de RUT.
 - `routes/auth.js`: autenticación unificada y resolución de contexto de cargo/grupo/permisos.
 - `routes/turnos.js`: endpoints de estado de turno, grupos activos, jornada y salud del módulo.
+- `routes/calendario.js`: endpoints modulares de calendario de turnos.
 - `routes/viajes.js`: operaciones de viajes y tramos, incluyendo calendario y validaciones de eliminación.
 - `routes/trabajadores.js`: trabajadores, grupos y responsables de turno.
 - `routes/informes.js`: CRUD y reglas de negocio de informes, exportación PDF y correo.
 - `routes/stats.js`: KPIs mensuales para dashboard.
 - `routes/admin_management.js`: administración de cuentas admin y permisos directos.
 - `routes/cargos.js`: cargos y permisos por cargo.
+- `scripts/generate-instances.js`: pre-generación de filas `instancias_trabajo` para todos los grupos en un rango de fechas.
 - `scripts/migrate-cargo-relations.js`: soporte de migración de relaciones cargo-permiso.
 
 ## 4. Flujos funcionales principales
@@ -61,7 +65,8 @@ Las vistas y scripts están organizados por módulo funcional:
 
 ### Turnos y validación operativa
 - El módulo `turnos` expone endpoints de consulta de turno por RUT, grupos activos por fecha, jornada por grupo y endpoint de salud.
-- La lógica de negocio depende de un calendario base y de reglas de grupos rotativos y semanales.
+- El sistema implementa un ciclo rotativo de 56 días con 2 pistas (Tracks) desfasadas 7 días entre sí, y 14 grupos: A-H (rotativos), AB/CD/EF/GH (combinados de día fijo) y J/K (semanales de oficina).
+- Las instancias de trabajo se pre-generan en la tabla `instancias_trabajo` y se consultan por grupo/fecha. Las excepciones individuales se registran en `excepciones_turno`.
 - Varias operaciones del sistema usan esta capa para decidir si un trabajador puede editar o registrar información durante una jornada activa.
 
 ### Informes de turno

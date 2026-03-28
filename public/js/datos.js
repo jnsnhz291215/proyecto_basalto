@@ -442,7 +442,7 @@
       if (itinerarioTbody) {
         itinerarioTbody.innerHTML = `
           <tr>
-            <td colspan="6" style="padding:12px;text-align:center;color:#dc2626;">
+            <td colspan="7" style="padding:12px;text-align:center;color:#dc2626;">
               Error al cargar los viajes
             </td>
           </tr>
@@ -460,7 +460,7 @@
     if (viajes.length === 0) {
       itinerarioTbody.innerHTML = `
         <tr>
-          <td colspan="6" style="padding:12px;text-align:center;color:#6b7280;">
+          <td colspan="7" style="padding:12px;text-align:center;color:#6b7280;">
             No hay viajes disponibles
           </td>
         </tr>
@@ -488,7 +488,7 @@
         const origen = tramo.ciudad_origen || 'N/A';
         const destino = tramo.ciudad_destino || 'N/A';
         const empresaTransporte = tramo.empresa_transporte || 'N/A';
-        
+
         // Formatear fecha a DD/MM y hora por separado
         let fechaCorta = 'N/A';
         let hora = 'N/A';
@@ -497,7 +497,7 @@
           const dia = String(fecha.getDate()).padStart(2, '0');
           const mes = String(fecha.getMonth() + 1).padStart(2, '0');
           fechaCorta = `${dia}/${mes}`;
-          
+
           if (tramo.hora_salida) {
             hora = tramo.hora_salida.substring(0, 5);
           }
@@ -506,9 +506,28 @@
         }
 
         const estado = tramo.estado || 'Programado';
-        const estadoColor = estado === 'Programado' ? '#3b82f6' : 
-                           estado === 'En curso' ? '#f59e0b' : 
+        const estadoColor = estado === 'Programado' ? '#3b82f6' :
+                           estado === 'En curso' ? '#f59e0b' :
                            estado === 'Finalizado' ? '#10b981' : '#6b7280';
+
+        // Celda de ticket: solo en el primer tramo del viaje, con rowspan
+        const ticketCell = index === 0
+          ? (() => {
+              const url = tramo.url_ticket;
+              const rut = userRut ? encodeURIComponent(userRut) : '';
+              if (url && rut) {
+                return `<td rowspan="${tramosDelViaje.length}" style="padding:8px;vertical-align:middle;text-align:center;">
+                  <a href="/api/viajes/download-ticket/${tramo.id_viaje}?rut=${rut}" target="_blank"
+                     style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#dcfce7;color:#166534;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;">
+                    <i class="fa-regular fa-file-pdf"></i> Descargar
+                  </a>
+                </td>`;
+              }
+              return `<td rowspan="${tramosDelViaje.length}" style="padding:8px;vertical-align:middle;text-align:center;color:#d1d5db;">
+                <span style="font-size:12px;">—</span>
+              </td>`;
+            })()
+          : '';
 
         html += `
           <tr style="border-bottom:1px solid #e5e7eb;">
@@ -524,6 +543,7 @@
                 ${estado}
               </span>
             </td>
+            ${ticketCell}
           </tr>
         `;
       });
