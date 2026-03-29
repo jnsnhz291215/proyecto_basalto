@@ -162,6 +162,7 @@
       card.innerHTML = `
         <div class="card-header">
           ${DIAS_CORTO[new Date(currentYear, currentMonth - 1, day).getDay()]} ${String(day).padStart(2,'0')}/${String(currentMonth).padStart(2,'0')}
+          ${dateStr === todayStr ? '<span class="badge-hoy">HOY</span>' : ''}
         </div>
         <div class="viajes-day-body">
           ${total > 0

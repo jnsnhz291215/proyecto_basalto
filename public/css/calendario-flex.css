@@ -30,7 +30,7 @@
 /* Contenedor principal del calendario — única capa con shadow y fondo */
 .calendar-container {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(110px, 1fr));
     gap: 12px;
     width: 100%;
     background: #ffffff;
@@ -86,6 +86,20 @@
     font-weight: 700;
     letter-spacing: 0.3px;
     padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-hoy {
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
 }
 
 .logistics-bar {
@@ -225,14 +239,14 @@
 /* Desktop estandar: 5 columnas */
 @media (max-width: 1400px) {
     .calendar-container {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(110px, 1fr));
     }
 }
 
 /* Tablet / Laptop pequena: 3 columnas */
 @media (max-width: 1000px) {
     .calendar-container {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(110px, 1fr));
     }
 }
 

@@ -94,6 +94,7 @@
       const monthStart = new Date(payload.anio, payload.mes - 1, 1);
       const monthEnd = new Date(payload.anio, payload.mes, 0);
       const byDate = new Map((payload.fechas || []).map((f) => [f.fecha, f]));
+      const todayKey = toISODate(new Date());
 
       const leadingEmptySlots = usesSevenColumnLayout()
         ? (monthStart.getDay() + 6) % 7
@@ -117,7 +118,11 @@
 
         const header = document.createElement('div');
         header.className = 'card-header';
-        header.textContent = formatHeaderDate(dateObj);
+        if (dateKey === todayKey) {
+          header.innerHTML = `${formatHeaderDate(dateObj)}<span class="badge-hoy">HOY</span>`;
+        } else {
+          header.textContent = formatHeaderDate(dateObj);
+        }
 
         const logisticsBar = this.createLogisticsBar(dateKey, data);
 
