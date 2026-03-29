@@ -184,6 +184,116 @@
     .info-item .value {
       color: #1f2937;
     }
+
+    /* ── Layout igual a gestionar trabajadores ── */
+    .gestionar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 0;
+      height: auto;
+    }
+
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .page-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .page-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: white;
+    }
+
+    .page-title h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .page-title p {
+      margin: 4px 0 0 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      background: #ffffff;
+      padding: 14px 16px;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 150px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+
+    .filter-input,
+    .filter-select {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #ffffff;
+    }
+
+    .filter-input:focus,
+    .filter-select:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .btn-aplicar {
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #5b52e8;
+      color: #ffffff;
+      transition: background 0.2s ease;
+      margin-top: 18px;
+    }
+
+    .btn-aplicar:hover {
+      background: #4f46e5;
+    }
   </style>
 </head>
 <body>
@@ -191,55 +301,45 @@
   <div id="shared-menu-placeholder"></div>
 
   <div class="gestionar-container">
-    <!-- Header con controles -->
-    <header class="gestionar-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-          <i class="fa-solid fa-clipboard-list" style="color: white; font-size: 24px;"></i>
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-icon" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
+          <i class="fa-solid fa-clipboard-list"></i>
         </div>
-        <div>
-          <h1 class="gestionar-title">Gestión de Informes</h1>
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">Administrar informes de turno</p>
+        <div class="page-title">
+          <h1>Gestión de Informes</h1>
+          <p>Administrar informes de turno</p>
         </div>
       </div>
+    </div>
 
-      <!-- Barra de Filtros -->
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-        <!-- Buscador por Operador -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Operador:</label>
-          <input type="text" id="filtro-operador" class="modern-input plain" placeholder="Buscar..." style="padding: 8px 12px; min-width: 180px;">
-        </div>
-        
-        <!-- Filtro Fecha Desde -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Desde:</label>
-          <input type="date" id="filtro-fecha-desde" class="modern-input plain" style="padding: 8px 12px;">
-        </div>
-        
-        <!-- Filtro Fecha Hasta -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Hasta:</label>
-          <input type="date" id="filtro-fecha-hasta" class="modern-input plain" style="padding: 8px 12px;">
-        </div>
-        
-        <!-- Filtro de Estado -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Estado:</label>
-          <select id="filtro-estado" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
-            <option value="activos">Activos</option>
-            <option value="inactivos">Papelera (Inactivos)</option>
-          </select>
-        </div>
-        
-        <button id="btn-aplicar-filtros" class="btn btn-primary">
-          <i class="fa-solid fa-filter"></i> Aplicar Filtros
-        </button>
+    <div class="filters-bar">
+      <div class="filter-group" style="flex: 1; min-width: 180px;">
+        <label for="filtro-operador">Operador</label>
+        <input type="text" id="filtro-operador" class="filter-input" placeholder="Buscar...">
       </div>
-    </header>
+      <div class="filter-group">
+        <label for="filtro-fecha-desde">Desde</label>
+        <input type="date" id="filtro-fecha-desde" class="filter-input">
+      </div>
+      <div class="filter-group">
+        <label for="filtro-fecha-hasta">Hasta</label>
+        <input type="date" id="filtro-fecha-hasta" class="filter-input">
+      </div>
+      <div class="filter-group">
+        <label for="filtro-estado">Estado</label>
+        <select id="filtro-estado" class="filter-select">
+          <option value="activos">Activos</option>
+          <option value="inactivos">Papelera (Inactivos)</option>
+        </select>
+      </div>
+      <button id="btn-aplicar-filtros" class="btn-aplicar">
+        <i class="fa-solid fa-filter"></i> Aplicar Filtros
+      </button>
+    </div>
 
     <!-- Vista de Informes (Accordion) -->
-    <div id="informes-container" style="margin-top: 24px;">
+    <div id="informes-container">
       <div id="accordion-informes" class="accordion">
         <!-- Los informes se cargarán aquí dinámicamente -->
       </div>
