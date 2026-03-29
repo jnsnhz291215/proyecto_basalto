@@ -122,14 +122,6 @@
 
     grid.innerHTML = '';
 
-    // Encabezados de días
-    DIAS_CORTO.forEach(d => {
-      const h = document.createElement('div');
-      h.className = 'weekday-grid-header';
-      h.textContent = d;
-      grid.appendChild(h);
-    });
-
     // Día de la semana del primer día del mes
     const firstWeekday = new Date(currentYear, currentMonth - 1, 1).getDay();
     const daysInMonth   = new Date(currentYear, currentMonth, 0).getDate();

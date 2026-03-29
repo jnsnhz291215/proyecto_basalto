@@ -5,7 +5,8 @@
   display: flex;
   gap: 0;
   border-bottom: 2px solid #e2e8f0;
-  margin: 0 0 28px 0;
+  max-width: 1300px;
+  margin: 0 auto 28px;
   padding: 0;
 }
 
@@ -37,10 +38,12 @@
 
 .tab-panel {
   display: none;
+  width: 100%;
 }
 
 .tab-panel.active {
   display: block;
+  width: 100%;
 }
 
 /* ============================================
