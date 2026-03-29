@@ -164,12 +164,45 @@
           </div>
 
           <div class="profile-footer">
-            <!-- Los datos se editan desde la vista 'Gestionar' -->
+            <button id="btn-cambiar-password" type="button" class="btn btn-secondary" style="margin-top:8px;">
+              <i class="fa-solid fa-key"></i> Cambiar Contraseña
+            </button>
           </div>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- Modal: Cambiar Contraseña -->
+  <div id="modal-cambiar-pwd" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:32px 28px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.18);position:relative;">
+      <button id="btn-cerrar-pwd-modal" type="button" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;">&times;</button>
+      <h3 style="margin:0 0 20px;font-size:18px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-key" style="color:#5754a8;"></i> Cambiar Contraseña
+      </h3>
+      <form id="form-cambiar-pwd" onsubmit="return false;" autocomplete="off">
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Contraseña actual</label>
+          <input id="pwd-actual" type="password" class="modern-input" placeholder="Contraseña actual" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nueva contraseña <span style="color:#6b7280;font-weight:400;">(mín. 8 caracteres)</span></label>
+          <input id="pwd-nueva" type="password" class="modern-input" placeholder="Nueva contraseña" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Confirmar nueva contraseña</label>
+          <input id="pwd-confirmar" type="password" class="modern-input" placeholder="Repetir contraseña" style="width:100%;box-sizing:border-box;">
+          <p id="pwd-mismatch-msg" style="display:none;color:#dc2626;font-size:12px;margin:4px 0 0;">Las contraseñas no coinciden.</p>
+        </div>
+        <button id="btn-guardar-pwd" type="submit" class="btn btn-primary" style="width:100%;">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="pwd-toast" style="display:none;position:fixed;bottom:28px;right:28px;z-index:10000;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18);transition:opacity .3s;"></div>
 
   <script src="js/datos.js"></script>
 

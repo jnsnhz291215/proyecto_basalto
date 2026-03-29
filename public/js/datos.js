@@ -552,4 +552,100 @@
     itinerarioTbody.innerHTML = html;
   }
 
+  // ============================================
+  // Cambiar Contraseña
+  // ============================================
+
+  function mostrarToast(mensaje, tipo) {
+    const toast = document.getElementById('pwd-toast');
+    if (!toast) return;
+    toast.textContent = mensaje;
+    toast.style.background = tipo === 'error' ? '#dc2626' : '#16a34a';
+    toast.style.display = 'block';
+    toast.style.opacity = '1';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 300);
+    }, 3500);
+  }
+
+  const modalPwd   = document.getElementById('modal-cambiar-pwd');
+  const btnAbrirPwd = document.getElementById('btn-cambiar-password');
+  const btnCerrarPwd = document.getElementById('btn-cerrar-pwd-modal');
+  const pwdActual  = document.getElementById('pwd-actual');
+  const pwdNueva   = document.getElementById('pwd-nueva');
+  const pwdConf    = document.getElementById('pwd-confirmar');
+  const pwdMismatch = document.getElementById('pwd-mismatch-msg');
+  const formPwd    = document.getElementById('form-cambiar-pwd');
+
+  if (btnAbrirPwd) {
+    btnAbrirPwd.addEventListener('click', () => {
+      formPwd.reset();
+      pwdMismatch.style.display = 'none';
+      pwdConf.style.outline = '';
+      modalPwd.style.display = 'flex';
+    });
+  }
+
+  function cerrarModalPwd() {
+    modalPwd.style.display = 'none';
+  }
+
+  if (btnCerrarPwd) btnCerrarPwd.addEventListener('click', cerrarModalPwd);
+  if (modalPwd) modalPwd.addEventListener('click', (e) => { if (e.target === modalPwd) cerrarModalPwd(); });
+
+  // Validación visual en tiempo real
+  function validarCoincidencia() {
+    const coincide = pwdNueva.value === pwdConf.value;
+    pwdMismatch.style.display = (!coincide && pwdConf.value) ? 'block' : 'none';
+    pwdConf.style.outline = (!coincide && pwdConf.value) ? '2px solid #dc2626' : '';
+  }
+  if (pwdNueva)  pwdNueva.addEventListener('input', validarCoincidencia);
+  if (pwdConf)   pwdConf.addEventListener('input', validarCoincidencia);
+
+  if (formPwd) {
+    formPwd.addEventListener('submit', async () => {
+      const btnGuardar = document.getElementById('btn-guardar-pwd');
+
+      if (pwdNueva.value !== pwdConf.value) {
+        mostrarToast('Las contraseñas no coinciden', 'error');
+        return;
+      }
+      if (pwdNueva.value.length < 8) {
+        mostrarToast('La nueva contraseña debe tener al menos 8 caracteres', 'error');
+        return;
+      }
+
+      btnGuardar.disabled = true;
+      btnGuardar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+      try {
+        const res = await fetch('/api/usuarios/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-rut': userRut || ''
+          },
+          body: JSON.stringify({
+            passwordActual: pwdActual.value,
+            passwordNueva: pwdNueva.value,
+            passwordConfirmar: pwdConf.value
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          cerrarModalPwd();
+          mostrarToast('Contraseña actualizada correctamente', 'ok');
+        } else {
+          mostrarToast(data.message || 'Error al cambiar contraseña', 'error');
+        }
+      } catch {
+        mostrarToast('Error de conexión', 'error');
+      } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar';
+      }
+    });
+  }
+
 })();

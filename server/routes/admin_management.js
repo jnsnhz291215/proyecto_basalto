@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../database');
+const bcrypt = require('bcryptjs');
 
 function titleCase(value) {
   return String(value || '')
@@ -405,6 +406,8 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
 
     await connection.beginTransaction();
 
+    const passwordHash = await bcrypt.hash(passwordInicial, 10);
+
     // Insertar nuevo admin
     const sqlInsert = `
       INSERT INTO admin_users 
@@ -418,7 +421,7 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
       titleCase(apellidoPaternoFinal),
       apellidoMaternoFinal ? titleCase(apellidoMaternoFinal) : null,
       emailNormalizado || null,
-      passwordInicial,
+      passwordHash,
       0
     ]);
 

@@ -1,10 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../database');
+const bcrypt = require('bcryptjs');
 
 // Función helper para limpiar RUT
 function limpiarRUT(rut) {
   return String(rut || '').replace(/[.\-\s]/g, '').trim().toUpperCase();
+}
+
+// Compara password ingresado con el hash almacenado.
+// Soporta bcrypt (nuevo) y texto plano (legado, auto-migra al hacer login).
+async function checkPassword(stored, input) {
+  if (!stored || !input) return false;
+  if (String(stored).startsWith('$2')) {
+    return bcrypt.compare(String(input), stored);
+  }
+  return String(stored) === String(input);
+}
+
+// Auto-migra contraseña de texto plano a bcrypt tras login exitoso.
+function migrarPassword(tabla, rutLimpio, plainText, stored) {
+  if (String(stored).startsWith('$2')) return; // ya es hash
+  bcrypt.hash(plainText, 10).then(hash => {
+    pool.execute(
+      `UPDATE ${tabla} SET password = ? WHERE REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '') = ?`,
+      [hash, rutLimpio]
+    ).then(() => console.log(`[AUTH] Password migrado a bcrypt (${tabla}) RUT: ${rutLimpio}`));
+  }).catch(e => console.error('[AUTH] Error migrando password:', e.message));
 }
 
 function toSlug(value) {
@@ -140,18 +162,22 @@ router.post('/login', async (req, res) => {
 
       const sqlAdmin = `
         SELECT a.*, t.id_grupo, g.nombre_grupo
-        FROM admin_users a 
+        FROM admin_users a
         LEFT JOIN trabajadores t ON UPPER(REPLACE(REPLACE(REPLACE(a.rut, '.', ''), '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', ''))
         LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
-        WHERE UPPER(REPLACE(REPLACE(REPLACE(a.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?) 
-          AND a.password = ? 
-          AND a.activo = 1 
+        WHERE UPPER(REPLACE(REPLACE(REPLACE(a.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?)
+          AND a.activo = 1
         LIMIT 1
       `;
-      const [admins] = await pool.execute(sqlAdmin, [rutLimpio, passwordParaBuscar]);
+      const [admins] = await pool.execute(sqlAdmin, [rutLimpio]);
 
       if (admins && admins.length > 0) {
         const admin = admins[0];
+        const passwordOk = await checkPassword(admin.password, passwordParaBuscar);
+        if (!passwordOk) {
+          console.log('[AUTH][DIAG] Admin password no coincide (bcrypt/fallback)');
+        } else {
+          migrarPassword('admin_users', rutLimpio, passwordParaBuscar, admin.password);
         const nombreCompleto = `${admin.nombres || ''} ${admin.apellido_paterno || ''} ${admin.apellido_materno || ''}`.trim() || rutLimpio;
         const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
         
@@ -211,15 +237,20 @@ router.post('/login', async (req, res) => {
             email: admin.email || null
           }
         });
+        } // else passwordOk
       }
 
-      const sqlAdminInactivo = 'SELECT rut FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 0 LIMIT 1';
-      const [adminsInactivos] = await pool.execute(sqlAdminInactivo, [rutLimpio, passwordParaBuscar]);
+      const sqlAdminInactivo = 'SELECT rut, password FROM admin_users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND activo = 0 LIMIT 1';
+      const [adminsInactivos] = await pool.execute(sqlAdminInactivo, [rutLimpio]);
       if (adminsInactivos && adminsInactivos.length > 0) {
-        return res.status(403).json({
-          success: false,
-          message: 'Su cuenta de administrador está desactivada. Contacte a un Super Administrador.'
-        });
+        const inact = adminsInactivos[0];
+        const inactPwdOk = await checkPassword(inact.password, passwordParaBuscar);
+        if (inactPwdOk) {
+          return res.status(403).json({
+            success: false,
+            message: 'Su cuenta de administrador está desactivada. Contacte a un Super Administrador.'
+          });
+        }
       }
     } catch (adminError) {
       console.error('[AUTH] Error consultando admin_users:', adminError);
@@ -244,18 +275,22 @@ router.post('/login', async (req, res) => {
 
       const sqlUser = `
         SELECT u.*, t.id_grupo, g.nombre_grupo
-        FROM users u 
+        FROM users u
         LEFT JOIN trabajadores t ON UPPER(REPLACE(REPLACE(REPLACE(u.rut, '.', ''), '-', ''), ' ', '')) = UPPER(REPLACE(REPLACE(REPLACE(t.RUT, '.', ''), '-', ''), ' ', ''))
         LEFT JOIN grupos g ON t.id_grupo = g.id_grupo
-        WHERE UPPER(REPLACE(REPLACE(REPLACE(u.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?) 
-          AND u.password = ? 
-          AND u.activo = 1 
+        WHERE UPPER(REPLACE(REPLACE(REPLACE(u.rut, '.', ''), '-', ''), ' ', '')) = UPPER(?)
+          AND u.activo = 1
         LIMIT 1
       `;
-      const [users] = await pool.execute(sqlUser, [rutLimpio, passwordParaBuscar]);
+      const [users] = await pool.execute(sqlUser, [rutLimpio]);
 
       if (users && users.length > 0) {
         const user = users[0];
+        const userPasswordOk2 = await checkPassword(user.password, passwordParaBuscar);
+        if (!userPasswordOk2) {
+          console.log('[AUTH][DIAG] User password no coincide (bcrypt/fallback)');
+        } else {
+          migrarPassword('users', rutLimpio, passwordParaBuscar, user.password);
         const nombreCompleto = `${user.nombres || ''} ${user.apellido_paterno || ''} ${user.apellido_materno || ''}`.trim() || rutLimpio;
         const contextoCargo = await obtenerContextoCargoPorRut(rutLimpio);
         
@@ -285,16 +320,21 @@ router.post('/login', async (req, res) => {
             email: user.email || null
           }
         });
+        } // else userPasswordOk2
       }
 
       // Si existe pero esta inactivo, responder con mensaje especifico
-      const sqlUserInactivo = 'SELECT rut FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND password = ? AND activo = 0 LIMIT 1';
-      const [usersInactivos] = await pool.execute(sqlUserInactivo, [rutLimpio, passwordParaBuscar]);
+      const sqlUserInactivo = 'SELECT rut, password FROM users WHERE REPLACE(REPLACE(REPLACE(rut, ".", ""), "-", ""), " ", "") = ? AND activo = 0 LIMIT 1';
+      const [usersInactivos] = await pool.execute(sqlUserInactivo, [rutLimpio]);
       if (usersInactivos && usersInactivos.length > 0) {
-        return res.status(403).json({
-          success: false,
-          message: 'Su cuenta ha sido desactivada. Contacte al administrador.'
-        });
+        const inactUser = usersInactivos[0];
+        const inactUserPwdOk = await checkPassword(inactUser.password, passwordParaBuscar);
+        if (inactUserPwdOk) {
+          return res.status(403).json({
+            success: false,
+            message: 'Su cuenta ha sido desactivada. Contacte al administrador.'
+          });
+        }
       }
     } catch (userError) {
       console.error('[AUTH] Error consultando users:', userError);
@@ -557,6 +597,61 @@ router.get('/perfil/:rut', async (req, res) => {
       error: 'Error del servidor',
       message: error.message 
     });
+  }
+});
+
+// ============================================
+// POST /api/usuarios/change-password
+// ============================================
+router.post('/usuarios/change-password', async (req, res) => {
+  const rutRaw = req.headers['x-user-rut'] || req.headers['rut_solicitante'] || req.body.rut;
+  if (!rutRaw) return res.status(401).json({ success: false, message: 'No autorizado' });
+
+  const { passwordActual, passwordNueva, passwordConfirmar } = req.body;
+  if (!passwordActual || !passwordNueva || !passwordConfirmar) {
+    return res.status(400).json({ success: false, message: 'Todos los campos son requeridos' });
+  }
+  if (passwordNueva !== passwordConfirmar) {
+    return res.status(400).json({ success: false, message: 'La nueva contraseña y su confirmación no coinciden' });
+  }
+  if (passwordNueva.length < 8) {
+    return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 8 caracteres' });
+  }
+
+  const rutLimpio = limpiarRUT(rutRaw);
+  const normalizeRut = `REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')`;
+
+  try {
+    // Buscar en admin_users primero
+    const [admins] = await pool.execute(
+      `SELECT rut, password FROM admin_users WHERE ${normalizeRut} = ? AND activo = 1 LIMIT 1`,
+      [rutLimpio]
+    );
+    if (admins && admins.length > 0) {
+      const ok = await checkPassword(admins[0].password, passwordActual);
+      if (!ok) return res.status(401).json({ success: false, message: 'La contraseña actual es incorrecta' });
+      const hash = await bcrypt.hash(passwordNueva, 10);
+      await pool.execute(`UPDATE admin_users SET password = ? WHERE ${normalizeRut} = ?`, [hash, rutLimpio]);
+      return res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
+    }
+
+    // Buscar en users (trabajadores)
+    const [users] = await pool.execute(
+      `SELECT rut, password FROM users WHERE ${normalizeRut} = ? AND activo = 1 LIMIT 1`,
+      [rutLimpio]
+    );
+    if (users && users.length > 0) {
+      const ok = await checkPassword(users[0].password, passwordActual);
+      if (!ok) return res.status(401).json({ success: false, message: 'La contraseña actual es incorrecta' });
+      const hash = await bcrypt.hash(passwordNueva, 10);
+      await pool.execute(`UPDATE users SET password = ? WHERE ${normalizeRut} = ?`, [hash, rutLimpio]);
+      return res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
+    }
+
+    return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+  } catch (err) {
+    console.error('[AUTH] Error cambiando contraseña:', err);
+    return res.status(500).json({ success: false, message: 'Error interno al cambiar contraseña' });
   }
 });
 

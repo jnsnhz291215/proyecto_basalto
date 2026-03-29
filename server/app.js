@@ -3,6 +3,7 @@ const express = require("express");
 const { pool, obtenerTrabajadores, agregarTrabajador, eliminarTrabajador, editarTrabajador, resolveCargoId } = require("./database.js");
 const { validarRUT } = require('./utils/validators.js');
 const { generateInstances } = require('./scripts/generate-instances.js');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
@@ -967,6 +968,8 @@ const handleAgregarTrabajador = async (req, res) => {
       return res.status(400).json({ error: "No fue posible derivar clave base desde el RUT. Verifique el formato." });
     }
 
+    const passwordHash = await bcrypt.hash(passwordBase, 10);
+
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
@@ -987,7 +990,7 @@ const handleAgregarTrabajador = async (req, res) => {
       ]
     );
 
-    // INSERT 2: users (usa el mismo RUT como foranea, password inicial = ultimos 4 digitos sin DV)
+    // INSERT 2: users (usa el mismo RUT como foranea, password inicial = hash bcrypt de ultimos 4 digitos sin DV)
     await connection.execute(
       'INSERT INTO users (rut, nombres, apellido_paterno, apellido_materno, email, password) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE password = password',
       [
@@ -996,7 +999,7 @@ const handleAgregarTrabajador = async (req, res) => {
         apellidoPaternoNorm,
         apellidoMaternoNorm,
         nuevoTrabajador.email,
-        passwordBase
+        passwordHash
       ]
     );
 
