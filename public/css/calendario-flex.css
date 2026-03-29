@@ -30,10 +30,9 @@
 /* Contenedor principal del calendario — única capa con shadow y fondo */
 .calendar-container {
     display: grid;
-    grid-template-columns: repeat(7, minmax(150px, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 12px;
     width: 100%;
-    min-width: 1148px; /* 7×150 + 6×12 + 2×20 padding */
     background: #ffffff;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -226,16 +225,14 @@
 /* Desktop estandar: 5 columnas */
 @media (max-width: 1400px) {
     .calendar-container {
-        grid-template-columns: repeat(5, minmax(150px, 1fr));
-        min-width: 838px; /* 5×150 + 4×12 + 40 */
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 }
 
 /* Tablet / Laptop pequena: 3 columnas */
 @media (max-width: 1000px) {
     .calendar-container {
-        grid-template-columns: repeat(3, minmax(150px, 1fr));
-        min-width: 514px; /* 3×150 + 2×12 + 40 */
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -243,7 +240,6 @@
 @media (max-width: 600px) {
     .calendar-container {
         grid-template-columns: 1fr;
-        min-width: 0;
     }
 
     .calendar-day-card {

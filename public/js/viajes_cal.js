@@ -122,8 +122,9 @@
 
     grid.innerHTML = '';
 
-    // Día de la semana del primer día del mes
-    const firstWeekday = new Date(currentYear, currentMonth - 1, 1).getDay();
+    // Día de la semana del primer día del mes (lunes=0 … domingo=6)
+    const dow = new Date(currentYear, currentMonth - 1, 1).getDay();
+    const firstWeekday = (dow === 0) ? 6 : dow - 1;
     const daysInMonth   = new Date(currentYear, currentMonth, 0).getDate();
     const now     = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
