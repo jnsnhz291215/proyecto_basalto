@@ -19,9 +19,14 @@
 
   <div class="page-wrap">
     <div class="header">
-      <div>
-        <h1 class="title">Gestión de Cargos</h1>
-        <p class="subtitle">Configura plantillas de permisos para administración y operación.</p>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;background:#7c3aed;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-id-badge" style="color:#fff;font-size:20px;"></i>
+        </div>
+        <div>
+          <h1 class="title">Gestión de Cargos</h1>
+          <p class="subtitle">Configura plantillas de permisos para administración y operación.</p>
+        </div>
       </div>
       <button id="btnNuevoCargo" class="btn-primary" data-permission="gestionar_cargos"><i class="fa-solid fa-plus"></i> Nuevo cargo</button>
     </div>
@@ -41,6 +46,7 @@
           <tr>
             <th>Cargo</th>
             <th>Permisos</th>
+            <th>Trabajadores</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -109,6 +115,19 @@
   </div>
 
   <div id="notification" class="notification"></div>
+
+  <!-- Modal: Trabajadores del cargo -->
+  <div id="cargoWorkersModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" style="width:min(640px,95vw);">
+      <div class="modal-head">
+        <strong id="cargoWorkersModalTitle">Trabajadores</strong>
+        <button id="closeCargoWorkersModal" type="button" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body" id="cargoWorkersModalBody" style="padding:0;max-height:65vh;overflow:auto;">
+      </div>
+    </div>
+  </div>
+
   <script src="js/gestioncargos.js"></script>
 </body>
 </html>

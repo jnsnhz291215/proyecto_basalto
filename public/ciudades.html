@@ -12,6 +12,7 @@
   <script src="js/route-guard.js"></script>
   <script src="js/auth_guard.js"></script>
   <script src="js/navbar.js"></script>
+  <link rel="stylesheet" href="css/gestioncargos-stilo.css">
   <link rel="stylesheet" href="css/ciudades-stilo.css">
 </head>
 <body>
@@ -19,10 +20,18 @@
 
   <div class="page-wrap">
     <div class="header">
-      <div>
-        <h1 class="title">Gestión de Ciudades</h1>
-        <p class="subtitle">Administra catálogo de ciudades para viajes.</p>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;background:#7c3aed;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-city" style="color:#fff;font-size:20px;"></i>
+        </div>
+        <div>
+          <h1 class="title">Gestión de Ciudades</h1>
+          <p class="subtitle">Administra catálogo de ciudades para viajes.</p>
+        </div>
       </div>
+      <button id="btnAgregarCiudad" type="button" class="btn-primary">
+        <i class="fa-solid fa-plus"></i> Nueva ciudad
+      </button>
     </div>
 
     <div class="view-switch-card" role="tablist" aria-label="Seleccionar vista de gestión">
@@ -30,18 +39,11 @@
       <button id="btnViewCiudades" class="view-switch-btn active" type="button" role="tab" aria-selected="true">Ciudades</button>
     </div>
 
-    <section class="toolbar">
-      <div class="city-count" id="cityCountBadge">
-        <i class="fa-solid fa-city"></i>
-        <span>0 ciudades</span>
-      </div>
-      <div class="subtitle" id="citySummary">Cargando ciudades registradas...</div>
-      <button id="btnAgregarCiudad" type="button" class="btn-add-city">
-        <i class="fa-solid fa-plus"></i> Agregar Ciudad
-      </button>
-    </section>
-
     <section class="table-card">
+      <div class="table-top">
+        <span class="table-title">Ciudades registradas</span>
+        <span id="cityCount"></span>
+      </div>
       <div class="table-wrap">
         <table class="city-table">
           <thead>
@@ -61,45 +63,74 @@
     </section>
   </div>
 
+  <!-- Modal: Agregar ciudad -->
   <div id="addCityModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addCityTitle">
-      <h2 id="addCityTitle" class="modal-title">Agregar ciudad</h2>
-      <p class="modal-text">Ingresa el nombre de la nueva ciudad.</p>
-      <div class="modal-field">
-        <label for="addCityInput">Nombre de la ciudad</label>
-        <input id="addCityInput" class="modal-input" type="text" maxlength="100" autocomplete="off" placeholder="Ej: Antofagasta">
+    <div class="modal-card" role="dialog" aria-modal="true" style="width:min(480px,95vw);">
+      <div class="modal-head">
+        <strong>Agregar ciudad</strong>
+        <button id="cancelAddCity" type="button" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 14px;color:#4b5563;">Ingresa el nombre de la nueva ciudad.</p>
+        <div class="field">
+          <label for="addCityInput">Nombre de la ciudad</label>
+          <input id="addCityInput" class="modal-input" type="text" maxlength="100" autocomplete="off" placeholder="Ej: Antofagasta">
+        </div>
       </div>
       <div class="modal-actions">
-        <button id="cancelAddCity" type="button" class="btn-secondary">Cancelar</button>
+        <button id="cancelAddCity2" type="button" class="btn-outline">Cancelar</button>
         <button id="confirmAddCity" type="button" class="btn-primary"><i class="fa-solid fa-check"></i> Guardar</button>
       </div>
     </div>
   </div>
 
+  <!-- Modal: Editar ciudad -->
   <div id="editCityModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editCityTitle">
-      <h2 id="editCityTitle" class="modal-title">Editar ciudad</h2>
-      <p class="modal-text">Corrige el nombre de la ciudad y el cambio se reflejará en los trabajadores que la tengan asignada.</p>
-      <div class="modal-field">
-        <label for="editCityInput">Nombre de la ciudad</label>
-        <input id="editCityInput" class="modal-input" type="text" maxlength="100" autocomplete="off">
-        <div class="helper-text">Usa el nombre correcto para mantener consistencia en todos los módulos.</div>
+    <div class="modal-card" role="dialog" aria-modal="true" style="width:min(480px,95vw);">
+      <div class="modal-head">
+        <strong>Editar ciudad</strong>
+        <button id="cancelEditCity" type="button" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 14px;color:#4b5563;">Corrige el nombre de la ciudad y el cambio se reflejará en los trabajadores que la tengan asignada.</p>
+        <div class="field">
+          <label for="editCityInput">Nombre de la ciudad</label>
+          <input id="editCityInput" class="modal-input" type="text" maxlength="100" autocomplete="off">
+        </div>
       </div>
       <div class="modal-actions">
-        <button id="cancelEditCity" type="button" class="btn-secondary">Cancelar</button>
+        <button id="cancelEditCity2" type="button" class="btn-outline">Cancelar</button>
         <button id="saveEditCity" type="button" class="btn-primary">Guardar</button>
       </div>
     </div>
   </div>
 
+  <!-- Modal: Eliminar ciudad -->
   <div id="deleteCityModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="deleteCityTitle">
-      <h2 id="deleteCityTitle" class="modal-title">Eliminar ciudad</h2>
-      <p id="deleteCityText" class="modal-text"></p>
-      <div id="deleteCityAlert" class="modal-alert"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" style="width:min(480px,95vw);">
+      <div class="modal-head">
+        <strong>Eliminar ciudad</strong>
+        <button id="cancelDeleteCity" type="button" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteCityText" style="margin:0 0 10px;color:#4b5563;line-height:1.6;"></p>
+        <div id="deleteCityAlert" class="modal-alert"></div>
+      </div>
       <div class="modal-actions">
-        <button id="cancelDeleteCity" type="button" class="btn-secondary">Cancelar</button>
-        <button id="confirmDeleteCity" type="button" class="btn-danger">Eliminar</button>
+        <button id="cancelDeleteCity2" type="button" class="btn-outline">Cancelar</button>
+        <button id="confirmDeleteCity" type="button" class="btn-primary danger-btn">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Trabajadores de la ciudad -->
+  <div id="workersModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" style="width:min(640px,95vw);">
+      <div class="modal-head">
+        <strong id="workersModalTitle">Trabajadores</strong>
+        <button id="closeWorkersModal" type="button" class="btn-outline">✕</button>
+      </div>
+      <div class="modal-body" id="workersModalBody" style="padding:0;max-height:65vh;overflow:auto;">
       </div>
     </div>
   </div>

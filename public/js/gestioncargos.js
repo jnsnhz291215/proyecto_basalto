@@ -19,6 +19,7 @@
 
   const state = {
     cargos: [],
+    trabajadores: [],
     permisos: [],
     editingCargoId: null,
     deletingCargo: null
@@ -43,7 +44,11 @@
     deleteModalCancel: document.getElementById('cancelDeleteCargoModal'),
     deleteModalConfirm: document.getElementById('confirmDeleteCargoModal'),
     deleteCargoText: document.getElementById('deleteCargoText'),
-    deleteCargoAlert: document.getElementById('deleteCargoAlert')
+    deleteCargoAlert: document.getElementById('deleteCargoAlert'),
+    cargoWorkersModal: document.getElementById('cargoWorkersModal'),
+    cargoWorkersModalTitle: document.getElementById('cargoWorkersModalTitle'),
+    cargoWorkersModalBody: document.getElementById('cargoWorkersModalBody'),
+    closeCargoWorkersModal: document.getElementById('closeCargoWorkersModal')
   };
 
   function setupViewSwitcher() {
@@ -178,6 +183,17 @@
     state.permisos = data.data;
   }
 
+  async function loadTrabajadores() {
+    try {
+      const res = await fetch('/api/trabajadores', { headers: buildHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      state.trabajadores = data.trabajadores || (Array.isArray(data) ? data : []);
+    } catch (e) {
+      state.trabajadores = [];
+    }
+  }
+
   async function loadCargos() {
     const res = await fetch('/api/cargos');
     const data = await res.json().catch(() => ([]));
@@ -202,21 +218,30 @@
         ? permisos.map(chipHtml).join('')
         : '<span style="color:#6b7280;font-size:13px;">Sin permisos</span>';
 
+      const workerCount = state.trabajadores.filter((t) => Number(t.id_cargo) === Number(cargo.id_cargo)).length;
+
       row.innerHTML = `
         <td><strong>${cargo.nombre_cargo}</strong></td>
         <td><div class="chips">${chips}</div></td>
         <td>
-          <button class="btn-icon" data-action="edit" data-id="${cargo.id_cargo}" title="Editar cargo" data-permission="gestionar_cargos">
-            <i class="fa-solid fa-pen"></i>
+          <button class="worker-badge-btn" data-action="workers" data-id="${cargo.id_cargo}" title="Ver trabajadores con este cargo" style="border:none;background:none;padding:0;cursor:pointer;">
+            <span class="worker-badge">
+              <i class="fa-solid fa-users"></i>
+              ${workerCount} trabajador${workerCount !== 1 ? 'es' : ''}
+            </span>
           </button>
-          <button class="btn-icon danger-btn" data-action="delete" data-id="${cargo.id_cargo}" title="Eliminar cargo" data-permission="gestionar_cargos" style="margin-left:8px;">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+        </td>
+        <td>
+          <div class="actions">
+            <button class="btn-action btn-edit"   data-action="edit"   data-id="${cargo.id_cargo}" data-permission="gestionar_cargos">Editar</button>
+            <button class="btn-action btn-delete" data-action="delete" data-id="${cargo.id_cargo}" data-permission="gestionar_cargos">Borrar</button>
+          </div>
         </td>
       `;
 
       row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openModal(cargo.id_cargo));
       row.querySelector('[data-action="delete"]')?.addEventListener('click', () => openDeleteModal(cargo.id_cargo));
+      row.querySelector('[data-action="workers"]')?.addEventListener('click', () => openCargoWorkersModal(cargo.id_cargo));
       el.cargosBody.appendChild(row);
     });
   }
@@ -244,6 +269,55 @@
       el.deleteCargoAlert.textContent = '';
     }
     closeManagedModal(el.deleteModal);
+  }
+
+  function openCargoWorkersModal(cargoId) {
+    const cargo = state.cargos.find((c) => Number(c.id_cargo) === Number(cargoId));
+    if (!cargo) return;
+
+    const workers = state.trabajadores.filter((t) => Number(t.id_cargo) === Number(cargoId));
+
+    if (el.cargoWorkersModalTitle) {
+      el.cargoWorkersModalTitle.innerHTML =
+        `<i class="fa-solid fa-users" style="margin-right:6px;"></i>${cargo.nombre_cargo} — ${workers.length} trabajador${workers.length !== 1 ? 'es' : ''}`;
+    }
+
+    if (el.cargoWorkersModalBody) {
+      if (!workers.length) {
+        el.cargoWorkersModalBody.innerHTML = '<p style="padding:20px;color:#6b7280;text-align:center;">Sin trabajadores asignados.</p>';
+      } else {
+        const escHtml = (v) => String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const titleCase = (v) => String(v || '').trim().split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        const rows = workers.map((w) => {
+          const nombre = escHtml(`${titleCase(w.nombres || '')} ${titleCase(w.apellido_paterno || '')} ${titleCase(w.apellido_materno || '')}`.trim());
+          const ciudad = escHtml(w.nombre_ciudad || w.ciudad || '—');
+          const rut    = escHtml(w.RUT || w.rut || '');
+          return `<tr>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">
+              <strong>${nombre}</strong><br>
+              <span style="color:#6b7280;font-size:12px;">${rut}</span>
+            </td>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">${ciudad}</td>
+          </tr>`;
+        }).join('');
+        el.cargoWorkersModalBody.innerHTML = `
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f9fafb;">
+                <th style="padding:10px 16px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5e7eb;">Trabajador</th>
+                <th style="padding:10px 16px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5e7eb;">Ciudad</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+    }
+
+    openManagedModal(el.cargoWorkersModal);
+  }
+
+  function closeCargoWorkersModal() {
+    closeManagedModal(el.cargoWorkersModal);
   }
 
   function renderSectionMatrix(selectedSet) {
@@ -457,8 +531,7 @@
     if (!verificarAcceso()) return;
 
     try {
-      await loadPermisos();
-      await loadCargos();
+      await Promise.all([loadPermisos(), loadCargos(), loadTrabajadores()]);
     } catch (error) {
       notify(error.message || 'Error inicializando la vista', 'error');
     }
@@ -476,6 +549,11 @@
     el.deleteModalConfirm?.addEventListener('click', deleteCargo);
     el.deleteModal?.addEventListener('click', (ev) => {
       if (ev.target === el.deleteModal) closeDeleteModal();
+    });
+
+    el.closeCargoWorkersModal?.addEventListener('click', closeCargoWorkersModal);
+    el.cargoWorkersModal?.addEventListener('click', (ev) => {
+      if (ev.target === el.cargoWorkersModal) closeCargoWorkersModal();
     });
 
     setupViewSwitcher();
