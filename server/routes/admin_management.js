@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../database');
 
+function titleCase(value) {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 const ADMIN_PERMISSION_GROUPS = {
   // Vistas por modulo (Gestionar)
   admin_trabajadores_v: ['admin_v_trabajadores', 'admin_trabajadores_v'],
@@ -405,9 +414,9 @@ router.post('/admins/crear', verificarSuperAdmin, async (req, res) => {
 
     await connection.execute(sqlInsert, [
       rutLimpio,
-      nombres,
-      apellidoPaternoFinal,
-      apellidoMaternoFinal,
+      titleCase(nombres),
+      titleCase(apellidoPaternoFinal),
+      apellidoMaternoFinal ? titleCase(apellidoMaternoFinal) : null,
       emailNormalizado || null,
       passwordInicial,
       0
@@ -458,14 +467,16 @@ router.put('/admins/:rut', verificarSuperAdmin, async (req, res) => {
     const { rut, nombres, apellido_paterno, apellido_materno, apellidos, email } = req.body || {};
 
     const rutNuevo = limpiarRUT(rut);
-    const nombresFinal = String(nombres || '').trim();
+    const nombresFinal = titleCase(nombres);
     const emailFinal = String(email || '').trim().toLowerCase();
     const apellidosRaw = String(apellidos || '').trim().replace(/\s+/g, ' ');
     const apellidoPaternoRaw = String(apellido_paterno || '').trim();
     const apellidoMaternoRaw = String(apellido_materno || '').trim();
     const apellidosParts = apellidosRaw ? apellidosRaw.split(' ').filter(Boolean) : [];
-    const apellidoPaternoFinal = apellidoPaternoRaw || apellidosParts[0] || '';
-    const apellidoMaternoFinal = apellidoMaternoRaw || apellidosParts.slice(1).join(' ') || null;
+    const apellidoPaternoFinal = titleCase(apellidoPaternoRaw || apellidosParts[0] || '');
+    const apellidoMaternoFinal = (apellidoMaternoRaw || apellidosParts.slice(1).join(' ') || null)
+      ? titleCase(apellidoMaternoRaw || apellidosParts.slice(1).join(' '))
+      : null;
 
     if (!rutObjetivo) {
       return res.status(400).json({
