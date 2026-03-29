@@ -531,7 +531,8 @@
     if (!verificarAcceso()) return;
 
     try {
-      await Promise.all([loadPermisos(), loadCargos(), loadTrabajadores()]);
+      await Promise.all([loadPermisos(), loadTrabajadores()]);
+      await loadCargos();
     } catch (error) {
       notify(error.message || 'Error inicializando la vista', 'error');
     }

@@ -91,3 +91,31 @@ tr:hover { background: #f9fafb; }
 
 .danger-btn { background: #fee2e2; color: #991b1b; }
 .danger-btn:hover { background: #fecaca; }
+
+.worker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.actions { display: flex; gap: 8px; }
+
+.btn-action {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform .15s ease, opacity .15s ease, background .2s ease;
+}
+.btn-action:hover { transform: translateY(-1px); }
+.btn-edit   { background: #e0f2fe; color: #0c4a6e; }
+.btn-delete { background: #fee2e2; color: #991b1b; }
+.btn-action:disabled { opacity: .45; cursor: not-allowed; transform: none; }
