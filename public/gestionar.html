@@ -75,15 +75,17 @@
           <option value="">Todos los meses</option>
         </select>
       </div>
-      <div class="filter-group" style="justify-content: flex-end; padding-top: 18px;">
+      <div class="filter-group" style="flex-direction: row; align-items: flex-end; gap: 8px; padding-top: 18px; flex-wrap: wrap;">
         <button id="btn-sin-viajes" type="button" class="btn-toggle-sin-viajes">
           <i class="fa-solid fa-plane-slash"></i> Sin viajes asignados
         </button>
+        <button id="btn-mostrar-ocultos" type="button" class="btn-toggle-sin-viajes">
+          <i class="fa-solid fa-eye"></i> Mostrar ocultos
+        </button>
+        <button id="btn-resetear-filtros" type="button" class="btn-toggle-sin-viajes">
+          <i class="fa-solid fa-rotate-left"></i> Resetear filtros
+        </button>
       </div>
-      <label class="toggle-inactivos" for="mostrar-inactivos">
-        <input type="checkbox" id="mostrar-inactivos">
-        <span>Mostrar ocultos</span>
-      </label>
     </div>
 
     <div class="accordion-wrapper">

@@ -14,6 +14,7 @@ function titleCase(value) {
     .join(' ');
 }
 let viajes = [];
+let mostrarHistorial = false;
 let trabajadorSeleccionado = null;
 let tramoCounter = 0;
 let viajeEditando = null; // Para modo edición
@@ -55,11 +56,13 @@ const el = {
   btnAgregarTramo: null,
   modalConfirm: null,
   modalResult: null,
-  filtroTipo: null,
   filtroMes: null,
   filtroGrupo: null,
+  filtroCargo: null,
+  filtroCiudad: null,
   filtroBusqueda: null,
-  btnLimpiarFiltros: null
+  btnMostrarHistorial: null,
+  btnResetearFiltros: null
 };
 
 function openManagedModal(modalElement) {
@@ -128,11 +131,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   el.btnAgregarTramo = document.getElementById('btn-agregar-tramo');
   el.modalConfirm = document.getElementById('modal-confirm');
   el.modalResult = document.getElementById('modal-result');
-  el.filtroTipo = document.getElementById('filtro-tipo');
   el.filtroMes = document.getElementById('filtro-mes');
   el.filtroGrupo = document.getElementById('filtro-grupo');
+  el.filtroCargo = document.getElementById('filtro-cargo');
+  el.filtroCiudad = document.getElementById('filtro-ciudad');
   el.filtroBusqueda = document.getElementById('filtro-busqueda');
-  el.btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
+  el.btnMostrarHistorial = document.getElementById('btn-mostrar-historial');
+  el.btnResetearFiltros = document.getElementById('btn-resetear-filtros');
   
   // Cargar datos iniciales
   await Promise.all([
@@ -158,14 +163,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (el.selectGrupoTrabajador) {
     el.selectGrupoTrabajador.addEventListener('change', aplicarFiltroGrupoTrabajador);
   }
-  if (el.filtroTipo) el.filtroTipo.addEventListener('change', () => cargarViajes());
   if (el.filtroMes) el.filtroMes.addEventListener('change', () => cargarViajes());
   if (el.filtroGrupo) el.filtroGrupo.addEventListener('change', () => cargarViajes());
+  if (el.filtroCargo) el.filtroCargo.addEventListener('change', () => renderViajes());
+  if (el.filtroCiudad) el.filtroCiudad.addEventListener('change', () => renderViajes());
   if (el.filtroBusqueda) {
     el.filtroBusqueda.addEventListener('input', () => cargarViajes());
   }
-  if (el.btnLimpiarFiltros) {
-    el.btnLimpiarFiltros.addEventListener('click', limpiarFiltrosViajes);
+  if (el.btnMostrarHistorial) {
+    el.btnMostrarHistorial.addEventListener('click', () => {
+      mostrarHistorial = !mostrarHistorial;
+      el.btnMostrarHistorial.classList.toggle('active', mostrarHistorial);
+      void cargarViajes();
+    });
+  }
+  if (el.btnResetearFiltros) {
+    el.btnResetearFiltros.addEventListener('click', resetearFiltrosViajes);
   }
   
   // Cerrar modales al hacer click en el fondo
@@ -184,11 +197,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('[VIAJES] Aplicación lista');
 });
 
-function limpiarFiltrosViajes() {
-  if (el.filtroTipo) el.filtroTipo.value = 'proximos';
+function resetearFiltrosViajes() {
+  if (el.filtroBusqueda) el.filtroBusqueda.value = '';
   if (el.filtroMes) el.filtroMes.value = '';
   if (el.filtroGrupo) el.filtroGrupo.value = '';
-  if (el.filtroBusqueda) el.filtroBusqueda.value = '';
+  if (el.filtroCargo) el.filtroCargo.value = '';
+  if (el.filtroCiudad) el.filtroCiudad.value = '';
+  mostrarHistorial = false;
+  if (el.btnMostrarHistorial) el.btnMostrarHistorial.classList.remove('active');
   void cargarViajes();
 }
 
@@ -297,14 +313,41 @@ async function cargarTrabajadores() {
     actualizarFiltroGrupoVista();
     actualizarSelectorGruposTrabajador();
     actualizarDatalistTrabajadores();
+    poblarFiltroCargo();
   } catch (error) {
     console.error('[VIAJES] Error cargando trabajadores:', error);
     mostrarError('Error al cargar la lista de trabajadores');
   }
 }
 
-function actualizarFiltroGrupoVista() {
-  if (!el.filtroGrupo) return;
+function poblarFiltroCargo() {
+  if (!el.filtroCargo) return;
+  const current = el.filtroCargo.value;
+  const cargos = [...new Set(trabajadores.map((t) => String(t.cargo || '').trim()).filter(Boolean))].sort();
+  el.filtroCargo.innerHTML = '<option value="">Todos los cargos</option>';
+  cargos.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    el.filtroCargo.appendChild(opt);
+  });
+  if (current) el.filtroCargo.value = current;
+}
+
+function poblarFiltroCiudad() {
+  if (!el.filtroCiudad) return;
+  const current = el.filtroCiudad.value;
+  el.filtroCiudad.innerHTML = '<option value="">Todas las ciudades</option>';
+  ciudades.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = String(c.id_ciudad);
+    opt.textContent = c.nombre_ciudad;
+    el.filtroCiudad.appendChild(opt);
+  });
+  if (current) el.filtroCiudad.value = current;
+}
+
+function actualizarFiltroGrupoVista() {  if (!el.filtroGrupo) return;
 
   const valorActual = String(el.filtroGrupo.value || '');
   const gruposMap = new Map();
@@ -401,6 +444,7 @@ async function cargarCiudades() {
       nombre_ciudad: titleCase(ciudad.nombre_ciudad)
     }));
     console.log('[VIAJES] Ciudades cargadas:', ciudades.length);
+    poblarFiltroCiudad();
   } catch (error) {
     console.error('[VIAJES] Error cargando ciudades:', error);
     mostrarError('Error al cargar la lista de ciudades');
@@ -412,10 +456,8 @@ async function cargarViajes() {
     // Construir URL con filtros
     let url = '/api/viajes';
     const params = new URLSearchParams();
-    
-    if (el.filtroTipo) {
-      params.append('tipo', el.filtroTipo.value);
-    }
+
+    params.append('tipo', mostrarHistorial ? 'historial' : 'proximos');
     
     if (el.filtroMes && el.filtroMes.value) {
       params.append('mes', el.filtroMes.value);
@@ -882,10 +924,23 @@ async function guardarViaje() {
 // ============================================
 function renderViajes() {
   if (!el.viajesLista) return;
-  
+
+  const cargofiltro = String(el.filtroCargo?.value || '').trim();
+  const ciudadFiltro = String(el.filtroCiudad?.value || '').trim();
+
+  let lista = viajes;
+  if (cargofiltro || ciudadFiltro) {
+    lista = viajes.filter((v) => {
+      const t = trabajadores.find((w) => w.RUT === v.rut_trabajador);
+      if (cargofiltro && String(t?.cargo || '').trim() !== cargofiltro) return false;
+      if (ciudadFiltro && String(t?.id_ciudad || '') !== ciudadFiltro) return false;
+      return true;
+    });
+  }
+
   el.viajesLista.innerHTML = '';
-  
-  if (viajes.length === 0) {
+
+  if (lista.length === 0) {
     el.sinViajes.style.display = 'block';
     const emptyText = el.sinViajes.querySelector('p:last-child');
     if (emptyText) {
@@ -897,8 +952,8 @@ function renderViajes() {
   }
   
   el.sinViajes.style.display = 'none';
-  
-  viajes.forEach(viaje => {
+
+  lista.forEach(viaje => {
     const card = crearCardViaje(viaje);
     el.viajesLista.appendChild(card);
   });
