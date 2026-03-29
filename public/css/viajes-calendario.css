@@ -46,6 +46,11 @@
   width: 100%;
 }
 
+/* Viajes siempre 7 columnas para mantener alineación por día de la semana */
+#viajes-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+
 /* ============================================
    CALENDARIO DE VIAJES — grilla de días
    ============================================ */
