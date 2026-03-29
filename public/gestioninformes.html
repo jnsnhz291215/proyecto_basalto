@@ -13,233 +13,52 @@
   <script src="js/route-guard.js"></script>
   <script src="js/auth_guard.js"></script>
   <script src="js/navbar.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background-color: #f3f4f6; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20px; margin: 0; }
-    
-    .accordion-button {
-      background-color: #f9fafb;
-      color: #1f2937;
-      font-weight: 600;
-      padding: 1.2rem 1.5rem;
-    }
-    
-    .accordion-button:not(.collapsed) {
-      background-color: #4f46e5;
-      color: white;
-      box-shadow: none;
-    }
-    
-    .accordion-button:focus {
-      box-shadow: none;
-      border-color: #4f46e5;
-    }
-    
-    .accordion-body {
-      background-color: #ffffff;
-      padding: 1.5rem;
-    }
-    
-    .table-detail {
-      font-size: 14px;
-      margin-bottom: 0;
-    }
-    
-    .table-detail th {
-      background-color: #f3f4f6;
-      font-weight: 600;
-      color: #374151;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .section-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: #4f46e5;
-      margin-top: 1.5rem;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #4f46e5;
-    }
-    
-    .section-title:first-child {
-      margin-top: 0;
-    }
-    
-    .badge-activo {
-      background-color: #10b981;
-      color: white;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .badge-inactivo {
-      background-color: #ef4444;
-      color: white;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    .btn-editar {
-      background: #e0f2fe;
-      color: #0369a1;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    
-    .btn-editar:hover {
-      background: #bae6fd;
-    }
-    
-    .btn-soft-delete {
-      background: #fef3c7;
-      color: #d97706;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    
-    .btn-soft-delete:hover {
-      background: #fde68a;
-    }
-    
-    .btn-hard-delete {
-      background: #fee2e2;
-      color: #dc2626;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    
-    .btn-hard-delete:hover {
-      background: #fecaca;
-    }
-    
-    .btn-restaurar {
-      background: #d1fae5;
-      color: #065f46;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    
-    .btn-restaurar:hover {
-      background: #a7f3d0;
-    }
-    
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
-      background-color: #f9fafb;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-    }
-    
-    .info-item {
-      font-size: 14px;
-    }
-    
-    .info-item .label {
-      font-weight: 600;
-      color: #6b7280;
-      display: block;
-      margin-bottom: 4px;
-    }
-    
-    .info-item .value {
-      color: #1f2937;
-    }
-  </style>
+  <link rel="stylesheet" href="css/gestioninformes-stilo.css">
 </head>
 <body>
   <!-- Shared menu will be injected here -->
   <div id="shared-menu-placeholder"></div>
 
   <div class="gestionar-container">
-    <!-- Header con controles -->
-    <header class="gestionar-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-          <i class="fa-solid fa-clipboard-list" style="color: white; font-size: 24px;"></i>
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-icon" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
+          <i class="fa-solid fa-clipboard-list"></i>
         </div>
-        <div>
-          <h1 class="gestionar-title">Gestión de Informes</h1>
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">Administrar informes de turno</p>
+        <div class="page-title">
+          <h1>Gestión de Informes</h1>
+          <p>Administrar informes de turno</p>
         </div>
       </div>
+    </div>
 
-      <!-- Barra de Filtros -->
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-        <!-- Buscador por Operador -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Operador:</label>
-          <input type="text" id="filtro-operador" class="modern-input plain" placeholder="Buscar..." style="padding: 8px 12px; min-width: 180px;">
-        </div>
-        
-        <!-- Filtro Fecha Desde -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Desde:</label>
-          <input type="date" id="filtro-fecha-desde" class="modern-input plain" style="padding: 8px 12px;">
-        </div>
-        
-        <!-- Filtro Fecha Hasta -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Hasta:</label>
-          <input type="date" id="filtro-fecha-hasta" class="modern-input plain" style="padding: 8px 12px;">
-        </div>
-        
-        <!-- Filtro de Estado -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 14px; font-weight: 600; color: #4b5563;">Estado:</label>
-          <select id="filtro-estado" class="modern-input plain" style="padding: 8px 12px; min-width: 150px;">
-            <option value="activos">Activos</option>
-            <option value="inactivos">Papelera (Inactivos)</option>
-          </select>
-        </div>
-        
-        <button id="btn-aplicar-filtros" class="btn btn-primary">
-          <i class="fa-solid fa-filter"></i> Aplicar Filtros
-        </button>
+    <div class="filters-bar">
+      <div class="filter-group" style="flex: 1; min-width: 180px;">
+        <label for="filtro-operador">Operador</label>
+        <input type="text" id="filtro-operador" class="filter-input" placeholder="Buscar...">
       </div>
-    </header>
+      <div class="filter-group">
+        <label for="filtro-fecha-desde">Desde</label>
+        <input type="date" id="filtro-fecha-desde" class="filter-input">
+      </div>
+      <div class="filter-group">
+        <label for="filtro-fecha-hasta">Hasta</label>
+        <input type="date" id="filtro-fecha-hasta" class="filter-input">
+      </div>
+      <div class="filter-group">
+        <label for="filtro-estado">Estado</label>
+        <select id="filtro-estado" class="filter-select">
+          <option value="activos">Activos</option>
+          <option value="inactivos">Papelera (Inactivos)</option>
+        </select>
+      </div>
+      <button id="btn-aplicar-filtros" class="btn-aplicar">
+        <i class="fa-solid fa-filter"></i> Aplicar Filtros
+      </button>
+    </div>
 
     <!-- Vista de Informes (Accordion) -->
-    <div id="informes-container" style="margin-top: 24px;">
+    <div id="informes-container">
       <div id="accordion-informes" class="accordion">
         <!-- Los informes se cargarán aquí dinámicamente -->
       </div>
