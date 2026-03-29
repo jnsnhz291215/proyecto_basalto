@@ -89,7 +89,7 @@
 
 .logistics-bar {
     display: grid;
-    grid-template-columns: 24px 1fr 1fr;
+    grid-template-columns: 36px 1fr;
     align-items: center;
     gap: 6px;
     padding: 2px 8px !important;
@@ -104,7 +104,7 @@
     text-align: center;
     white-space: nowrap;
     color: #5754a8;
-    font-size: 13px;
+    font-size: 26px;
 }
 
 .logistics-col {
@@ -120,9 +120,6 @@
     gap: 4px;
     color: var(--cal-text);
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 1.15;
 }
 

@@ -306,8 +306,7 @@
         return col;
       };
 
-      bar.appendChild(renderCol(entriesP1));
-      bar.appendChild(renderCol(entriesP2));
+      bar.appendChild(renderCol([...entriesP1, ...entriesP2]));
       return bar;
     }
 

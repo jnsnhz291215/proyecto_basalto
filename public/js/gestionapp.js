@@ -7,6 +7,7 @@ let rutParaOcultar = null;
 let esReactivar = false;
 let rutsTienenViajeEnMes = new Set();
 let soloSinViajes = false;
+let mostrarOcultos = false;
 const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
 
 const el = {
@@ -1627,11 +1628,30 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.selectGrupo) el.selectGrupo.addEventListener('change', render);
   if (el.selectCargo) el.selectCargo.addEventListener('change', render);
   
-  // Checkbox para mostrar trabajadores ocultos (inactivos)
-  const checkMostrarInactivos = document.getElementById('mostrar-inactivos');
-  if (checkMostrarInactivos) {
-    checkMostrarInactivos.addEventListener('change', (e) => {
-      cargar(e.target.checked);
+  // Botón para mostrar trabajadores ocultos (inactivos)
+  const btnMostrarOcultos = document.getElementById('btn-mostrar-ocultos');
+  if (btnMostrarOcultos) {
+    btnMostrarOcultos.addEventListener('click', () => {
+      mostrarOcultos = !mostrarOcultos;
+      btnMostrarOcultos.classList.toggle('active', mostrarOcultos);
+      cargar(mostrarOcultos);
+    });
+  }
+
+  // Resetear todos los filtros
+  const btnResetearFiltros = document.getElementById('btn-resetear-filtros');
+  if (btnResetearFiltros) {
+    btnResetearFiltros.addEventListener('click', async () => {
+      if (el.inputBuscar) el.inputBuscar.value = '';
+      if (el.selectCargo) el.selectCargo.value = '';
+      if (el.selectCiudad) el.selectCiudad.value = '';
+      if (el.selectGrupo) el.selectGrupo.value = '';
+      if (el.selectMes) el.selectMes.value = '';
+      soloSinViajes = false;
+      if (el.btnSinViajes) el.btnSinViajes.classList.remove('active');
+      mostrarOcultos = false;
+      if (btnMostrarOcultos) btnMostrarOcultos.classList.remove('active');
+      await cargar(false);
     });
   }
   
