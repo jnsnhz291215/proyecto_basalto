@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -6,6 +6,7 @@
   <title>Calendario de Turnos</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/calendario-flex.css">
+  <link rel="stylesheet" href="css/viajes-calendario.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="js/navbar_core.js"></script>
   <script src="js/common.js"></script>
@@ -15,39 +16,73 @@
 <body>
   <!-- Shared menu will be injected here -->
   <div id="shared-menu-placeholder"></div>
+
   <div class="container">
-    <!-- (botones laterales eliminados: ahora usar menú superior) -->
 
-    <!-- Contenido principal -->
-    <div class="main-content">
-      <!-- Header del calendario -->
-      <div class="calendar-header">
-        <h1 id="month-year">Enero 2026</h1>
-        <div class="header-controls">
-          <button id="prev-month" class="nav-arrow">←</button>
-          <button id="next-month" class="nav-arrow">→</button>
-          <button id="btn-referencia" type="button" class="legend-help-btn">Ayuda / Leyenda</button>
-          <button id="btn-hoy" class="btn-today">Volver a hoy (<span id="fecha-hoy">19/01/2026</span>)</button>
+    <!-- ===================== TABS ===================== -->
+    <div class="main-tabs">
+      <button class="main-tab active" data-panel="panel-turnos">
+        <i class="fa-solid fa-calendar-days"></i> Calendario turnos
+      </button>
+      <button class="main-tab" data-panel="panel-viajes">
+        <i class="fa-solid fa-plane"></i> Calendario viajes
+      </button>
+    </div>
+
+    <!-- ================ PANEL TURNOS ================= -->
+    <div id="panel-turnos" class="tab-panel active">
+      <div class="main-content">
+        <!-- Header del calendario -->
+        <div class="calendar-header">
+          <h1 id="month-year">Enero 2026</h1>
+          <div class="header-controls">
+            <button id="prev-month" class="nav-arrow">←</button>
+            <button id="next-month" class="nav-arrow">→</button>
+            <button id="btn-referencia" type="button" class="legend-help-btn">Ayuda / Leyenda</button>
+            <button id="btn-hoy" class="btn-today">Volver a hoy (<span id="fecha-hoy">19/01/2026</span>)</button>
+          </div>
+        </div>
+
+        <!-- Calendario turnos -->
+        <div class="calendar-responsive-wrapper">
+          <div class="calendar-wrapper">
+            <div id="days-grid" class="days-grid calendar-container"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Calendario -->
-      <div class="calendar-responsive-wrapper">
-        <div class="calendar-wrapper">
-          <div id="days-grid" class="days-grid calendar-container"></div>
+      <div class="sidebar-right">
+        <div class="referencia">
+          <div id="grupos-leyenda"></div>
         </div>
       </div>
     </div>
 
-    <!-- Referencia de grupos -->
-    <div class="sidebar-right">
-      <div class="referencia">
-        <div id="grupos-leyenda"></div>
+    <!-- ================ PANEL VIAJES ================= -->
+    <div id="panel-viajes" class="tab-panel">
+      <div class="main-content">
+        <!-- Header del calendario de viajes -->
+        <div class="calendar-header">
+          <h1 id="viajes-month-year">Enero 2026</h1>
+          <div class="header-controls">
+            <button id="viajes-prev-month" class="nav-arrow">←</button>
+            <button id="viajes-next-month" class="nav-arrow">→</button>
+            <button id="viajes-btn-hoy" class="btn-today">Hoy (<span id="viajes-fecha-hoy"></span>)</button>
+          </div>
+        </div>
+
+        <!-- Calendario de viajes -->
+        <div class="calendar-responsive-wrapper">
+          <div class="calendar-wrapper">
+            <div id="viajes-grid" class="calendar-container"></div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal de detalle del día -->
+  </div><!-- /.container -->
+
+  <!-- ============= MODAL DETALLE DÍA (turnos) ============= -->
   <div id="day-modal" class="modal">
     <div class="modal-content">
       <span class="close-modal">&times;</span>
@@ -57,7 +92,21 @@
     </div>
   </div>
 
-  <!-- Modal de login unificado -->
+  <!-- ============= MODAL DETALLE DÍA (viajes) ============= -->
+  <div id="viajes-day-modal" class="modal" aria-hidden="true">
+    <div class="modal-content" style="max-width:620px;width:min(96vw,620px);padding:24px;border-radius:14px;border:1px solid #e2e4f0;background:#fff;box-shadow:0 18px 40px rgba(20,22,34,.18);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <h2 id="viajes-modal-title" style="margin:0;font-size:18px;font-weight:800;color:#5754a8;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-calendar-check"></i> <span></span>
+        </h2>
+        <button id="viajes-modal-close" style="background:none;border:1px solid #d9dbeb;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#5754a8;font-size:18px;display:inline-flex;align-items:center;justify-content:center;">&times;</button>
+      </div>
+      <div id="viajes-modal-body" class="viajes-modal-groups"></div>
+      <button id="viajes-modal-close-bottom" class="viajes-modal-close-btn" style="margin-top:16px;">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ============= MODAL LOGIN ============= -->
   <div id="dual-login-modal" class="modal">
     <div class="modal-content" style="max-width:450px;padding:22px">
       <div class="login-card">
@@ -114,7 +163,38 @@
 
   <script src="js/modules/CalendarComponent.js"></script>
   <script src="js/viajes_modular.js"></script>
+  <script src="js/viajes_cal.js"></script>
   <script>
+    // ============================================
+    // TABS
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.main-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const panelId = tab.dataset.panel;
+          document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(panelId)?.classList.add('active');
+          if (panelId === 'panel-viajes') {
+            window.__initViajesCalendar?.();
+          }
+        });
+      });
+
+      // Botón cerrar inferior del modal de viajes
+      document.getElementById('viajes-modal-close-bottom')?.addEventListener('click', () => {
+        const modal = document.getElementById('viajes-day-modal');
+        if (window.basaltoModal?.close) {
+          window.basaltoModal.close(modal);
+        } else {
+          modal?.classList.remove('show');
+          modal?.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('overflow-hidden', 'modal-open');
+        }
+      });
+    });
+
     // ============================================
     // SISTEMA DE LOGIN UNIFICADO
     // ============================================
@@ -125,11 +205,7 @@
 
       function openManagedModal(modalElement) {
         if (!modalElement) return;
-        if (window.basaltoModal?.open) {
-          window.basaltoModal.open(modalElement);
-          return;
-        }
-
+        if (window.basaltoModal?.open) { window.basaltoModal.open(modalElement); return; }
         modalElement.classList.add('show');
         modalElement.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden', 'modal-open');
@@ -137,58 +213,38 @@
 
       function closeManagedModal(modalElement) {
         if (!modalElement) return;
-        if (window.basaltoModal?.close) {
-          window.basaltoModal.close(modalElement);
-          return;
-        }
-
+        if (window.basaltoModal?.close) { window.basaltoModal.close(modalElement); return; }
         modalElement.classList.remove('show');
         modalElement.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('overflow-hidden', 'modal-open');
       }
-      
-      // Mostrar modal automáticamente si no hay sesión activa
+
       try {
         const userRole = localStorage.getItem('user_role');
-        if (!userRole) { 
-          openManagedModal(dualModal);
-        } else { 
-          closeManagedModal(dualModal);
-        }
+        if (!userRole) { openManagedModal(dualModal); }
+        else { closeManagedModal(dualModal); }
       } catch(e) {}
 
-      // Ocultar error cuando el usuario empieza a escribir
       const rutInput = document.getElementById('login-rut');
       const passwordInput = document.getElementById('login-password');
-      
       if (rutInput) rutInput.addEventListener('input', () => { if (loginError) loginError.style.display = 'none'; });
       if (passwordInput) passwordInput.addEventListener('input', () => { if (loginError) loginError.style.display = 'none'; });
 
-      // ============================================
-      // LOGIN UNIFICADO (Admin o Trabajador)
-      // ============================================
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const rut = document.getElementById('login-rut').value.trim();
         const password = document.getElementById('login-password').value.trim();
-        
-        if (!rut || !password) {
-          showError('Por favor ingrese RUT y contraseña');
-          return;
-        }
+        if (!rut || !password) { showError('Por favor ingrese RUT y contraseña'); return; }
 
         try {
-          const res = await fetch('/api/login', { 
-            method: 'POST', 
-            headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ rut, password }) 
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ rut, password })
           });
-          
           const data = await res.json();
-          
+
           if (data.success) {
-            // Guardar sesión en localStorage
             localStorage.setItem('user_role', data.role);
             localStorage.setItem('user_rut', data.rut);
             localStorage.setItem('user_name', data.nombre);
@@ -198,33 +254,26 @@
             localStorage.setItem('user_cargo_name', data.cargo?.nombre_cargo || '');
             localStorage.setItem('user_cargo_id', data.cargo?.id_cargo ? String(data.cargo.id_cargo) : '');
             localStorage.setItem('user_grupo', data.grupo || '');
-            
-            // Guardar datos de Super Admin y permisos si es admin
+
             if (data.role === 'admin') {
               localStorage.setItem('user_super_admin', data.es_super_admin ? '1' : '0');
               localStorage.setItem('user_permisos', JSON.stringify(data.permisos || []));
-              
               if (data.user) {
                 localStorage.setItem('adminData', JSON.stringify({
-                  ...data.user,
-                  isAdmin: true,
+                  ...data.user, isAdmin: true,
                   es_super_admin: data.es_super_admin,
                   permisos: data.permisos || []
                 }));
                 localStorage.setItem('userRUT', data.rut);
                 localStorage.setItem('userName', data.nombre);
               }
-            }
-            else {
+            } else {
               localStorage.removeItem('user_super_admin');
               localStorage.removeItem('user_permisos');
             }
-            
-            // Mantener compatibilidad con código antiguo
-            localStorage.setItem('usuarioActivo', JSON.stringify({ 
-              rol: data.role, 
-              nombre: data.nombre,
-              rut: data.rut,
+
+            localStorage.setItem('usuarioActivo', JSON.stringify({
+              rol: data.role, nombre: data.nombre, rut: data.rut,
               isAdmin: data.role === 'admin',
               es_super_admin: data.es_super_admin || 0,
               permisos: data.permisos || [],
@@ -234,44 +283,29 @@
               id_grupo: data.id_grupo || null,
               grupo: data.grupo || data.id_grupo || null
             }));
-            
-            console.log('[LOGIN] Autenticado como:', data.role, '-', data.nombre, '- Super Admin:', data.es_super_admin);
-            
-            // Cerrar modal y redirigir
+
             closeManagedModal(dualModal);
             window.location.href = data.redirect;
           } else {
             showError(data.message || 'Credenciales inválidas');
           }
         } catch (err) {
-          console.error('[LOGIN] Error:', err);
           showError('No fue posible contactar al servidor');
         }
       });
 
-      // ============================================
-      // SALTAR LOGIN (Ver calendario sin cuenta)
-      // ============================================
       document.getElementById('btn-skip-login').addEventListener('click', () => {
         closeManagedModal(dualModal);
       });
 
-      // Función para mostrar errores
       function showError(msg) {
-        if (loginError) {
-          loginError.textContent = msg;
-          loginError.style.display = 'block';
-        }
-        
-        // Animar inputs y botón
+        if (loginError) { loginError.textContent = msg; loginError.style.display = 'block'; }
         const loginCard = document.querySelector('.login-card');
         const inputs = loginForm.querySelectorAll('input');
         const btn = loginForm.querySelector('button[type="submit"]');
-        
         if (loginCard) loginCard.classList.add('has-error');
         inputs.forEach(i => i.classList.add('input-error'));
         if (btn) btn.classList.add('btn-error');
-        
         setTimeout(() => {
           if (loginCard) loginCard.classList.remove('has-error');
           inputs.forEach(i => i.classList.remove('input-error'));
@@ -282,4 +316,3 @@
   </script>
 </body>
 </html>
-

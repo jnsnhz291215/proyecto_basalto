@@ -1,0 +1,249 @@
+/* ============================================
+   TABS PRINCIPALES (Turnos / Viajes)
+   ============================================ */
+.main-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e2e8f0;
+  margin: 0 0 28px 0;
+  padding: 0;
+}
+
+.main-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 13px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s, border-color 0.2s;
+  line-height: 1;
+}
+
+.main-tab:hover {
+  color: #5754a8;
+}
+
+.main-tab.active {
+  color: #5754a8;
+  border-bottom-color: #5754a8;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* ============================================
+   CALENDARIO DE VIAJES — grilla de días
+   ============================================ */
+.viajes-day-card {
+  min-height: 110px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.viajes-day-card .card-header {
+  font-size: 11px;
+  padding: 6px 8px;
+  font-weight: 700;
+}
+
+.viajes-day-card.viajes-day-today .card-header {
+  background: #4f46e5;
+}
+
+.viajes-day-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  gap: 5px;
+}
+
+.viajes-count-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.viajes-group-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+}
+
+.viajes-group-chip {
+  background: #5754a815;
+  color: #5754a8;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.viajes-empty-day {
+  color: #d1d5db;
+  font-size: 18px;
+}
+
+/* días sin viajes: apagados */
+.viajes-day-card:not([data-has-viajes]) .viajes-day-body {
+  opacity: 0.45;
+}
+
+/* ============================================
+   MODAL DETALLE DÍA (viajes)
+   ============================================ */
+#viajes-day-modal .modal-content {
+  max-width: 600px;
+  width: min(96vw, 600px);
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid #e2e4f0;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(20, 22, 34, 0.18);
+}
+
+#viajes-day-modal .viajes-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+#viajes-day-modal h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #5754a8;
+  margin: 0;
+}
+
+#viajes-day-modal .viajes-modal-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.viajes-modal-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.viajes-modal-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.viajes-modal-group-title {
+  background: #f2f3f8;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #5754a8;
+  border-bottom: 1px solid #e2e4f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viajes-modal-person {
+  padding: 10px 14px;
+  border-bottom: 1px dashed #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.viajes-modal-person:last-child {
+  border-bottom: none;
+}
+
+.viajes-person-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5754a8, #818cf8);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.viajes-person-info {
+  min-width: 0;
+}
+
+.viajes-person-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viajes-person-detail {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.viajes-person-tramos {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #4f46e5;
+  font-weight: 700;
+  background: #ede9fe;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.viajes-modal-close-btn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 10px;
+  background: #f2f3f8;
+  border: 1px solid #d9dbeb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5754a8;
+  cursor: pointer;
+}
+
+.viajes-modal-close-btn:hover {
+  background: #ececfb;
+}
+
+.viajes-modal-loading {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-weight: 600;
+}
