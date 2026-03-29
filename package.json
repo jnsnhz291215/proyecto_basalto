@@ -12,11 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-<<<<<<< HEAD
-    "bcryptjs": "^2.4.3",
-=======
     "bcryptjs": "^3.0.3",
->>>>>>> cc32f77629b48fa03c168d5230d14b33932e9774
     "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
