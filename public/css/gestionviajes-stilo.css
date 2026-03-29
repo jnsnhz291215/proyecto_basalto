@@ -1,0 +1,382 @@
+.tramo-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.tramo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tramo-numero {
+  font-weight: 700;
+  color: #3b82f6;
+  font-size: 15px;
+}
+
+.btn-eliminar-tramo {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-eliminar-tramo:hover {
+  background: #fecaca;
+}
+
+.btn-agregar-tramo {
+  background: #4f46e5;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+  border: none;
+  transition: background 0.2s;
+}
+
+.btn-agregar-tramo:hover {
+  background: #4338ca;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.trabajador-info {
+  background: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+.trabajador-info.visible {
+  display: block;
+}
+
+.info-item {
+  font-size: 14px;
+  color: #0c4a6e;
+  margin-bottom: 4px;
+}
+
+.info-item strong {
+  font-weight: 600;
+}
+
+.viaje-card {
+  background: white;
+  border-radius: 10px;
+  padding: 18px;
+  min-width: 350px;
+  max-width: 400px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-left: 4px solid #3b82f6;
+  flex-shrink: 0;
+}
+
+.viaje-card.oculto {
+  border-left-color: #9ca3af;
+  opacity: 0.7;
+}
+
+.viajes-horizontal {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.viajes-horizontal::-webkit-scrollbar {
+  height: 8px;
+}
+
+.viajes-horizontal::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.viajes-horizontal::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.viajes-horizontal::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.viaje-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.viaje-trabajador {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.viaje-fecha {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.tramos-resumen {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.tramo-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tramo-icon {
+  color: #3b82f6;
+  font-size: 16px;
+  width: 20px;
+}
+
+.btn-eliminar-viaje {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-eliminar-viaje:hover {
+  background: #fecaca;
+}
+
+.viaje-acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-accion {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-editar {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.btn-editar:hover {
+  background: #bae6fd;
+}
+
+.btn-ocultar {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.btn-ocultar:hover {
+  background: #fde68a;
+}
+
+.btn-borrar {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-borrar:hover {
+  background: #fecaca;
+}
+
+.permission-banner {
+  display: none;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 600;
+  align-items: center;
+  gap: 10px;
+}
+
+.permission-banner.visible {
+  display: flex;
+}
+
+/* ── Layout igual a gestionar trabajadores ── */
+.gestionar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  height: auto;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: white;
+}
+
+.page-title h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.page-title p {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #5b52e8;
+  color: #ffffff;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #4f46e5;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.25);
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 14px 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.filter-input,
+.filter-select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.btn-toggle-sin-viajes {
+  border: 2px solid #d1d5db;
+  background: #ffffff;
+  color: #6b7280;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
