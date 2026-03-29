@@ -17,17 +17,17 @@
   <!-- Shared menu will be injected here -->
   <div id="shared-menu-placeholder"></div>
 
-  <div class="container">
+  <!-- ===================== TABS ===================== -->
+  <div class="main-tabs">
+    <button class="main-tab active" data-panel="panel-turnos">
+      <i class="fa-solid fa-calendar-days"></i> Calendario turnos
+    </button>
+    <button class="main-tab" data-panel="panel-viajes">
+      <i class="fa-solid fa-plane"></i> Calendario viajes
+    </button>
+  </div>
 
-    <!-- ===================== TABS ===================== -->
-    <div class="main-tabs">
-      <button class="main-tab active" data-panel="panel-turnos">
-        <i class="fa-solid fa-calendar-days"></i> Calendario turnos
-      </button>
-      <button class="main-tab" data-panel="panel-viajes">
-        <i class="fa-solid fa-plane"></i> Calendario viajes
-      </button>
-    </div>
+  <div class="container">
 
     <!-- ================ PANEL TURNOS ================= -->
     <div id="panel-turnos" class="tab-panel active">
