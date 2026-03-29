@@ -48,7 +48,22 @@
 
 /* Viajes siempre 7 columnas para mantener alineación por día de la semana */
 #viajes-grid {
-  grid-template-columns: repeat(7, minmax(110px, 1fr)) !important;
+  grid-template-columns: repeat(7, minmax(130px, 1fr)) !important;
+}
+
+/* En el layout de tabs, liberar el espacio reservado para el sidebar y refluirlo abajo */
+#panel-turnos .main-content {
+  margin-right: 0 !important;
+}
+
+#panel-turnos .sidebar-right {
+  position: static !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: 100%;
+  min-width: 0;
+  margin-top: 16px;
 }
 
 /* ============================================
