@@ -176,7 +176,7 @@
     if (page.endsWith('/gestionadmins.html')) return 'Administradores';
     if (page.endsWith('/gestionar.html')) return 'Trabajadores';
     if (page.endsWith('/gestioninformes.html') || page.endsWith('/informe.html')) return 'Informes';
-    if (page.endsWith('/gestionviajes.html') || page.endsWith('/viajes.html')) return 'Viajes';
+    if (page.endsWith('/gestionviajes.html')) return 'Viajes';
     if (page.endsWith('/gestioncargos.html')) return 'Cargos';
     if (page.endsWith('/datos.html')) return 'Perfil';
     if (page.endsWith('/dashboard.html')) return 'Dashboard';
@@ -294,7 +294,7 @@
       }
 
       // IMPORTANTE: Asegurar que el link de 'Viajes' (calendario) NO esté activo
-      const viajesLink = document.querySelector('#nav-viajes > a, nav-viajes a, [href="viajes.html"], [href="/viajes.html"]');
+      const viajesLink = document.querySelector('#nav-viajes > a, nav-viajes a');
       if (viajesLink) viajesLink.classList.remove('active');
       return;
     }

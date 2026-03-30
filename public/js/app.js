@@ -400,8 +400,6 @@ function crearDiaCelda(day, month, year, isOutsideMonth) {
 
 // Obtener trabajadores que trabajan en un día específico según la lógica de turnos
 function obtenerTrabajadoresDelDia(fecha) {
-  // Si estamos en la vista "Viajes", no mostrar trabajadores (vista vacía)
-  if (typeof window !== 'undefined' && window.__VIAJES) return [];
   const gruposDelDia = obtenerGruposDelDia(fecha);
   const trabajadoresDelDia = [];
   

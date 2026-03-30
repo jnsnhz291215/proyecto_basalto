@@ -103,7 +103,7 @@
   const adminNombresInput = document.getElementById('adminNombres');
   const adminApellidosInput = document.getElementById('adminApellidos');
   const adminEmailInput = document.getElementById('adminEmail');
-  // const createPermissionsList = document.getElementById('createPermissionsList'); // Eliminado del HTML
+  const createPermissionsList = document.getElementById('createPermissionsList');
   
   const notification = document.getElementById('notification');
   const infoAdminName = document.getElementById('infoAdminName');
@@ -753,7 +753,7 @@
   // ============================================
   function resetCreateAdminForm() {
     createAdminForm.reset();
-    // renderCreatePermissions(); // Permisos eliminados del modal de crear
+    renderCreatePermissions();
     btnSaveCreateAdmin.disabled = false;
     btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
     clearNotification();
@@ -930,7 +930,7 @@
     const apellidoPaterno = apellidosParts[0] || '';
     const apellidoMaterno = apellidosParts.slice(1).join(' ') || null;
     const email = adminEmailInput.value.trim().toLowerCase();
-    const idPermisos = []; // Permisos se asignan después de crear
+    const idPermisos = selectedPermissionIdsFromContainer(createPermissionsList);
     if (!rutOriginal || !nombres || !apellidosRaw || !email) {
       showCreateAdminErrorModal('Complete todos los campos obligatorios', 'Datos incompletos');
       return;

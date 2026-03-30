@@ -185,7 +185,6 @@
   const authRequiredPages = [
     'gestionar.html',
     'gestionviajes.html',
-    'viajes.html',
     'informe.html',
     'datos.html',
     'gestionadmins.html',

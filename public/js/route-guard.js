@@ -19,8 +19,7 @@
     'gestioncargos.html': { requiresAuth: true, requiresAdmin: true },
     'dashboard.html': { requiresAuth: true, requiresAdmin: true },
     'datos.html': { requiresAuth: true, requiresAdmin: false },
-    'informe.html': { requiresAuth: true, requiresAdmin: false },
-    'viajes.html': { requiresAuth: true, requiresAdmin: false }
+    'informe.html': { requiresAuth: true, requiresAdmin: false }
   };
 
   // Verificar la ruta actual

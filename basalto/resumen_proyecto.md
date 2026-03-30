@@ -32,7 +32,7 @@ Las vistas y scripts están organizados por módulo funcional:
 - Guardas de acceso y sesión: `js/auth_guard.js`, `js/route-guard.js`.
 - Gestión operativa y maestra: `datos.html`, `gestionar.html`, `gestionadmins.html`, `gestioncargos.html`, `gestioninformes.html`, `gestionviajes.html`, `ciudades.html`.
 - Informes: `informe.html`, `js/informe.js`, `js/informe_export.js`, `js/audit_viewer.js`.
-- Viajes: `viajes.html`, `js/viajes.js`.
+- Viajes: `index.html`, `js/viajes_cal.js`, `js/viajes_modular.js`.
 - Componentes reutilizables: `js/modules/CalendarComponent.js` (calendario visual usado por vistas de viajes y turnos).
 - Configuración de calendario/turnos: `js/config.js` define fecha base, grupos y colores.
 
