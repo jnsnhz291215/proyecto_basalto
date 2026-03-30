@@ -719,7 +719,8 @@ async function resetearPasswordTrabajador(rut, nombre) {
   }
 }
 
-// SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)async function cambiarEstadoTrabajador(rut, reactivar = false) {
+// SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)
+async function cambiarEstadoTrabajador(rut, reactivar = false) {
   try {
     const adminRut = localStorage.getItem('userRUT');
     const nuevoEstado = reactivar;
