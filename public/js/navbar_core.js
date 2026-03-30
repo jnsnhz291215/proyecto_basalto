@@ -147,9 +147,55 @@
     }
   }
 
+  // ============================================
+  // OCULTAR ELEMENTOS SOLO-ADMIN
+  // ============================================
+  function toggleAdminElements() {
+    const userRole = localStorage.getItem('user_role');
+    const isAdmin = userRole === 'admin';
+    
+    // Ocultar todos los elementos .admin-only si no es admin
+    const adminOnlyElements = document.querySelectorAll('.admin-only');
+    adminOnlyElements.forEach(element => {
+      if (isAdmin) {
+        element.style.display = '';
+      } else {
+        element.style.display = 'none';
+      }
+    });
+    
+    // Gestión especial para super-admin-only
+    const isSuperAdmin = localStorage.getItem('user_super_admin') === '1';
+    const superAdminElements = document.querySelectorAll('.super-admin-only');
+    superAdminElements.forEach(element => {
+      if (isSuperAdmin) {
+        element.style.display = '';
+        // Mostrar también el contenedor padre si está oculto
+        const parentLi = element.closest('li');
+        if (parentLi && parentLi.id === 'nav-admins-item') {
+          parentLi.style.display = '';
+          // Mostrar el divider también
+          const divider = document.getElementById('nav-admins');
+          if (divider) divider.style.display = '';
+        }
+      } else {
+        element.style.display = 'none';
+      }
+    });
+    
+    // Dashboard KPIs: mostrar solo si tiene permiso admin_v_kpis
+    const dashboardLink = document.getElementById('nav-dashboard');
+    if (dashboardLink) {
+      const permisosAdmin = localStorage.getItem('user_permisos');
+      const hasKPIPermission = permisosAdmin && permisosAdmin.includes('admin_v_kpis');
+      dashboardLink.style.display = (isAdmin && hasKPIPermission) ? '' : 'none';
+    }
+  }
+
   function refreshNavbarState() {
     updateUserName();
     toggleAuthUI();
+    toggleAdminElements();
     syncNavbarActive();
   }
 

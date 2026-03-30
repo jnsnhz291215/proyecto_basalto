@@ -1,0 +1,14 @@
+/* ============================================
+   VISIBILIDAD POR ROL
+   ============================================ */
+
+/* Por defecto, ocultar elementos solo-admin */
+.admin-only {
+  display: none !important;
+}
+
+.super-admin-only {
+  display: none !important;
+}
+
+/* JavaScript mostrará estos elementos cuando corresponda según el rol del usuario */
