@@ -652,7 +652,7 @@ input:checked + .slider:before {
 
 .permissions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 15px;
   margin-top: 20px;
   padding: 15px;
@@ -662,13 +662,13 @@ input:checked + .slider:before {
   overflow-x: hidden;
 }
 
-@media (min-width: 1200px) {
+@media (max-width: 992px) {
   .permissions-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 576px) {
   .permissions-grid {
     grid-template-columns: 1fr;
   }
