@@ -103,7 +103,7 @@
   const adminNombresInput = document.getElementById('adminNombres');
   const adminApellidosInput = document.getElementById('adminApellidos');
   const adminEmailInput = document.getElementById('adminEmail');
-  const createPermissionsList = document.getElementById('createPermissionsList');
+  // const createPermissionsList = document.getElementById('createPermissionsList'); // Eliminado del HTML
   
   const notification = document.getElementById('notification');
   const infoAdminName = document.getElementById('infoAdminName');
@@ -365,10 +365,8 @@
 
     const selectedPermissions = new Set();
 
-    container.querySelectorAll('.admin-module-card').forEach((card) => {
-      const viewCheckbox = card.querySelector('[data-role="view"]');
-      const editCheckbox = card.querySelector('[data-role="edit"]');
-      const softDeleteCheckbox = card.querySelector('[data-role="softdelete"]');
+    container.querySelectorAll('.permission-item').forEach((item) => {
+      const viewCheckbox = item.querySelector('[data-role="view"]');
 
       if (!viewCheckbox?.checked) return;
 
@@ -376,20 +374,6 @@
         String(viewCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
       );
       if (viewPermission) selectedPermissions.add(Number(viewPermission.id_permiso));
-
-      if (editCheckbox?.checked) {
-        const editPermission = getPermissionByKeys(
-          String(editCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
-        );
-        if (editPermission) selectedPermissions.add(Number(editPermission.id_permiso));
-      }
-
-      if (softDeleteCheckbox?.checked) {
-        const softDeletePermission = getPermissionByKeys(
-          String(softDeleteCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
-        );
-        if (softDeletePermission) selectedPermissions.add(Number(softDeletePermission.id_permiso));
-      }
     });
 
     return Array.from(selectedPermissions);
@@ -665,92 +649,47 @@
   function renderAdminPermissionMatrix(targetContainer, selectedKeys = new Set(), idPrefix = 'perm-admin') {
     if (!targetContainer) return;
     targetContainer.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'permission-matrix';
-
-    const title = document.createElement('div');
-    title.className = 'permission-group-title';
-    title.textContent = 'Permisos por módulo';
-    wrap.appendChild(title);
-
-    const help = document.createElement('p');
-    help.className = 'permission-modules-help';
-    help.textContent = 'Cada módulo habilita Ver, Editar y SoftDelete. SoftDelete requiere Editar.';
-    wrap.appendChild(help);
-
-    const modulesGrid = document.createElement('div');
-    modulesGrid.className = 'permission-modules-grid';
+    const moduleIcons = {
+      'trabajadores': '👥',
+      'viajes': '✈️',
+      'informes': '📊',
+      'cargos': '🔧',
+      'dashboard': '⚙️'
+    };
 
     ADMIN_PERMISSION_MATRIX.forEach((module) => {
       const hasViewPermission = module.viewKeys.some((key) => ADMIN_PERMISSION_ALLOWED_KEYS.has(key));
       if (!hasViewPermission) return;
 
-      const moduleCard = document.createElement('div');
-      moduleCard.className = 'permission-module-option admin-module-card';
-      moduleCard.dataset.moduleId = module.id;
+      const permissionItem = document.createElement('div');
+      permissionItem.className = 'permission-item';
+      permissionItem.dataset.moduleId = module.id;
 
       const viewChecked = hasPermissionKey(selectedKeys, module.viewKeys);
-      const editChecked = hasPermissionKey(selectedKeys, module.editKeys);
-      const softDeleteChecked = hasPermissionKey(selectedKeys, module.softDeleteKeys);
+      const icon = moduleIcons[module.id] || '📋';
+      const labelText = `<span style="margin-right: 8px;">${icon}</span> ${module.label}`;
 
-      moduleCard.innerHTML = `
-        <div class="permission-module-title">${module.label}</div>
-        <div class="permission-module-flags">
-          <label>
-            <input type="checkbox" data-role="view" data-permission-keys="${module.viewKeys.join('|')}" ${viewChecked ? 'checked' : ''}>
-            Ver
-          </label>
-          ${module.editKeys.length ? `
-          <label>
-            <input type="checkbox" data-role="edit" data-permission-keys="${module.editKeys.join('|')}" ${editChecked ? 'checked' : ''}>
-            Editar
-          </label>` : ''}
-          ${module.softDeleteKeys.length ? `
-          <label>
-            <input type="checkbox" data-role="softdelete" data-permission-keys="${module.softDeleteKeys.join('|')}" ${softDeleteChecked ? 'checked' : ''}>
-            SoftDelete
-          </label>` : ''}
-        </div>
+      permissionItem.innerHTML = `
+        <span class="permission-label">${labelText}</span>
+        <label class="switch">
+          <input type="checkbox" data-role="view" data-permission-keys="${module.viewKeys.join('|')}" ${viewChecked ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
       `;
 
-      const viewCheckbox = moduleCard.querySelector('[data-role="view"]');
-      const editCheckbox = moduleCard.querySelector('[data-role="edit"]');
-      const softDeleteCheckbox = moduleCard.querySelector('[data-role="softdelete"]');
-
-      function syncModuleDependencies() {
-        if (!viewCheckbox) return;
-
-        if (!viewCheckbox.checked) {
-          if (editCheckbox) editCheckbox.checked = false;
-          if (softDeleteCheckbox) softDeleteCheckbox.checked = false;
-        }
-
-        if (editCheckbox) {
-          editCheckbox.disabled = !viewCheckbox.checked;
-          if (!editCheckbox.checked && softDeleteCheckbox) {
-            softDeleteCheckbox.checked = false;
-          }
-        }
-
-        if (softDeleteCheckbox) {
-          const editReady = editCheckbox ? editCheckbox.checked : viewCheckbox.checked;
-          softDeleteCheckbox.disabled = !viewCheckbox.checked || !editReady;
-          if (softDeleteCheckbox.disabled) {
-            softDeleteCheckbox.checked = false;
-          }
+      const viewCheckbox = permissionItem.querySelector('[data-role="view"]');
+      if (viewCheckbox) {
+        viewCheckbox.addEventListener('change', () => {
+          permissionItem.classList.toggle('active-permission');
+        });
+        if (viewChecked) {
+          permissionItem.classList.add('active-permission');
         }
       }
 
-      viewCheckbox?.addEventListener('change', syncModuleDependencies);
-      editCheckbox?.addEventListener('change', syncModuleDependencies);
-      softDeleteCheckbox?.addEventListener('change', syncModuleDependencies);
-
-      syncModuleDependencies();
-      modulesGrid.appendChild(moduleCard);
+      targetContainer.appendChild(permissionItem);
     });
 
-    wrap.appendChild(modulesGrid);
-    targetContainer.appendChild(wrap);
   }
 
   function renderPermisosCheckboxes() {
@@ -814,7 +753,7 @@
   // ============================================
   function resetCreateAdminForm() {
     createAdminForm.reset();
-    renderCreatePermissions();
+    // renderCreatePermissions(); // Permisos eliminados del modal de crear
     btnSaveCreateAdmin.disabled = false;
     btnSaveCreateAdmin.innerHTML = '<i class="fas fa-user-plus"></i> Crear administrador';
     clearNotification();
@@ -991,7 +930,7 @@
     const apellidoPaterno = apellidosParts[0] || '';
     const apellidoMaterno = apellidosParts.slice(1).join(' ') || null;
     const email = adminEmailInput.value.trim().toLowerCase();
-    const idPermisos = selectedPermissionIdsFromContainer(createPermissionsList);
+    const idPermisos = []; // Permisos se asignan después de crear
     if (!rutOriginal || !nombres || !apellidosRaw || !email) {
       showCreateAdminErrorModal('Complete todos los campos obligatorios', 'Datos incompletos');
       return;
