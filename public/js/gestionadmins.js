@@ -367,13 +367,32 @@
 
     container.querySelectorAll('.permission-item').forEach((item) => {
       const viewCheckbox = item.querySelector('[data-role="view"]');
+      const editCheckbox = item.querySelector('[data-role="edit"]');
+      const deleteCheckbox = item.querySelector('[data-role="delete"]');
 
-      if (!viewCheckbox?.checked) return;
+      // View permissions
+      if (viewCheckbox?.checked) {
+        const viewPermission = getPermissionByKeys(
+          String(viewCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+        );
+        if (viewPermission) selectedPermissions.add(Number(viewPermission.id_permiso));
+      }
 
-      const viewPermission = getPermissionByKeys(
-        String(viewCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
-      );
-      if (viewPermission) selectedPermissions.add(Number(viewPermission.id_permiso));
+      // Edit permissions
+      if (editCheckbox?.checked) {
+        const editPermission = getPermissionByKeys(
+          String(editCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+        );
+        if (editPermission) selectedPermissions.add(Number(editPermission.id_permiso));
+      }
+
+      // Delete permissions
+      if (deleteCheckbox?.checked) {
+        const deletePermission = getPermissionByKeys(
+          String(deleteCheckbox.dataset.permissionKeys || '').split('|').filter(Boolean)
+        );
+        if (deletePermission) selectedPermissions.add(Number(deletePermission.id_permiso));
+      }
     });
 
     return Array.from(selectedPermissions);
@@ -666,25 +685,98 @@
       permissionItem.dataset.moduleId = module.id;
 
       const viewChecked = hasPermissionKey(selectedKeys, module.viewKeys);
+      const editChecked = hasPermissionKey(selectedKeys, module.editKeys);
+      const deleteChecked = hasPermissionKey(selectedKeys, module.softDeleteKeys);
+      
       const icon = moduleIcons[module.id] || '📋';
       const labelText = `<span style="margin-right: 8px;">${icon}</span> ${module.label}`;
 
+      const hasEditPermission = module.editKeys && module.editKeys.length > 0;
+      const hasDeletePermission = module.softDeleteKeys && module.softDeleteKeys.length > 0;
+
       permissionItem.innerHTML = `
-        <span class="permission-label">${labelText}</span>
-        <label class="switch">
-          <input type="checkbox" data-role="view" data-permission-keys="${module.viewKeys.join('|')}" ${viewChecked ? 'checked' : ''}>
-          <span class="slider"></span>
-        </label>
+        <div class="permission-header">
+          <span class="permission-label">${labelText}</span>
+          <label class="switch">
+            <input type="checkbox" data-role="view" data-permission-keys="${module.viewKeys.join('|')}" ${viewChecked ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+        ${hasEditPermission || hasDeletePermission ? `
+          <div class="permission-secondary ${viewChecked ? 'expanded' : ''}">
+            ${hasEditPermission ? `
+              <div class="permission-sub-item ${!viewChecked ? 'disabled' : ''}">
+                <span class="permission-sub-label">✏️ Editar</span>
+                <label class="switch">
+                  <input type="checkbox" data-role="edit" data-permission-keys="${module.editKeys.join('|')}" ${editChecked ? 'checked' : ''} ${!viewChecked ? 'disabled' : ''}>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            ` : ''}
+            ${hasDeletePermission ? `
+              <div class="permission-sub-item ${!editChecked ? 'disabled' : ''}">
+                <span class="permission-sub-label">🗑️ Eliminar</span>
+                <label class="switch">
+                  <input type="checkbox" data-role="delete" data-permission-keys="${module.softDeleteKeys.join('|')}" ${deleteChecked ? 'checked' : ''} ${!editChecked ? 'disabled' : ''}>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
       `;
 
       const viewCheckbox = permissionItem.querySelector('[data-role="view"]');
+      const editCheckbox = permissionItem.querySelector('[data-role="edit"]');
+      const deleteCheckbox = permissionItem.querySelector('[data-role="delete"]');
+      const secondaryContainer = permissionItem.querySelector('.permission-secondary');
+
       if (viewCheckbox) {
         viewCheckbox.addEventListener('change', () => {
-          permissionItem.classList.toggle('active-permission');
+          const isChecked = viewCheckbox.checked;
+          permissionItem.classList.toggle('active-permission', isChecked);
+          
+          if (secondaryContainer) {
+            secondaryContainer.classList.toggle('expanded', isChecked);
+          }
+
+          if (!isChecked) {
+            if (editCheckbox) {
+              editCheckbox.checked = false;
+              editCheckbox.disabled = true;
+              editCheckbox.closest('.permission-sub-item').classList.add('disabled');
+            }
+            if (deleteCheckbox) {
+              deleteCheckbox.checked = false;
+              deleteCheckbox.disabled = true;
+              deleteCheckbox.closest('.permission-sub-item').classList.add('disabled');
+            }
+          } else {
+            if (editCheckbox) {
+              editCheckbox.disabled = false;
+              editCheckbox.closest('.permission-sub-item').classList.remove('disabled');
+            }
+          }
         });
+        
         if (viewChecked) {
           permissionItem.classList.add('active-permission');
         }
+      }
+
+      if (editCheckbox) {
+        editCheckbox.addEventListener('change', () => {
+          const isChecked = editCheckbox.checked;
+          
+          if (!isChecked && deleteCheckbox) {
+            deleteCheckbox.checked = false;
+            deleteCheckbox.disabled = true;
+            deleteCheckbox.closest('.permission-sub-item').classList.add('disabled');
+          } else if (isChecked && deleteCheckbox) {
+            deleteCheckbox.disabled = false;
+            deleteCheckbox.closest('.permission-sub-item').classList.remove('disabled');
+          }
+        });
       }
 
       targetContainer.appendChild(permissionItem);
