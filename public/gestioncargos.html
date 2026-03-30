@@ -67,25 +67,49 @@
           <input id="cargoNombre" type="text" placeholder="Ej: Supervisor">
         </div>
 
+        <div class="field">
+          <label for="cargoDescripcion">Descripción <span class="field-label-optional">(opcional, máx. 100 caracteres)</span></label>
+          <div class="field-input-with-counter">
+            <input id="cargoDescripcion" type="text" maxlength="100" placeholder="Breve descripción del rol y sus responsabilidades...">
+            <span id="cargoDescripcionCount" class="char-counter">100</span>
+          </div>
+        </div>
+
         <div class="perm-grid">
           <section class="perm-group">
-            <h4><i class="fa-solid fa-industry"></i> Secciones del informe</h4>
-            <p>Define si cada sección queda sin acceso, en modo lectura o con permiso de escritura.</p>
-            <div id="permisosOperacion"></div>
+            <div class="perm-group-header" role="button" tabindex="0">
+              <span><i class="fa-solid fa-industry"></i> Secciones del informe</span>
+              <i class="fa-solid fa-chevron-down perm-group-chevron"></i>
+            </div>
+            <div class="perm-group-body">
+              <p>Controla qué partes del informe de turno puede ver o completar un trabajador con este cargo.</p>
+              <div id="permisosOperacion"></div>
+            </div>
           </section>
-          
+
           <section class="perm-group" style="margin-top: 16px;">
-            <h4><i class="fa-solid fa-star"></i> Permisos Especiales</h4>
-            <p>Otros permisos de configuración avanzada.</p>
-            <div id="permisosEspeciales" class="section-permission-options" style="grid-template-columns: 1fr;">
-              <label class="section-permission-option" style="justify-content: flex-start;">
-                <input type="checkbox" id="checkAdminKpis" name="cargo_permiso_aux">
-                <span>Ver Reporte KPIs Dashboard</span>
-              </label>
-              <label class="section-permission-option" style="justify-content: flex-start;">
-                <input type="checkbox" id="chk-responsable-turno" name="cargo_permiso_aux">
-                <span>Puede ser Responsable de Turno</span>
-              </label>
+            <div class="perm-group-header" role="button" tabindex="0">
+              <span><i class="fa-solid fa-star"></i> Permisos Especiales</span>
+              <i class="fa-solid fa-chevron-down perm-group-chevron"></i>
+            </div>
+            <div class="perm-group-body">
+              <p>Capacidades adicionales fuera del flujo de informes de turno.</p>
+              <div id="permisosEspeciales" class="section-permission-options" style="grid-template-columns: 1fr;">
+                <label class="section-permission-option perm-option-with-desc" style="justify-content: flex-start;">
+                  <input type="checkbox" id="checkAdminKpis" name="cargo_permiso_aux">
+                  <span class="perm-option-text">
+                    <strong>Ver Reporte KPIs Dashboard</strong>
+                    <small>Accede al panel de métricas y estadísticas de operación.</small>
+                  </span>
+                </label>
+                <label class="section-permission-option perm-option-with-desc" style="justify-content: flex-start;">
+                  <input type="checkbox" id="chk-responsable-turno" name="cargo_permiso_aux">
+                  <span class="perm-option-text">
+                    <strong>Puede ser Responsable de Turno</strong>
+                    <small>Permite designar al trabajador como responsable al cerrar un turno.</small>
+                  </span>
+                </label>
+              </div>
             </div>
           </section>
         </div>

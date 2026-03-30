@@ -4,11 +4,11 @@
   const CARGO_CACHE_BUST_KEY = 'basalto:cargos:updated_at';
 
   const SECTION_KEYS = [
-    { key: 'antecedentes', label: 'Antecedentes', r: 22, w: 12 },
-    { key: 'operacion', label: 'Operación', r: 23, w: 13 },
-    { key: 'materiales', label: 'Materiales', r: 24, w: 14 },
-    { key: 'actividades', label: 'Actividades', r: 26, w: 27 },
-    { key: 'cierre', label: 'Cierre', r: 25, w: 15 }
+    { key: 'antecedentes', label: 'Antecedentes', desc: 'Datos generales del turno: equipo, fecha y personal asignado.', r: 22, w: 12 },
+    { key: 'operacion',    label: 'Operación',    desc: 'Registro de metros perforados, parámetros técnicos y rendimiento.', r: 23, w: 13 },
+    { key: 'materiales',   label: 'Materiales',   desc: 'Consumo de insumos, repuestos y materiales utilizados en el turno.', r: 24, w: 14 },
+    { key: 'actividades',  label: 'Actividades',  desc: 'Actividades y tiempos realizados durante el turno de trabajo.', r: 26, w: 27 },
+    { key: 'cierre',       label: 'Cierre',       desc: 'Firmas, observaciones finales y cierre formal del informe.', r: 25, w: 15 }
   ];
 
   const ACCESS_LEVELS = [
@@ -35,6 +35,8 @@
     cancelModal: document.getElementById('cancelCargoModal'),
     saveModal: document.getElementById('saveCargoModal'),
     cargoNombre: document.getElementById('cargoNombre'),
+    cargoDescripcion: document.getElementById('cargoDescripcion'),
+    cargoDescripcionCount: document.getElementById('cargoDescripcionCount'),
     permisosOperacion: document.getElementById('permisosOperacion'),
     notification: document.getElementById('notification'),
     btnViewCargos: document.getElementById('btnViewCargos'),
@@ -330,7 +332,7 @@
 
       const title = document.createElement('div');
       title.className = 'section-permission-header';
-      title.innerHTML = `<strong>${section.label}</strong><small>Define si la sección queda oculta, en solo lectura o con escritura.</small>`;
+      title.innerHTML = `<strong>${section.label}</strong><small>${section.desc}</small>`;
       wrap.appendChild(title);
 
       const radios = document.createElement('div');
@@ -363,6 +365,16 @@
   function renderModal(cargo) {
     const selectedSet = new Set((cargo?.id_permisos || []).map(Number));
     el.cargoNombre.value = cargo?.nombre_cargo || '';
+
+    if (el.cargoDescripcion) {
+      el.cargoDescripcion.value = cargo?.descripcion || '';
+      const remaining = 100 - (el.cargoDescripcion.value.length);
+      if (el.cargoDescripcionCount) {
+        el.cargoDescripcionCount.textContent = remaining;
+        el.cargoDescripcionCount.style.color = remaining < 20 ? '#ef4444' : remaining < 40 ? '#f59e0b' : '#9ca3af';
+      }
+    }
+
     renderSectionMatrix(selectedSet);
     
     const kpiPermiso = state.permisos.find(p => p.clave_permiso === 'admin_v_kpis' || Number(p.id_permiso) === 21);
@@ -380,6 +392,12 @@
     }
 
     console.log('[MODAL_CARGOS] Cargando permisos para:', cargo?.nombre_cargo || 'Nuevo cargo', '| Responsable:', responsableActivo);
+
+    // Auto-expandir acordeones si el cargo ya tiene permisos configurados
+    const hasSeccionPerms = SECTION_KEYS.some(s => selectedSet.has(s.r) || selectedSet.has(s.w));
+    const hasEspecialesPerms = checkKpis?.checked || responsableActivo;
+    el.permisosOperacion?.closest('.perm-group')?.classList.toggle('open', hasSeccionPerms);
+    document.getElementById('permisosEspeciales')?.closest('.perm-group')?.classList.toggle('open', hasEspecialesPerms);
   }
 
   function openModal(cargoId = null) {
@@ -394,11 +412,17 @@
   function closeModal() {
     state.editingCargoId = null;
     el.cargoNombre.value = '';
+    if (el.cargoDescripcion) el.cargoDescripcion.value = '';
+    if (el.cargoDescripcionCount) {
+      el.cargoDescripcionCount.textContent = '100';
+      el.cargoDescripcionCount.style.color = '#9ca3af';
+    }
     if (el.permisosOperacion) el.permisosOperacion.innerHTML = '';
     const checkKpis = document.getElementById('checkAdminKpis');
     const checkResponsable = document.getElementById('chk-responsable-turno');
     if (checkKpis) checkKpis.checked = false;
     if (checkResponsable) checkResponsable.checked = false;
+    el.modal?.querySelectorAll('.perm-group.open').forEach((g) => g.classList.remove('open'));
     clearNotification();
     closeManagedModal(el.modal);
   }
@@ -428,8 +452,11 @@
       return;
     }
 
+    const descripcion = String(el.cargoDescripcion?.value || '').trim().slice(0, 100);
+
     const payload = {
       nombre_cargo: nombre,
+      descripcion: descripcion || null,
       id_permisos: collectSelectedPermissionIds(),
       responsable_turno: Boolean(document.getElementById('chk-responsable-turno')?.checked),
       ...(state.editingCargoId ? { id_cargo: state.editingCargoId } : {})
@@ -555,6 +582,28 @@
     el.closeCargoWorkersModal?.addEventListener('click', closeCargoWorkersModal);
     el.cargoWorkersModal?.addEventListener('click', (ev) => {
       if (ev.target === el.cargoWorkersModal) closeCargoWorkersModal();
+    });
+
+    // Acordeones de permisos
+    el.modal?.querySelectorAll('.perm-group-header').forEach((header) => {
+      header.addEventListener('click', () => {
+        header.closest('.perm-group')?.classList.toggle('open');
+      });
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          header.closest('.perm-group')?.classList.toggle('open');
+        }
+      });
+    });
+
+    // Contador de caracteres en descripción
+    el.cargoDescripcion?.addEventListener('input', () => {
+      const remaining = 100 - (el.cargoDescripcion.value.length);
+      if (el.cargoDescripcionCount) {
+        el.cargoDescripcionCount.textContent = remaining;
+        el.cargoDescripcionCount.style.color = remaining < 20 ? '#ef4444' : remaining < 40 ? '#f59e0b' : '#9ca3af';
+      }
     });
 
     setupViewSwitcher();

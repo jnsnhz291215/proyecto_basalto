@@ -4,6 +4,7 @@ let trabajadores = [];
 let gruposDisponibles = [];
 let rutParaBorrar = null;
 let rutParaOcultar = null;
+let pendingConfirmCallback = null;
 let esReactivar = false;
 let rutsTienenViajeEnMes = new Set();
 let soloSinViajes = false;
@@ -694,29 +695,33 @@ async function cargarViajesPendientes(rut, container) {
 
 // RESETEAR CONTRASEÑA (Solo Super Admin)
 async function resetearPasswordTrabajador(rut, nombre) {
-  if (!confirm(`¿Resetear la contraseña de "${nombre}"?\n\nSe establecerá como los últimos 4 dígitos de su RUT (sin DV).`)) return;
+  showConfirmModal(
+    'Resetear contraseña',
+    `¿Resetear la contraseña de "${nombre}"? Se establecerá como los últimos 4 dígitos de su RUT (sin DV).`,
+    async () => {
+      let adminRut = '';
+      try {
+        const dbInfo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+        adminRut = dbInfo.rut || localStorage.getItem('user_rut') || localStorage.getItem('userRUT') || '';
+      } catch(e) {}
 
-  let adminRut = '';
-  try {
-    const dbInfo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
-    adminRut = dbInfo.rut || localStorage.getItem('user_rut') || localStorage.getItem('userRUT') || '';
-  } catch(e) {}
-
-  try {
-    const r = await fetch('/api/usuarios/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-rut': adminRut },
-      body: JSON.stringify({ rut_trabajador: rut })
-    });
-    const data = await r.json().catch(() => ({}));
-    if (r.ok && data.success) {
-      showResult('Contraseña reseteada', data.message);
-    } else {
-      showResult('Error', data.message || 'No se pudo resetear la contraseña', true);
+      try {
+        const r = await fetch('/api/usuarios/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-rut': adminRut },
+          body: JSON.stringify({ rut_trabajador: rut })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.success) {
+          showResult('Contraseña reseteada', data.message);
+        } else {
+          showResult('Error', data.message || 'No se pudo resetear la contraseña', true);
+        }
+      } catch (err) {
+        showResult('Error', 'Error de conexión: ' + err.message, true);
+      }
     }
-  } catch (err) {
-    showResult('Error', 'Error de conexión: ' + err.message, true);
-  }
+  );
 }
 
 // SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)
@@ -1112,8 +1117,14 @@ function showAddWorkerError(msg) {
   }, 1600);
 }
 
+function showConfirmModal(title, msg, onOk) {
+  pendingConfirmCallback = onOk;
+  if (el.confirmTitle) el.confirmTitle.textContent = title;
+  if (el.confirmMsg) el.confirmMsg.textContent = msg;
+  openManagedModal(el.modalConfirm);
+}
+
 function showResult(title, msg, isError=false){
-  const m = document.getElementById('modal-result');
   const t = document.getElementById('result-title');
   const p = document.getElementById('result-msg');
   t.textContent = title || 'Resultado';
@@ -1698,9 +1709,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el.formEditar) el.formEditar.addEventListener('submit', enviarEdicion);
   el.confirmCancel.addEventListener('click', () => {
     rutParaBorrar = null;
+    pendingConfirmCallback = null;
     closeManagedModal(el.modalConfirm);
   });
-  el.confirmOk.addEventListener('click', ejecutarBorrar);
+  el.confirmOk.addEventListener('click', () => {
+    if (pendingConfirmCallback) {
+      const cb = pendingConfirmCallback;
+      pendingConfirmCallback = null;
+      closeManagedModal(el.modalConfirm);
+      cb();
+    } else {
+      ejecutarBorrar();
+    }
+  });
 
   // Event listeners para modal ocultar/reactivar
   const cancelOcultar = document.getElementById('cancel-ocultar');
@@ -1770,6 +1791,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el.modalConfirm.addEventListener('click', ev => {
     if (ev.target === el.modalConfirm) {
       rutParaBorrar = null;
+      pendingConfirmCallback = null;
       closeManagedModal(el.modalConfirm);
     }
   });

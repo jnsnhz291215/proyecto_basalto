@@ -119,3 +119,31 @@ tr:hover { background: #f9fafb; }
 .btn-edit   { background: #e0f2fe; color: #0c4a6e; }
 .btn-delete { background: #fee2e2; color: #991b1b; }
 .btn-action:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+/* ── Accordion perm-group ── */
+.perm-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+.perm-group-header span { font-size: 15px; font-weight: 700; color: #111827; }
+.perm-group-chevron { transition: transform .25s ease; color: #6b7280; font-size: 13px; }
+.perm-group.open .perm-group-chevron { transform: rotate(180deg); }
+.perm-group-body { display: none; margin-top: 12px; }
+.perm-group.open .perm-group-body { display: block; }
+.perm-group-body > p { margin: 0 0 14px 0; color: #6b7280; font-size: 13px; }
+
+/* ── Cargo description field ── */
+.field-label-optional { font-weight: 400; color: #9ca3af; font-size: 12px; }
+.field-input-with-counter { position: relative; }
+.field-input-with-counter input { width: 100%; padding-right: 48px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; padding-top: 10px; padding-bottom: 10px; padding-left: 12px; }
+.char-counter { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #9ca3af; pointer-events: none; font-weight: 600; }
+
+/* ── Permission option with description ── */
+.perm-option-with-desc { align-items: flex-start !important; padding: 12px !important; }
+.perm-option-text { display: flex; flex-direction: column; gap: 3px; }
+.perm-option-text strong { font-size: 13px; color: #111827; font-weight: 600; }
+.perm-option-text small { font-size: 12px; color: #6b7280; line-height: 1.4; }

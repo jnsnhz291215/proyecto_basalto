@@ -487,6 +487,9 @@
         </td>
         <td>${admin.email || '-'}</td>
         <td>
+          ${admin.es_super_admin ? `
+          <span class="estado-label">Activo</span>
+          ` : `
           <div class="estado-toggle">
             <label class="switch">
               <input type="checkbox" class="admin-estado-switch" data-rut="${admin.rut}" ${checkedAttr} ${disableSwitch}>
@@ -494,39 +497,36 @@
             </label>
             <span class="estado-label">${estadoTexto}</span>
           </div>
+          `}
           <div style="margin-top: 6px; display: flex; flex-wrap: wrap;">${badgesPermisos}</div>
         </td>
         <td style="text-align: center;">
+          ${admin.es_super_admin ? `
+          <span style="font-size: 13px; color: #6b7280; font-style: italic;">No se puede editar a este administrador</span>
+          ` : `
           <div class="action-buttons">
-            <button class="btn-icon btn-edit-admin" data-rut="${admin.rut}" title="Editar datos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
-              <i class="fas fa-pen"></i>
+            <button class="btn-icon btn-edit-admin" data-rut="${admin.rut}" title="Editar datos">
+              <i class="fas fa-pen"></i> Editar
             </button>
-            <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos" ${admin.es_super_admin ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
-              <i class="fas fa-key"></i>
+            <button class="btn-icon btn-permissions" data-rut="${admin.rut}" title="Administrar permisos">
+              <i class="fas fa-key"></i> Permisos
             </button>
-            ${isSuperAdmin && admin.rut !== userRut && !admin.es_super_admin ? `
+            ${isSuperAdmin && admin.rut !== userRut ? `
             <button class="btn-icon btn-hard-delete" data-rut="${admin.rut}" title="Eliminar definitivamente" style="color: #dc2626; margin-left: 8px;">
               <i class="fas fa-trash"></i>
             </button>
             ` : ''}
           </div>
+          `}
         </td>
       `;
 
       // Agregar event listener al botón de permisos
-      row.querySelector('.btn-permissions').addEventListener('click', () => {
-        if (admin.es_super_admin) {
-          showNotification('Los permisos de una cuenta Superadministrador no se pueden modificar', 'error');
-          return;
-        }
+      row.querySelector('.btn-permissions')?.addEventListener('click', () => {
         openPermisosModal(admin.rut, admin.nombre_completo, admin.permisos);
       });
 
       row.querySelector('.btn-edit-admin')?.addEventListener('click', () => {
-        if (admin.es_super_admin) {
-          showNotification('Los datos de una cuenta Superadministrador no se editan desde esta vista', 'error');
-          return;
-        }
         openEditAdminModal(admin);
       });
 

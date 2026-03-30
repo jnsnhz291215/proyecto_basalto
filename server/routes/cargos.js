@@ -76,7 +76,7 @@ async function obtenerIdPermisoPorClave(connection, clavePermiso) {
 router.get('/cargos', async (_req, res) => {
   try {
     const [cargosRows] = await pool.execute(
-      'SELECT id_cargo, nombre_cargo FROM cargos ORDER BY nombre_cargo ASC'
+      'SELECT id_cargo, nombre_cargo, descripcion FROM cargos ORDER BY nombre_cargo ASC'
     );
 
     const [relacionesRows] = await pool.execute(`
@@ -109,6 +109,7 @@ router.get('/cargos', async (_req, res) => {
     const data = cargosRows.map((cargo) => ({
       id_cargo: cargo.id_cargo,
       nombre_cargo: cargo.nombre_cargo,
+      descripcion: cargo.descripcion || null,
       permisos: permisosPorCargo.get(cargo.id_cargo) || [],
       id_permisos: (permisosPorCargo.get(cargo.id_cargo) || []).map((p) => p.id_permiso)
     }));
@@ -127,8 +128,9 @@ router.post('/cargos', async (req, res) => {
   let connection;
 
   try {
-    const { id_cargo, nombre_cargo, id_permisos = [], responsable_turno = false } = req.body || {};
+    const { id_cargo, nombre_cargo, descripcion, id_permisos = [], responsable_turno = false } = req.body || {};
     const nombreNormalizado = String(nombre_cargo || '').trim();
+    const descripcionNormalizada = descripcion ? String(descripcion).trim().slice(0, 100) : null;
     let permisosNormalizados = dedupeNumberArray(id_permisos);
 
     if (!nombreNormalizado) {
@@ -168,13 +170,13 @@ router.post('/cargos', async (req, res) => {
       targetCargoId = cargoRows[0].id_cargo;
 
       await connection.execute(
-        'UPDATE cargos SET nombre_cargo = ? WHERE id_cargo = ?',
-        [nombreNormalizado, targetCargoId]
+        'UPDATE cargos SET nombre_cargo = ?, descripcion = ? WHERE id_cargo = ?',
+        [nombreNormalizado, descripcionNormalizada, targetCargoId]
       );
     } else {
       const [insertResult] = await connection.execute(
-        'INSERT INTO cargos (nombre_cargo) VALUES (?)',
-        [nombreNormalizado]
+        'INSERT INTO cargos (nombre_cargo, descripcion) VALUES (?, ?)',
+        [nombreNormalizado, descripcionNormalizada]
       );
       targetCargoId = insertResult.insertId;
     }
