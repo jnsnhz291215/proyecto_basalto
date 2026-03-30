@@ -2,35 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../database.js');
 const puppeteer = require('puppeteer');
-const nodemailer = require('nodemailer');
+const { sendMail, buildEmailHtml } = require('../helpers/emailService');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { getWorkerShiftStatus, isWorkerOnShiftToday } = require('../helpers/shiftValidation');
-
-function createSmtpTransporter() {
-  const smtpUser = String(process.env.SMTP_USER || process.env.MAIL_USER || '').trim();
-  const smtpPassRaw = String(process.env.SMTP_PASS || process.env.MAIL_PASS || '').trim();
-  // Google App Password suele pegarse con espacios/corchetes; normalizamos ese formato.
-  const smtpPass = smtpPassRaw.replace(/[\[\]\s]/g, '');
-  const smtpPort = Number(process.env.SMTP_PORT || process.env.MAIL_PORT || 587);
-  const smtpSecure = smtpPort === 465;
-  console.log(`[MAIL_BACKEND] Validando credenciales SMTP... ${smtpUser ? 'OK' : 'FAIL'}.`);
-
-  if (!smtpUser || !smtpPass) {
-    throw new Error('Credenciales SMTP no configuradas. Define SMTP_USER/SMTP_PASS o MAIL_USER/MAIL_PASS.');
-  }
-
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || process.env.MAIL_HOST || 'smtp.ethereal.email',
-    port: smtpPort,
-    secure: smtpSecure,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass
-    }
-  });
-}
 
 // Control de doble envío (Rate Limiting en memoria)
 const recentRequests = new Map();
@@ -1048,25 +1024,22 @@ router.post('/informes/enviar-email', async (req, res) => {
 
     fs.writeFileSync(tempPdfPath, pdfBuffer);
 
-    // 3. Envío de Correo (Nodemailer)
-    const transporter = createSmtpTransporter();
-
+    // 3. Envío de Correo
     const subject = `Informe de Turno - Basalto Drilling - ${fechaFormateada} - Grupo ${turnoGrupo}`;
-    
-    const mailOptions = {
-      from: process.env.MAIL_FROM || '"Basalto Drilling" <no-reply@basalto.app>',
-      to: email,
-      subject: subject,
-      text: `Estimado usuario,\n\nSe adjunta a este correo el reporte oficial del Informe de Turno correspondiente a la fecha ${fechaFormateada} para el Grupo ${turnoGrupo}.\n\nSaludos,\nSistema Basalto Drilling`,
-      attachments: [
-        {
-          filename: `Informe_Turno_${fechaFormateada}_${turnoGrupo}.pdf`,
-          path: tempPdfPath
-        }
-      ]
-    };
+    const htmlBody = buildEmailHtml(
+      `Informe de Turno — ${fechaFormateada}`,
+      `<p>Estimado/a,</p>
+       <p>Se adjunta el <strong>Informe de Turno</strong> correspondiente a la fecha
+       <strong>${fechaFormateada}</strong> – Grupo <strong>${turnoGrupo}</strong>.</p>
+       <p>Saludos cordiales,<br>Equipo Basalto Drilling</p>`
+    );
 
-    await transporter.sendMail(mailOptions);
+    await sendMail({
+      to: email,
+      subject,
+      html: htmlBody,
+      attachments: [{ filename: `Informe_Turno_${fechaFormateada}_${turnoGrupo}.pdf`, path: tempPdfPath }]
+    });
 
     // 4. Limpieza temporal
     fs.unlinkSync(tempPdfPath);
@@ -1134,33 +1107,22 @@ router.post('/informes/enviar-pdf', async (req, res) => {
     await browser.close();
     browser = null; // Mark as closed
 
-    // 3. Enviar Correo con Nodemailer
-    const transporter = createSmtpTransporter();
-
+    // 3. Enviar Correo
     const subject = `Informe de Turno N° ${numeroInforme} - ${fechaFormateada}`;
-    
-    const mailOptions = {
-      from: '"Reportes Basalto (No Responder)" <basaltodebian@basaltodrilling.cl>',
-      replyTo: 'noreply@basaltodrilling.cl',
-      to: email_destino,
-      subject: subject,
-      html: `
-        <p>Estimado usuario,</p>
-        <p>Se adjunta a este correo el reporte de perforación (<strong>Informe de Turno N&deg; ${numeroInforme}</strong>) correspondiente a la fecha <strong>${fechaFormateada}</strong>.</p>
-        <p>Saludos cordiales,<br>Equipo Basalto Drilling</p>
-        <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
-        <p style="font-size: 12px; color: #666;">Este es un mensaje generado automáticamente por el sistema de gestión de Basalto Drilling. Por favor, no responda a esta dirección de correo.</p>
-      `,
-      attachments: [
-        {
-          filename: `Informe_${numeroInforme}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
-    };
+    const htmlBody = buildEmailHtml(
+      `Informe de Turno N° ${numeroInforme}`,
+      `<p>Estimado/a,</p>
+       <p>Se adjunta el reporte de perforación correspondiente al
+       <strong>Informe de Turno N° ${numeroInforme}</strong> – fecha <strong>${fechaFormateada}</strong>.</p>
+       <p>Saludos cordiales,<br>Equipo Basalto Drilling</p>`
+    );
 
-    await transporter.sendMail(mailOptions);
+    await sendMail({
+      to: email_destino,
+      subject,
+      html: htmlBody,
+      attachments: [{ filename: `Informe_${numeroInforme}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
+    });
 
     res.json({ success: true, message: 'Correo enviado correctamente' });
   } catch (error) {
@@ -1286,21 +1248,20 @@ router.post('/mail/enviar-informe', async (req, res) => {
 
     const pdfBuffer = Buffer.from(base64Limpio, 'base64');
 
-    const transporter = createSmtpTransporter();
-
     const asunto = `Informe de Turno - ${fechaFormateada} - Grupo ${grupo}`;
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM || '"Basalto Drilling" <no-reply@basalto.app>',
+    const htmlBody = buildEmailHtml(
+      `Informe de Turno — ${fechaFormateada}`,
+      `<p>Estimado/a,</p>
+       <p>Se adjunta el <strong>Informe de Turno</strong> correspondiente a la fecha
+       <strong>${fechaFormateada}</strong> – Grupo <strong>${grupo}</strong>.</p>
+       <p>Saludos cordiales,<br>Equipo Basalto Drilling</p>`
+    );
+
+    await sendMail({
       to: destinatarioFinal,
       subject: asunto,
-      text: `Se adjunta Informe de Turno (ID ${id_informe}) para fecha ${fechaFormateada}, grupo ${grupo}.`,
-      attachments: [
-        {
-          filename: nombre_archivo || `Informe_Turno_${id_informe}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
+      html: htmlBody,
+      attachments: [{ filename: nombre_archivo || `Informe_Turno_${id_informe}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
     });
 
     return res.json({ success: true, message: 'Correo enviado correctamente' });

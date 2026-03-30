@@ -339,7 +339,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 150px;
+  min-width: 180px;
 }
 
 .filter-group label {
@@ -379,4 +379,10 @@
   gap: 6px;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
   white-space: nowrap;
+}
+
+.btn-toggle-sin-viajes.active {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #dc2626;
 }

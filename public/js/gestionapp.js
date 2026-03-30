@@ -535,6 +535,16 @@ function render() {
     actions.appendChild(btnEstado);
     actions.appendChild(btnEliminar);
 
+    if (isSuperAdmin) {
+      const btnReset = document.createElement('button');
+      btnReset.className = 'btn-accion btn-accion-reset';
+      btnReset.type = 'button';
+      btnReset.innerHTML = '<i class="fa-solid fa-key"></i> Resetear clave';
+      btnReset.title = 'Resetear contraseña a los últimos 4 dígitos del RUT';
+      btnReset.addEventListener('click', () => resetearPasswordTrabajador(t.RUT, nombreCompleto));
+      actions.appendChild(btnReset);
+    }
+
     body.appendChild(details);
     
     const viajesSection = document.createElement('div');
@@ -682,8 +692,34 @@ async function cargarViajesPendientes(rut, container) {
   }
 }
 
-// SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)
-async function cambiarEstadoTrabajador(rut, reactivar = false) {
+// RESETEAR CONTRASEÑA (Solo Super Admin)
+async function resetearPasswordTrabajador(rut, nombre) {
+  if (!confirm(`¿Resetear la contraseña de "${nombre}"?\n\nSe establecerá como los últimos 4 dígitos de su RUT (sin DV).`)) return;
+
+  let adminRut = '';
+  try {
+    const dbInfo = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+    adminRut = dbInfo.rut || localStorage.getItem('user_rut') || localStorage.getItem('userRUT') || '';
+  } catch(e) {}
+
+  try {
+    const r = await fetch('/api/usuarios/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-rut': adminRut },
+      body: JSON.stringify({ rut_trabajador: rut })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.success) {
+      showResult('Contraseña reseteada', data.message);
+    } else {
+      showResult('Error', data.message || 'No se pudo resetear la contraseña', true);
+    }
+  } catch (err) {
+    showResult('Error', 'Error de conexión: ' + err.message, true);
+  }
+}
+
+// SOFT DELETE - Ocultar/Reactivar trabajador (cambiar estado activo)async function cambiarEstadoTrabajador(rut, reactivar = false) {
   try {
     const adminRut = localStorage.getItem('userRUT');
     const nuevoEstado = reactivar;

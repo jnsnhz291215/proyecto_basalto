@@ -317,6 +317,15 @@ body { background-color: #f3f4f6; font-family: 'Segoe UI', Roboto, Helvetica, Ar
   background: #ea580c;
 }
 
+.btn-accion-reset {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+.btn-accion-reset:hover {
+  background: #6d28d9;
+}
+
 .worker-viajes {
   margin-top: 16px;
   padding: 12px;

@@ -655,4 +655,59 @@ router.post('/usuarios/change-password', async (req, res) => {
   }
 });
 
+// ============================================
+// POST /api/usuarios/reset-password  (Solo Super Admin)
+// Resetea la contraseña de un trabajador a los últimos 4 dígitos de su RUT sin DV
+// ============================================
+router.post('/usuarios/reset-password', async (req, res) => {
+  const adminRutRaw = req.headers['x-admin-rut'] || req.headers['rut_solicitante'] || req.body.admin_rut;
+  const { rut_trabajador } = req.body;
+
+  if (!adminRutRaw || !rut_trabajador) {
+    return res.status(400).json({ success: false, message: 'Faltan parámetros' });
+  }
+
+  const adminRutLimpio = limpiarRUT(adminRutRaw);
+  const normalizeRut   = `REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')`;
+
+  try {
+    // Validar que quien solicita es Super Admin activo
+    const [admins] = await pool.execute(
+      `SELECT es_super_admin FROM admin_users WHERE ${normalizeRut} = ? AND activo = 1 LIMIT 1`,
+      [adminRutLimpio]
+    );
+    if (!admins || admins.length === 0 || Number(admins[0].es_super_admin) !== 1) {
+      return res.status(403).json({ success: false, message: 'Solo los Super Administradores pueden resetear contraseñas' });
+    }
+
+    // Calcular nueva contraseña: últimos 4 dígitos del RUT sin DV
+    // limpiarRUT("12345678-9") → "123456789"  | DV = último char | numérico = "12345678"
+    const rutLimpio    = limpiarRUT(rut_trabajador);
+    const rutNumerico  = rutLimpio.slice(0, -1);          // quita el DV (último carácter)
+    const nuevaPassword = rutNumerico.slice(-4);           // últimos 4 dígitos
+
+    if (nuevaPassword.length < 4 || !/^\d{4}$/.test(nuevaPassword)) {
+      return res.status(400).json({ success: false, message: 'No se pudo determinar la contraseña desde el RUT' });
+    }
+
+    const hash = await bcrypt.hash(nuevaPassword, 10);
+
+    const [result] = await pool.execute(
+      `UPDATE users SET password = ? WHERE ${normalizeRut} = ?`,
+      [hash, rutLimpio]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Trabajador no encontrado en tabla de usuarios' });
+    }
+
+    console.log(`[AUTH] Contraseña reseteada por Super Admin ${adminRutLimpio} para trabajador ${rutLimpio}`);
+    return res.json({ success: true, message: `Contraseña reseteada correctamente. Nueva contraseña: ${nuevaPassword}` });
+
+  } catch (err) {
+    console.error('[AUTH] Error reseteando contraseña:', err);
+    return res.status(500).json({ success: false, message: 'Error interno al resetear contraseña' });
+  }
+});
+
 module.exports = router;
