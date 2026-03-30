@@ -8,6 +8,16 @@ const { pool } = require('../database');
 router.get('/stats/mensual', async (req, res) => {
     try {
         const anio = parseInt(req.query.anio) || new Date().getFullYear();
+        const mes = req.query.mes ? parseInt(req.query.mes) : null;
+
+        // Construir condiciones WHERE dinámicas
+        let whereClause = 'YEAR(fecha) = ? AND estado != \'Anulado\'';
+        let params = [anio];
+        
+        if (mes) {
+            whereClause += ' AND MONTH(fecha) = ?';
+            params.push(mes);
+        }
 
         // 1. Metros Perforados Totales por Mes y Eficiencia de Combustible
         const [metricasRows] = await pool.execute(`
@@ -16,10 +26,10 @@ router.get('/stats/mensual', async (req, res) => {
                 SUM(mts_perforados) as total_metros,
                 SUM(insumo_petroleo) as total_petroleo
             FROM informes_turno
-            WHERE YEAR(fecha) = ? AND estado != 'Anulado'
+            WHERE ${whereClause}
             GROUP BY MONTH(fecha)
             ORDER BY mes ASC
-        `, [anio]);
+        `, params);
 
         // 2. Disponibilidad Mecánica (Días operativos vs Paradas) 
         // Nota: Basado en los campos hrs_trabajadas y tiempo productivo vs detenciones
@@ -31,10 +41,10 @@ router.get('/stats/mensual', async (req, res) => {
                 COUNT(id_informe) as total_informes,
                 SUM(horas_trabajadas) as total_hrs_trabajadas
             FROM informes_turno
-            WHERE YEAR(fecha) = ? AND estado != 'Anulado'
+            WHERE ${whereClause}
             GROUP BY MONTH(fecha)
             ORDER BY mes ASC
-        `, [anio]);
+        `, params);
 
         // Formatear respuesta con los 12 meses
         const meses = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -62,19 +72,28 @@ router.get('/stats/mensual', async (req, res) => {
         });
 
         // 3. Tarjetas de Resumen
-        // Mejor Grupo del Mes (del mes actual o el último mes de la consulta si pedimos de otro año)
-        const mesConsulta = anio === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
+        // Mejor Grupo: Si hay mes específico, usar ese; sino, el mes actual o el último del año
+        const mesConsulta = mes || (anio === new Date().getFullYear() ? new Date().getMonth() + 1 : 12);
+
+        // Si se filtró por mes específico, usar whereClause; sino, filtrar por mesConsulta
+        let mejorGrupoWhereClause = whereClause;
+        let mejorGrupoParams = [...params];
+        
+        if (!mes) {
+            mejorGrupoWhereClause = 'YEAR(fecha) = ? AND MONTH(fecha) = ? AND estado != \'Anulado\'';
+            mejorGrupoParams = [anio, mesConsulta];
+        }
 
         const [mejorGrupoRow] = await pool.execute(`
             SELECT 
                 turno as grupo,
                 SUM(mts_perforados) as total_metros
             FROM informes_turno
-            WHERE YEAR(fecha) = ? AND MONTH(fecha) = ? AND estado != 'Anulado'
+            WHERE ${mejorGrupoWhereClause}
             GROUP BY turno
             ORDER BY total_metros DESC
             LIMIT 1
-        `, [anio, mesConsulta]);
+        `, mejorGrupoParams);
 
         // Avance Anual Acumulado
         const avanceAcumulado = dataMetros.reduce((acc, val) => acc + val, 0);

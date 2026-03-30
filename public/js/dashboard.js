@@ -15,7 +15,9 @@ const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 
 async function initDashboard() {
     const selectAnio = document.getElementById('select-anio');
+    const selectMes = document.getElementById('select-mes');
     const anioActual = new Date().getFullYear();
+    const mesActual = new Date().getMonth() + 1;
     
     // Poblar de anioActual-2 hasta anioActual
     for (let i = anioActual; i >= anioActual - 2; i--) {
@@ -25,27 +27,45 @@ async function initDashboard() {
         selectAnio.appendChild(option);
     }
 
-    selectAnio.addEventListener('change', (e) => cargarDatos(e.target.value));
+    // Seleccionar mes actual por defecto
+    if (selectMes) {
+        selectMes.value = mesActual;
+    }
+
+    selectAnio.addEventListener('change', () => cargarDatos());
+    if (selectMes) {
+        selectMes.addEventListener('change', () => cargarDatos());
+    }
     
     const btnRefrescar = document.getElementById('btn-refresh-kpi');
     if (btnRefrescar) {
         btnRefrescar.addEventListener('click', () => {
             const btn = btnRefrescar.querySelector('i');
             btn.classList.add('fa-spin');
-            cargarDatos(selectAnio.value).finally(() => {
+            cargarDatos().finally(() => {
                 setTimeout(() => btn.classList.remove('fa-spin'), 500);
             });
         });
     }
 
     // Carga inicial
-    await cargarDatos(anioActual);
+    await cargarDatos();
 }
 
-async function cargarDatos(anio) {
+async function cargarDatos() {
     try {
+        const selectAnio = document.getElementById('select-anio');
+        const selectMes = document.getElementById('select-mes');
+        const anio = selectAnio.value || new Date().getFullYear();
+        const mes = selectMes ? selectMes.value : '';
+        
+        let url = `/api/stats/mensual?anio=${anio}`;
+        if (mes) {
+            url += `&mes=${mes}`;
+        }
+        
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/stats/mensual?anio=${anio}`, {
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

@@ -268,9 +268,9 @@
     // Limpiar todos los activos
     navAnchors.forEach(anchor => anchor.classList.remove('active'));
 
-    // REGLA 1: Páginas de Gestión (gestionar.html, gestionviajes.html, gestioninformes.html, dashboard.html)
+    // REGLA 1: Páginas de Gestión (gestionar.html, gestionviajes.html, gestioninformes.html, dashboard.html, gestioncargos.html, gestionadmins.html)
     // El botón padre 'Gestionar' debe mantener activo en TODAS las subsecciones
-    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html', 'dashboard.html', 'gestioncargos.html'];
+    const paginasGestion = ['gestionar.html', 'gestionviajes.html', 'gestioninformes.html', 'dashboard.html', 'gestioncargos.html', 'gestionadmins.html'];
     const esPaginaGestion = paginasGestion.some(pagina => currentPath.endsWith(pagina));
 
     if (esPaginaGestion) {
@@ -291,6 +291,12 @@
       } else if (currentPath.endsWith('gestionar.html')) {
         const gestionarLink = document.querySelector('.dropdown-menu a[href="gestionar.html"], .dropdown-menu a[href="/gestionar.html"]');
         if (gestionarLink) gestionarLink.classList.add('active');
+      } else if (currentPath.endsWith('gestionadmins.html')) {
+        const gestionAdminsLink = document.querySelector('.dropdown-menu a[href="gestionadmins.html"], .dropdown-menu a[href="/gestionadmins.html"]');
+        if (gestionAdminsLink) gestionAdminsLink.classList.add('active');
+      } else if (currentPath.endsWith('gestioncargos.html')) {
+        const gestionCargosLink = document.querySelector('.dropdown-menu a[href="gestioncargos.html"], .dropdown-menu a[href="/gestioncargos.html"]');
+        if (gestionCargosLink) gestionCargosLink.classList.add('active');
       }
 
       // IMPORTANTE: Asegurar que el link de 'Viajes' (calendario) NO esté activo

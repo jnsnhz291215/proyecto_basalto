@@ -23,8 +23,23 @@
                 <h1 class="page-title"><i class="fa-solid fa-chart-line"></i> Dashboard KPIs Mensuales</h1>
                 <p class="page-subtitle">Indicadores clave de rendimiento operativo</p>
             </div>
-            <div class="header-actions">
-                <select id="select-anio" class="modern-input" style="width: 150px; font-weight: bold;">
+            <div class="header-actions" style="display: flex; gap: 12px; align-items: center;">
+                <select id="select-mes" class="modern-input" style="width: 180px; font-weight: bold;">
+                    <option value="">Todos los meses</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+                <select id="select-anio" class="modern-input" style="width: 120px; font-weight: bold;">
                     <!-- Se llenará vía JS -->
                 </select>
                 <button id="btn-refresh-kpi" class="btn btn-primary" title="Actualizar datos">
@@ -35,8 +50,8 @@
 
         <!-- Empty State Dashboard -->
         <div id="empty-state-kpis" style="display: none; text-align: center; padding: 60px 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 32px;">
-            <i class="fa-solid fa-chart-pie" style="font-size: 64px; color: #cbd5e1; margin-bottom: 24px;"></i>
-            <h2 style="color: #334155; font-size: 24px; margin-bottom: 12px;">ðŸ“Š Recopilando datos...</h2>
+            <i class="fa-solid fa-chart-line" style="font-size: 64px; color: #cbd5e1; margin-bottom: 24px;"></i>
+            <h2 style="color: #334155; font-size: 24px; margin-bottom: 12px;">Recopilando datos...</h2>
             <p style="color: #64748b; font-size: 16px; max-width: 500px; margin: 0 auto;">Las estadísticas aparecerán tras el primer cierre de turno del mes. Ingrese informes operativos para comenzar a ver las analíticas aquí.</p>
         </div>
 
